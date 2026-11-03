@@ -13,7 +13,7 @@ import java.util.HexFormat;
 import java.util.Locale;
 
 @Service
-public class MemberHashService {
+public class HashService {
     private final BCryptPasswordEncoder passwordEncoder = new BCryptPasswordEncoder();
 
     public String hashPassword(String password) {
@@ -65,5 +65,28 @@ public class MemberHashService {
             case PASSPORT -> number.trim().toUpperCase(Locale.ROOT);
             case OTHER -> number.trim();
         };
+    }
+
+    public String hashOtpCode(String otpCode) {
+        if (otpCode == null || otpCode.isBlank()) {
+            throw new IllegalArgumentException("OTP code must not be blank");
+        }
+
+        String pepper = System.getenv("OTP_CODE_HASH_PEPPER");
+        if (pepper == null || pepper.isBlank()) {
+            throw new IllegalStateException("Environment variable OTP_CODE_HASH_PEPPER must be set and not blank");
+        }
+
+        try {
+            Mac mac = Mac.getInstance("HmacSHA256");
+            mac.init(new SecretKeySpec(pepper.getBytes(StandardCharsets.UTF_8), "HmacSHA256"));
+            return HexFormat.of().formatHex(mac.doFinal(otpCode.getBytes(StandardCharsets.UTF_8)));
+        } catch (NoSuchAlgorithmException | InvalidKeyException e) {
+            throw new IllegalStateException("Unable to hash OTP code", e);
+        }
+    }
+
+    public boolean verifyOtpCode(String rawOtpCode, String hashedOtpCode) {
+        return hashOtpCode(rawOtpCode).equals(hashedOtpCode);
     }
 }
