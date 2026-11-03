@@ -12,9 +12,7 @@ import org.hibernate.annotations.CreationTimestamp;
 import org.hibernate.annotations.UpdateTimestamp;
 
 import java.time.LocalDateTime;
-import java.util.ArrayList;
 import java.util.Date;
-import java.util.List;
 
 @Entity
 @Getter
@@ -32,7 +30,7 @@ public class Member {
     @Column(unique = true, nullable = false, length = 150)
     private String email;
 
-    @Column(name = "password_hash", nullable = false, length = 255)
+    @Column(name = "password_hash", nullable = false)
     private String passwordHash;
 
     @Column(name = "first_name", nullable = false, length = 120)
@@ -69,16 +67,4 @@ public class Member {
     @Column(name = "updated_at", nullable = false)
     private LocalDateTime updatedAt;
 
-    @OneToMany(mappedBy = "member", cascade = CascadeType.ALL, orphanRemoval = true)
-    private List<IdentityDocument> identityDocuments = new ArrayList<>();
-
-    public void addIdentityDocument(IdentityDocument identityDocument) {
-        identityDocuments.add(identityDocument);
-        identityDocument.setMember(this);
-    }
-
-    public void removeIdentityDocument(IdentityDocument identityDocument) {
-        identityDocuments.remove(identityDocument);
-        identityDocument.setMember(null);
-    }
 }

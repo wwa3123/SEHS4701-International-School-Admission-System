@@ -29,8 +29,8 @@ public class IdentityDocument {
     private Long id;
 
     @ManyToOne(fetch = FetchType.LAZY, optional = false)
-    @JoinColumn(name = "member_id", nullable = false)
-    private Member member;
+    @JoinColumn(name = "applicant_id", nullable = false)
+    private Applicant applicant;
 
     @Enumerated(EnumType.STRING)
     @Column(name = "document_type", nullable = false, length = 32)
