@@ -1,4 +1,4 @@
-package hk.edu.cis.cissas.model.entity;
+package hk.edu.cis.cissas.entity;
 
 import jakarta.persistence.*;
 import lombok.Getter;

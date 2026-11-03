@@ -1,7 +1,7 @@
-package hk.edu.cis.cissas.service;
+package hk.edu.cis.cissas.security;
 
-import hk.edu.cis.cissas.model.entity.IdentityDocument;
-import hk.edu.cis.cissas.model.enums.IdentityDocumentType;
+import hk.edu.cis.cissas.entity.IdentityDocument;
+import hk.edu.cis.cissas.enums.IdentityDocumentType;
 import org.springframework.stereotype.Service;
 import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
 import javax.crypto.Mac;

@@ -1,7 +1,7 @@
-package hk.edu.cis.cissas.model.entity;
+package hk.edu.cis.cissas.entity;
 
-import hk.edu.cis.cissas.model.enums.ActorRole;
-import hk.edu.cis.cissas.model.enums.ApplicationStatus;
+import hk.edu.cis.cissas.enums.ActorRole;
+import hk.edu.cis.cissas.enums.ApplicationStatus;
 import jakarta.persistence.*;
 import lombok.Getter;
 import lombok.NoArgsConstructor;

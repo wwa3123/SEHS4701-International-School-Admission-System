@@ -1,6 +1,6 @@
-package hk.edu.cis.cissas.model.entity;
+package hk.edu.cis.cissas.entity;
 
-import hk.edu.cis.cissas.model.enums.LevelCode;
+import hk.edu.cis.cissas.enums.LevelCode;
 import jakarta.persistence.*;
 import jakarta.validation.constraints.Min;
 import lombok.Getter;

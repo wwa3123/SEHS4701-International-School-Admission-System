@@ -1,6 +1,6 @@
-package hk.edu.cis.cissas.model.entity;
+package hk.edu.cis.cissas.entity;
 
-import hk.edu.cis.cissas.model.enums.IdentityDocumentType;
+import hk.edu.cis.cissas.enums.IdentityDocumentType;
 import hk.edu.cis.cissas.security.AesEncryptionConverter;
 import io.hypersistence.utils.hibernate.id.Tsid;
 import jakarta.persistence.Column;

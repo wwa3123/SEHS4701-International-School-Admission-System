@@ -1,6 +1,6 @@
-package hk.edu.cis.cissas.model.entity;
+package hk.edu.cis.cissas.entity;
 
-import hk.edu.cis.cissas.model.enums.AccountStatus;
+import hk.edu.cis.cissas.enums.AccountStatus;
 import jakarta.persistence.Entity;
 import jakarta.persistence.Id;
 import lombok.Getter;
