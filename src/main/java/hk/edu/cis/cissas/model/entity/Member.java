@@ -1,7 +1,6 @@
 package hk.edu.cis.cissas.model.entity;
 
 import hk.edu.cis.cissas.model.enums.AccountStatus;
-import hk.edu.cis.cissas.model.enums.AccountRole;
 import jakarta.persistence.Entity;
 import jakarta.persistence.Id;
 import lombok.Getter;
@@ -30,33 +29,26 @@ public class Member {
     @Column(nullable = false, length = 150, unique = true)
     private String username;
 
-    @Column(unique = true, nullable = false)
+    @Column(unique = true, nullable = false, length = 150)
     private String email;
 
-    @Column(name = "password_hash", nullable = false)
+    @Column(name = "password_hash", nullable = false, length = 255)
     private String passwordHash;
 
-    @Column(name = "first_name", nullable = false)
+    @Column(name = "first_name", nullable = false, length = 120)
     private String firstName;
 
-    @Column(name = "last_name", nullable = false)
+    @Column(name = "last_name", nullable = false, length = 120)
     private String lastName;
 
-    @Column(name = "phone_number")
+    @Column(name = "phone_number", length = 25)
     private String phoneNumber;
 
     @Column(name = "date_of_birth")
     private Date dateOfBirth;
 
-    @Column(name = "address")
+    @Column(name = "address",length = 300)
     private String address;
-
-    @Enumerated(EnumType.STRING)
-    @Column(name = "role",
-            nullable = false,
-            columnDefinition = "ENUM('ROLE_MEMBER', 'ROLE_ADMIN') DEFAULT 'ROLE_MEMBER'"
-    )
-    private AccountRole accountRole = AccountRole.ROLE_MEMBER;
 
     @Enumerated(EnumType.STRING)
     @Column(

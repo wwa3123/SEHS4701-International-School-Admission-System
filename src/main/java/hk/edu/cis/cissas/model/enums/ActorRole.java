@@ -1,6 +1,7 @@
 package hk.edu.cis.cissas.model.enums;
 
-public enum AccountRole {
+public enum ActorRole {
     ROLE_MEMBER,
-    ROLE_ADMIN
+    ROLE_ADMIN,
+    ROLE_SYSTEM
 }
