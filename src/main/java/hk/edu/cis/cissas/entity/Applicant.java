@@ -8,14 +8,15 @@ import org.hibernate.annotations.CreationTimestamp;
 
 import java.time.LocalDate;
 import java.time.LocalDateTime;
+import java.util.ArrayList;
+import java.util.List;
 
 @Entity
 @Getter
 @Setter
 @NoArgsConstructor
 @Table(
-        name = "applicant",
-        uniqueConstraints = @UniqueConstraint(name = "uk_applicant_hkid", columnNames = "hkid")
+        name = "applicant"
 )
 public class Applicant {
     @Id
@@ -47,4 +48,17 @@ public class Applicant {
     @CreationTimestamp
     @Column(name = "created_at", nullable = false, updatable = false)
     private LocalDateTime createdAt = LocalDateTime.now();
+
+    @OneToMany(mappedBy = "applicant", cascade = CascadeType.ALL, orphanRemoval = true)
+    private List<IdentityDocument> identityDocuments = new ArrayList<>();
+
+    public void addIdentityDocument(IdentityDocument identityDocument) {
+        identityDocuments.add(identityDocument);
+        identityDocument.setApplicant(this);
+    }
+
+    public void removeIdentityDocument(IdentityDocument identityDocument) {
+        identityDocuments.remove(identityDocument);
+        identityDocument.setApplicant(null);
+    }
 }
