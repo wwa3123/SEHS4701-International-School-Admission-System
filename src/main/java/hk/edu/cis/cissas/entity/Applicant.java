@@ -30,9 +30,6 @@ public class Applicant {
     @Column(name = "full_name", nullable = false, length = 120)
     private String fullName;
 
-    @Column(nullable = false, length = 15)
-    private String hkid;
-
     @Column(name = "date_of_birth", nullable = false)
     private LocalDate dateOfBirth;
 

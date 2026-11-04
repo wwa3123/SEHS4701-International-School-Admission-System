@@ -12,7 +12,9 @@ import org.hibernate.annotations.CreationTimestamp;
 import org.hibernate.annotations.UpdateTimestamp;
 
 import java.time.LocalDateTime;
+import java.util.ArrayList;
 import java.util.Date;
+import java.util.List;
 
 @Entity
 @Getter
@@ -66,5 +68,18 @@ public class Member {
     @UpdateTimestamp
     @Column(name = "updated_at", nullable = false)
     private LocalDateTime updatedAt;
+
+    @OneToMany(mappedBy = "member", cascade = CascadeType.ALL, orphanRemoval = true)
+    private List<IdentityDocument> identityDocuments = new ArrayList<>();
+
+    public void addIdentityDocument(IdentityDocument identityDocument) {
+        identityDocuments.add(identityDocument);
+        identityDocument.setMember(this);
+    }
+
+    public void removeIdentityDocument(IdentityDocument identityDocument) {
+        identityDocuments.remove(identityDocument);
+        identityDocument.setMember(null);
+    }
 
 }

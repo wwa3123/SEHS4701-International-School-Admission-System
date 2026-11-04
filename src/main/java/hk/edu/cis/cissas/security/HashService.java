@@ -55,7 +55,7 @@ public class HashService {
             Mac mac = Mac.getInstance("HmacSHA256");
             mac.init(new SecretKeySpec(identityDocumentHashPepper.getBytes(StandardCharsets.UTF_8), "HmacSHA256"));
             String issuingCountry = identityDocument.getIssuingCountry();
-            String normalizedCountry = issuingCountry == null
+            String normalizedCountry = documentType == IdentityDocumentType.HKID || issuingCountry == null
                     ? ""
                     : issuingCountry.trim().toUpperCase(Locale.ROOT);
             String hashInput = documentType.name() + '\0' + normalizedCountry + '\0' + normalizedNumber;
