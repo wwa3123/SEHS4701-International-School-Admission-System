@@ -16,23 +16,23 @@ import java.time.Duration;
 import java.time.LocalDateTime;
 
 @Service
-public class OtpService {
+public class OtcService {
     private final OneTimeCodeRepository oneTimeCodeRepository;
     private final HashService hashService;
     private final EmailService emailService;
     private final SecureRandom secureRandom = new SecureRandom();
 
-    @Value("${cissas.otp.expiry-minutes:15}")
-    private int otpExpiryMinutes;
+    @Value("${cissas.otc.expiry-minutes:15}")
+    private int otcExpiryMinutes;
 
-    @Value("${cissas.otp.max-attempts:5}")
-    private int otpMaxAttempts;
+    @Value("${cissas.otc.max-attempts:5}")
+    private int otcMaxAttempts;
 
-    @Value("${cissas.otp.resend-cooldown-seconds:60}")
-    private int otpResendCooldownSeconds;
+    @Value("${cissas.otc.resend-cooldown-seconds:60}")
+    private int otcResendCooldownSeconds;
 
     @Autowired
-    public OtpService(
+    public OtcService(
             OneTimeCodeRepository oneTimeCodeRepository,
             HashService hashService,
             EmailService emailService) {
@@ -41,18 +41,18 @@ public class OtpService {
         this.emailService = emailService;
     }
 
-    private String generateOtp() {
+    private String generateOtc() {
         return String.valueOf(100000 + secureRandom.nextInt(900000));
     }
 
     @Transactional
-    public void issueAndSendOtp(Member member) {
-        String rawSixDigitCode = generateOtp();
+    public void issueAndSendOtc(Member member) {
+        String rawSixDigitCode = generateOtc();
 
         OneTimeCode otc = new OneTimeCode();
         otc.setMember(member);
-        otc.setCodeHash(hashService.hashOtpCode(rawSixDigitCode));
-        otc.setExpiresAt(LocalDateTime.now().plusMinutes(otpExpiryMinutes));
+        otc.setCodeHash(hashService.hashOtcCode(rawSixDigitCode));
+        otc.setExpiresAt(LocalDateTime.now().plusMinutes(otcExpiryMinutes));
         otc.setAttemptCount(0);
         otc.setUsed(false);
         oneTimeCodeRepository.save(otc);
@@ -60,7 +60,7 @@ public class OtpService {
         String memberName = member.getFirstName() + " " + member.getLastName();
         String applicantName = "N/A";
         String applicationNumber = "N/A (Membership Verification)";
-        String actionRequired = "Enter the 6-digit verification code within " + otpExpiryMinutes
+        String actionRequired = "Enter the 6-digit verification code within " + otcExpiryMinutes
                 + " minutes to activate your CIS membership account.";
         String body = emailService.formatStandardBody(
                 memberName,
@@ -68,13 +68,13 @@ public class OtpService {
                 applicationNumber,
                 actionRequired,
                 "Your one-time 6-digit verification code is: " + rawSixDigitCode
-                        + "\nThis code expires in " + otpExpiryMinutes + " minutes."
+                        + "\nThis code expires in " + otcExpiryMinutes + " minutes."
         );
 
         emailService.sendAndLogEmail(new EmailDispatchRequest(
                 member,
                 null,
-                EmailTemplateType.OTP_VERIFICATION,
+                EmailTemplateType.OTC_VERIFICATION,
                 applicantName,
                 applicationNumber,
                 actionRequired,
@@ -84,14 +84,14 @@ public class OtpService {
     }
 
     @Transactional
-    public void throttleAndResendOtp(Member member) {
+    public void throttleAndResendOtc(Member member) {
         OneTimeCode latestCode = oneTimeCodeRepository
                 .findFirstByMemberIdOrderByCreatedAtDesc(member.getId())
                 .orElse(null);
 
         if (latestCode != null) {
             long elapsedSeconds = Duration.between(latestCode.getCreatedAt(), LocalDateTime.now()).getSeconds();
-            long remainingSeconds = otpResendCooldownSeconds - elapsedSeconds;
+            long remainingSeconds = otcResendCooldownSeconds - elapsedSeconds;
             if (remainingSeconds > 0) {
                 throw new IllegalStateException(
                         "Please wait " + remainingSeconds + " seconds before requesting a new code.");
@@ -103,27 +103,27 @@ public class OtpService {
             }
         }
 
-        issueAndSendOtp(member);
+        issueAndSendOtc(member);
     }
 
     @Transactional(noRollbackFor = IllegalArgumentException.class)
-    public void verifyCode(Long memberId, String rawSubmittedCode) {
+    public void verifyOtc(Long memberId, String rawSubmittedCode) {
         OneTimeCode otc = oneTimeCodeRepository.findFirstByMemberIdOrderByCreatedAtDesc(memberId)
-                .orElseThrow(() -> new IllegalArgumentException("No OTP found for the member."));
+                .orElseThrow(() -> new IllegalArgumentException("No otc found for the member."));
 
         if (otc.isUsed()) {
-            throw new IllegalArgumentException("This OTP has already been used.");
+            throw new IllegalArgumentException("This otc has already been used.");
         }
 
         if (LocalDateTime.now().isAfter(otc.getExpiresAt())) {
             throw new IllegalArgumentException("Verification code has expired.");
         }
 
-        if (otc.getAttemptCount() >= otpMaxAttempts) {
+        if (otc.getAttemptCount() >= otcMaxAttempts) {
             throw new IllegalArgumentException("Maximum verification attempts exceeded.");
         }
 
-        if (!hashService.verifyOtpCode(rawSubmittedCode, otc.getCodeHash())) {
+        if (!hashService.verifyOtcCode(rawSubmittedCode, otc.getCodeHash())) {
             otc.setAttemptCount(otc.getAttemptCount() + 1);
             oneTimeCodeRepository.save(otc);
             throw new IllegalArgumentException("Invalid verification code.");
