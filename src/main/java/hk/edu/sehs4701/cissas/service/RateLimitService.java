@@ -20,8 +20,8 @@ import java.util.stream.Collectors;
 
 @Service
 public class RateLimitService {
-    private static final int MAX_REQUESTS_PER_MINUTE = 10;
-    private static final int MAX_LOGIN_REQUESTS_PER_MINUTE = 100;
+    private static final int MAX_REQUESTS_PER_MINUTE = Integer.parseInt("${cissas.registration.max-requests-per-minute}");
+    private static final int MAX_LOGIN_REQUESTS_PER_MINUTE = Integer.parseInt("${cissas.login.max-requests-per-minute}");
 
     private final RateLimitRepository rateLimitRepository;
     private final HashService hashService;
