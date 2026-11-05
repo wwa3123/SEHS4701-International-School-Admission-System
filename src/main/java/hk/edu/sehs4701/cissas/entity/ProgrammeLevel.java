@@ -30,6 +30,10 @@ public class ProgrammeLevel {
     @Column(name = "programme_name", nullable = false, length = 120)
     private String programmeName;
 
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "academic_year_id")
+    private AcademicYear academicYear;
+
     @Min(0)
     @Column(name = "seat_quota", nullable = false)
     private Integer seatQuota = 150;
