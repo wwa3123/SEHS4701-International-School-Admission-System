@@ -1,10 +1,10 @@
 package hk.edu.sehs4701.cissas.service;
 
 import hk.edu.sehs4701.cissas.dto.request.MembershipRegistrationRequest;
+import hk.edu.sehs4701.cissas.entity.IdentityDocument;
 import hk.edu.sehs4701.cissas.entity.Member;
 import hk.edu.sehs4701.cissas.enums.AccountStatus;
 import hk.edu.sehs4701.cissas.enums.IdentityDocumentType;
-import hk.edu.sehs4701.cissas.repository.IdentityDocumentRepository;
 import hk.edu.sehs4701.cissas.repository.MemberRepository;
 import hk.edu.sehs4701.cissas.security.HashService;
 import org.junit.jupiter.api.Test;
@@ -20,11 +20,11 @@ class MembershipRegistrationServiceTest {
     @Test
     void pendingRegistrationCanResendButCannotReplaceAccountDetails() {
         MemberRepository memberRepository = mock(MemberRepository.class);
-        IdentityDocumentRepository identityDocumentRepository = mock(IdentityDocumentRepository.class);
+        IdentityDocumentService identityDocumentService = mock(IdentityDocumentService.class);
         HashService hashService = mock(HashService.class);
         OtcService otcService = mock(OtcService.class);
         MembershipRegistrationService service = new MembershipRegistrationService(
-                memberRepository, identityDocumentRepository, hashService, otcService
+                memberRepository, identityDocumentService, hashService, otcService
         );
 
         Member member = new Member();
@@ -47,20 +47,24 @@ class MembershipRegistrationServiceTest {
         assertEquals("Member", member.getLastName());
         assertEquals("12345678", member.getPhoneNumber());
         verify(otcService).throttleAndResendOtc(member);
-        verifyNoInteractions(identityDocumentRepository, hashService);
+        verifyNoInteractions(identityDocumentService, hashService);
     }
 
     @Test
     void newRegistrationSavesMemberAndIssuesVerificationCode() {
         MemberRepository memberRepository = mock(MemberRepository.class);
-        IdentityDocumentRepository identityDocumentRepository = mock(IdentityDocumentRepository.class);
+        IdentityDocumentService identityDocumentService = mock(IdentityDocumentService.class);
         HashService hashService = mock(HashService.class);
         OtcService otcService = mock(OtcService.class);
         MembershipRegistrationService service = new MembershipRegistrationService(
-                memberRepository, identityDocumentRepository, hashService, otcService
+                memberRepository, identityDocumentService, hashService, otcService
         );
+        IdentityDocument document = new IdentityDocument();
+        document.setDocumentNumberHash("document-hash");
+        when(identityDocumentService.validateAndCreate(
+                IdentityDocumentType.HKID, "A123456(7)", null
+        )).thenReturn(document);
         when(memberRepository.findByEmailIgnoreCase("member@example.com")).thenReturn(Optional.empty());
-        when(hashService.generateDocumentNumberHash(any())).thenReturn("document-hash");
         when(memberRepository.save(any(Member.class))).thenAnswer(invocation -> invocation.getArgument(0));
 
         service.register(validRequest());
@@ -72,20 +76,22 @@ class MembershipRegistrationServiceTest {
                         && member.getIdentityDocuments().getFirst().getDocumentNumberHash().equals("document-hash")
         ));
         verify(otcService).issueAndSendOtc(any(Member.class));
+        verify(identityDocumentService).validateAndCreate(IdentityDocumentType.HKID, "A123456(7)", null);
     }
 
     @Test
     void duplicateIdentityDocumentDoesNotCreateMemberOrIssueCode() {
         MemberRepository memberRepository = mock(MemberRepository.class);
-        IdentityDocumentRepository identityDocumentRepository = mock(IdentityDocumentRepository.class);
+        IdentityDocumentService identityDocumentService = mock(IdentityDocumentService.class);
         HashService hashService = mock(HashService.class);
         OtcService otcService = mock(OtcService.class);
         MembershipRegistrationService service = new MembershipRegistrationService(
-                memberRepository, identityDocumentRepository, hashService, otcService
+                memberRepository, identityDocumentService, hashService, otcService
         );
         when(memberRepository.findByEmailIgnoreCase("member@example.com")).thenReturn(Optional.empty());
-        when(hashService.generateDocumentNumberHash(any())).thenReturn("document-hash");
-        when(identityDocumentRepository.existsByDocumentNumberHash("document-hash")).thenReturn(true);
+        when(identityDocumentService.validateAndCreate(
+                IdentityDocumentType.HKID, "A123456(7)", null
+        )).thenThrow(new ResponseStatusException(org.springframework.http.HttpStatus.CONFLICT));
 
         assertThrows(ResponseStatusException.class, () -> service.register(validRequest()));
 

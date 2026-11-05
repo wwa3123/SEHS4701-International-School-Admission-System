@@ -4,8 +4,6 @@ import hk.edu.sehs4701.cissas.dto.request.MembershipRegistrationRequest;
 import hk.edu.sehs4701.cissas.entity.IdentityDocument;
 import hk.edu.sehs4701.cissas.entity.Member;
 import hk.edu.sehs4701.cissas.enums.AccountStatus;
-import hk.edu.sehs4701.cissas.enums.IdentityDocumentType;
-import hk.edu.sehs4701.cissas.repository.IdentityDocumentRepository;
 import hk.edu.sehs4701.cissas.repository.MemberRepository;
 import hk.edu.sehs4701.cissas.security.HashService;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -21,18 +19,18 @@ import java.util.Locale;
 @Service
 public class MembershipRegistrationService {
     private final MemberRepository memberRepository;
-    private final IdentityDocumentRepository identityDocumentRepository;
+    private final IdentityDocumentService identityDocumentService;
     private final HashService hashService;
     private final OtcService otcService;
 
     @Autowired
     public MembershipRegistrationService(
             MemberRepository memberRepository,
-            IdentityDocumentRepository identityDocumentRepository,
+            IdentityDocumentService identityDocumentService,
             HashService hashService,
             OtcService otcService) {
         this.memberRepository = memberRepository;
-        this.identityDocumentRepository = identityDocumentRepository;
+        this.identityDocumentService = identityDocumentService;
         this.hashService = hashService;
         this.otcService = otcService;
     }
@@ -51,23 +49,6 @@ public class MembershipRegistrationService {
             return;
         }
 
-        String documentNumber = request.documentNumber().trim();
-        String issuingCountry = request.issuingCountry() == null
-                ? null
-                : request.issuingCountry().trim().toUpperCase(Locale.ROOT);
-        if (request.documentType() == IdentityDocumentType.HKID) {
-            documentNumber = documentNumber.toUpperCase(Locale.ROOT);
-            if (!documentNumber.matches("^[A-Z]{1,2}[0-9]{6}\\([0-9A]\\)$")) {
-                throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Invalid HKID format");
-            }
-            issuingCountry = "HK";
-        } else if (issuingCountry == null || !issuingCountry.matches("^[A-Z]{2}$")) {
-            throw new ResponseStatusException(
-                    HttpStatus.BAD_REQUEST,
-                    "A two-letter issuing country is required for this document type"
-            );
-        }
-
         member = new Member();
         member.setUsername(email);
         member.setEmail(email);
@@ -77,16 +58,11 @@ public class MembershipRegistrationService {
         member.setPhoneNumber(request.phoneNumber().trim());
         member.setAccountStatus(AccountStatus.UNVERIFIED);
 
-        IdentityDocument identityDocument = new IdentityDocument();
-        identityDocument.setDocumentType(request.documentType());
-        identityDocument.setDocumentNumber(documentNumber);
-        identityDocument.setIssuingCountry(issuingCountry);
-        String documentHash = hashService.generateDocumentNumberHash(identityDocument);
-        if (identityDocumentRepository.existsByDocumentNumberHash(documentHash)) {
-            throw new ResponseStatusException(HttpStatus.CONFLICT, "Identity document is already linked to an account");
-        }
-
-        identityDocument.setDocumentNumberHash(documentHash);
+        IdentityDocument identityDocument = identityDocumentService.validateAndCreate(
+                request.documentType(),
+                request.documentNumber(),
+                request.issuingCountry()
+        );
         member.addIdentityDocument(identityDocument);
 
         Member savedMember = memberRepository.save(member);
