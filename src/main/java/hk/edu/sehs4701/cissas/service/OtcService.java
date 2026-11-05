@@ -1,9 +1,7 @@
 package hk.edu.sehs4701.cissas.service;
 
-import hk.edu.sehs4701.cissas.dto.request.EmailDispatchRequest;
 import hk.edu.sehs4701.cissas.entity.Member;
 import hk.edu.sehs4701.cissas.entity.OneTimeCode;
-import hk.edu.sehs4701.cissas.enums.EmailTemplateType;
 import hk.edu.sehs4701.cissas.repository.OneTimeCodeRepository;
 import hk.edu.sehs4701.cissas.security.HashService;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -19,7 +17,7 @@ import java.time.LocalDateTime;
 public class OtcService {
     private final OneTimeCodeRepository oneTimeCodeRepository;
     private final HashService hashService;
-    private final EmailService emailService;
+    private final NotificationService notificationService;
     private final SecureRandom secureRandom = new SecureRandom();
 
     @Value("${cissas.otc.expiry-minutes:15}")
@@ -35,10 +33,10 @@ public class OtcService {
     public OtcService(
             OneTimeCodeRepository oneTimeCodeRepository,
             HashService hashService,
-            EmailService emailService) {
+            NotificationService notificationService) {
         this.oneTimeCodeRepository = oneTimeCodeRepository;
         this.hashService = hashService;
-        this.emailService = emailService;
+        this.notificationService = notificationService;
     }
 
     private String generateOtc() {
@@ -57,30 +55,7 @@ public class OtcService {
         otc.setUsed(false);
         oneTimeCodeRepository.save(otc);
 
-        String memberName = member.getFirstName() + " " + member.getLastName();
-        String applicantName = "N/A";
-        String applicationNumber = "N/A (Membership Verification)";
-        String actionRequired = "Enter the 6-digit verification code within " + otcExpiryMinutes
-                + " minutes to activate your CIS membership account.";
-        String body = emailService.formatStandardBody(
-                memberName,
-                applicantName,
-                applicationNumber,
-                actionRequired,
-                "Your one-time 6-digit verification code is: " + rawSixDigitCode
-                        + "\nThis code expires in " + otcExpiryMinutes + " minutes."
-        );
-
-        emailService.sendAndLogEmail(new EmailDispatchRequest(
-                member,
-                null,
-                EmailTemplateType.OTC_VERIFICATION,
-                applicantName,
-                applicationNumber,
-                actionRequired,
-                "[CIS SAS] Email Verification Code",
-                body
-        ));
+        notificationService.sendVerificationCode(member, rawSixDigitCode, otcExpiryMinutes);
     }
 
     @Transactional

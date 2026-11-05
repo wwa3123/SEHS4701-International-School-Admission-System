@@ -65,28 +65,7 @@ public class EmailService {
         return savedLog;
     }
 
-    public String formatStandardBody(
-            String memberName,
-            String applicantName,
-            String applicationNumber,
-            String actionRequired,
-            String messageContent) {
-        return """
-            Dear %s,
 
-            %s
-
-            ------------------------------------------------------------
-            Applicant Name     : %s
-            Application Number : %s
-            Action Required    : %s
-            ------------------------------------------------------------
-
-            Best regards,
-            Admissions Office
-            Christian International School (CIS)
-            """.formatted(memberName, messageContent, applicantName, applicationNumber, actionRequired);
-    }
 
 
 }
