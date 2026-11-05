@@ -3,7 +3,7 @@ package hk.edu.sehs4701.cissas.controller.pub;
 import hk.edu.sehs4701.cissas.dto.request.MembershipRegistrationRequest;
 import hk.edu.sehs4701.cissas.enums.IdentityDocumentType;
 import hk.edu.sehs4701.cissas.service.MembershipRegistrationService;
-import hk.edu.sehs4701.cissas.service.RegistrationRateLimitService;
+import hk.edu.sehs4701.cissas.service.RateLimitService;
 import org.junit.jupiter.api.Test;
 import org.springframework.dao.DataIntegrityViolationException;
 
@@ -17,7 +17,7 @@ class MembershipRegistrationControllerTest {
     @Test
     void duplicateKeyRaceReturnsGenericAcceptedResponse() {
         MembershipRegistrationService registrationService = mock(MembershipRegistrationService.class);
-        RegistrationRateLimitService rateLimitService = mock(RegistrationRateLimitService.class);
+        RateLimitService rateLimitService = mock(RateLimitService.class);
         MembershipRegistrationController controller = new MembershipRegistrationController(
                 registrationService, rateLimitService
         );
@@ -36,7 +36,7 @@ class MembershipRegistrationControllerTest {
     @Test
     void nonDuplicateIntegrityErrorsAreNotHidden() {
         MembershipRegistrationService registrationService = mock(MembershipRegistrationService.class);
-        RegistrationRateLimitService rateLimitService = mock(RegistrationRateLimitService.class);
+        RateLimitService rateLimitService = mock(RateLimitService.class);
         MembershipRegistrationController controller = new MembershipRegistrationController(
                 registrationService, rateLimitService
         );

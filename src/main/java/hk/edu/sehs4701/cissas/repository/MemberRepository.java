@@ -9,4 +9,6 @@ import org.springframework.data.jpa.repository.Lock;
 public interface MemberRepository extends JpaRepository<Member, Long> {
     @Lock(LockModeType.PESSIMISTIC_WRITE)
     Optional<Member> findByEmailIgnoreCase(String email);
+
+    Optional<Member> findFirstByEmailIgnoreCase(String email);
 }

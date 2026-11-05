@@ -6,7 +6,7 @@ import hk.edu.sehs4701.cissas.dto.request.VerifyMembershipEmailRequest;
 import hk.edu.sehs4701.cissas.dto.response.MembershipRegistrationResponse;
 import hk.edu.sehs4701.cissas.service.MembershipRegistrationService;
 import hk.edu.sehs4701.cissas.service.OtcService;
-import hk.edu.sehs4701.cissas.service.RegistrationRateLimitService;
+import hk.edu.sehs4701.cissas.service.RateLimitService;
 import jakarta.validation.Valid;
 import jakarta.servlet.http.HttpServletRequest;
 import org.springframework.dao.DataIntegrityViolationException;
@@ -25,13 +25,13 @@ public class MembershipRegistrationController {
     private static final int MYSQL_DUPLICATE_KEY_ERROR_CODE = 1062;
 
     private final MembershipRegistrationService membershipRegistrationService;
-    private final RegistrationRateLimitService registrationRateLimitService;
+    private final RateLimitService rateLimitService;
 
     public MembershipRegistrationController(
             MembershipRegistrationService membershipRegistrationService,
-            RegistrationRateLimitService registrationRateLimitService) {
+            RateLimitService rateLimitService) {
         this.membershipRegistrationService = membershipRegistrationService;
-        this.registrationRateLimitService = registrationRateLimitService;
+        this.rateLimitService = rateLimitService;
     }
 
     @PostMapping("/register")
@@ -39,7 +39,7 @@ public class MembershipRegistrationController {
     public MembershipRegistrationResponse register(
             @Valid @RequestBody MembershipRegistrationRequest request,
             HttpServletRequest servletRequest) {
-        registrationRateLimitService.checkAllowed(registrationRateLimitService.resolveClientAddress(servletRequest));
+        rateLimitService.checkAllowed(rateLimitService.resolveClientAddress(servletRequest));
         try {
             membershipRegistrationService.register(request);
         } catch (OtcService.ResendCooldownException ignored) {
