@@ -1,10 +1,13 @@
 package hk.edu.sehs4701.cissas.repository;
 
 import hk.edu.sehs4701.cissas.entity.AcademicYear;
+import hk.edu.sehs4701.cissas.enums.AcademicYearStatus;
 import org.springframework.data.jpa.repository.JpaRepository;
 
 import java.util.List;
+import java.util.Optional;
 
 public interface AcademicYearRepository extends JpaRepository<AcademicYear, Long> {
-    List<AcademicYear> findAllByOrderByStartDateDesc();
+    List<AcademicYear> findAllByOrderByApplicationStartDateDesc();
+    Optional<AcademicYear> findFirstByStatusOrderByApplicationStartDateDesc(AcademicYearStatus status);
 }

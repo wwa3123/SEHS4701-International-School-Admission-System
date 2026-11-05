@@ -23,6 +23,11 @@ public class AcademicYearController {
         return academicYearService.list();
     }
 
+    @GetMapping("/open-for-application")
+    public AcademicYearResponse getCurrentOpenForApplicationAcademicYear() {
+        return academicYearService.getCurrentOpenForApplicationAcademicYear();
+    }
+
     @GetMapping("/{id}")
     public AcademicYearResponse get(@PathVariable Long id) {
         return academicYearService.get(id);

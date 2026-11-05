@@ -17,7 +17,7 @@ import java.time.LocalDate;
         name = "academic_year",
         uniqueConstraints = @UniqueConstraint(name = "uk_academic_year_name", columnNames = "name")
 )
-@Check(constraints = "start_date < end_date")
+@Check(constraints = "application_start_date < application_end_date")
 public class AcademicYear {
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
@@ -26,11 +26,11 @@ public class AcademicYear {
     @Column(nullable = false, length = 20)
     private String name;
 
-    @Column(name = "start_date", nullable = false)
-    private LocalDate startDate;
+    @Column(name = "application_start_date", nullable = false)
+    private LocalDate applicationStartDate;
 
-    @Column(name = "end_date", nullable = false)
-    private LocalDate endDate;
+    @Column(name = "application_end_date", nullable = false)
+    private LocalDate applicationEndDate;
 
     @Enumerated(EnumType.STRING)
     @Column(nullable = false)
