@@ -62,7 +62,7 @@ class MembershipRegistrationServiceTest {
         IdentityDocument document = new IdentityDocument();
         document.setDocumentNumberHash("document-hash");
         when(identityDocumentService.validateAndCreate(
-                IdentityDocumentType.HKID, "A123456(7)", null
+                IdentityDocumentType.HKID, "A123456(8)", null
         )).thenReturn(document);
         when(memberRepository.findByEmailIgnoreCase("member@example.com")).thenReturn(Optional.empty());
         when(memberRepository.save(any(Member.class))).thenAnswer(invocation -> invocation.getArgument(0));
@@ -76,7 +76,7 @@ class MembershipRegistrationServiceTest {
                         && member.getIdentityDocuments().getFirst().getDocumentNumberHash().equals("document-hash")
         ));
         verify(otcService).issueAndSendOtc(any(Member.class));
-        verify(identityDocumentService).validateAndCreate(IdentityDocumentType.HKID, "A123456(7)", null);
+        verify(identityDocumentService).validateAndCreate(IdentityDocumentType.HKID, "A123456(8)", null);
     }
 
     @Test
@@ -90,7 +90,7 @@ class MembershipRegistrationServiceTest {
         );
         when(memberRepository.findByEmailIgnoreCase("member@example.com")).thenReturn(Optional.empty());
         when(identityDocumentService.validateAndCreate(
-                IdentityDocumentType.HKID, "A123456(7)", null
+                IdentityDocumentType.HKID, "A123456(8)", null
         )).thenThrow(new ResponseStatusException(org.springframework.http.HttpStatus.CONFLICT));
 
         assertThrows(ResponseStatusException.class, () -> service.register(validRequest()));
@@ -102,7 +102,7 @@ class MembershipRegistrationServiceTest {
     private MembershipRegistrationRequest validRequest() {
         return new MembershipRegistrationRequest(
                 "Test", "Member", "member@example.com", "12345678",
-                IdentityDocumentType.HKID, "A123456(7)", null, "secure-password"
+                IdentityDocumentType.HKID, "A123456(8)", null, "secure-password"
         );
     }
 }

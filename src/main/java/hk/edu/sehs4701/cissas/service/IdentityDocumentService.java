@@ -33,7 +33,7 @@ public class IdentityDocumentService {
         issuingCountry = issuingCountry == null ? null : issuingCountry.trim().toUpperCase(Locale.ROOT);
         if (documentType == IdentityDocumentType.HKID) {
             documentNumber = documentNumber.toUpperCase(Locale.ROOT);
-            if (!documentNumber.matches("^[A-Z]{1,2}[0-9]{6}\\([0-9A]\\)$")) {
+            if (!validateHKIDChecksum(documentNumber)) {
                 throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Invalid HKID format");
             }
             issuingCountry = "HK";
@@ -54,5 +54,50 @@ public class IdentityDocumentService {
         }
         identityDocument.setDocumentNumberHash(documentHash);
         return identityDocument;
+    }
+
+    private boolean validateHKIDChecksum(String documentNumber) {
+        /* This regex checks for an HKID-shaped value:
+        * ^ and $: require the entire string to match
+        * [A-Z]{1,2}: one or two uppercase letters
+        * [0-9]{6}: six digits
+        * \\([0-9A]\\): a digit or 'A' enclosed in parentheses
+        *
+        * Correct examples: A123456(8), AB123456(9)
+        * Wrong examples: A1234567, A123456(7), a123456(8), A12345(8), AA123456(7)
+        * */
+        if (!documentNumber.matches("^[A-Z]{1,2}[0-9]{6}\\([0-9A]\\)$")) {
+            return false;
+        }
+
+        String cleaned = documentNumber.replaceAll("[()]", "");
+        char checksumChar = cleaned.charAt(cleaned.length() - 1);
+        String numberPart = cleaned.substring(0, cleaned.length() - 1);
+
+        int sum = 0;
+        for (int i = 0; i < numberPart.length(); i++) {
+            char c = numberPart.charAt(i);
+            int value;
+            if (Character.isDigit(c)) {
+                value = Character.getNumericValue(c);
+            } else if (Character.isLetter(c)) {
+                value = c - 'A' + 10; // A=10, B=11, ..., Z=35
+            } else {
+                return false; // Invalid character
+            }
+            sum += value * (numberPart.length() + 1 - i);
+        }
+
+        int remainder = sum % 11;
+        char expectedChecksumChar;
+        if (remainder == 0) {
+            expectedChecksumChar = '0';
+        } else if (remainder == 1) {
+            expectedChecksumChar = 'A';
+        } else {
+            expectedChecksumChar = (char) ('0' + (11 - remainder));
+        }
+
+        return checksumChar == expectedChecksumChar;
     }
 }

@@ -21,10 +21,10 @@ class IdentityDocumentServiceTest {
     void normalizesHkidAndCreatesDocumentWithHash() {
         when(hashService.generateDocumentNumberHash(any())).thenReturn("document-hash");
 
-        var document = service.validateAndCreate(IdentityDocumentType.HKID, " a123456(7) ", null);
+        var document = service.validateAndCreate(IdentityDocumentType.HKID, " a123456(8) ", null);
 
         assertEquals(IdentityDocumentType.HKID, document.getDocumentType());
-        assertEquals("A123456(7)", document.getDocumentNumber());
+        assertEquals("A123456(8)", document.getDocumentNumber());
         assertEquals("HK", document.getIssuingCountry());
         assertEquals("document-hash", document.getDocumentNumberHash());
         verify(repository).existsByDocumentNumberHash("document-hash");
@@ -35,6 +35,26 @@ class IdentityDocumentServiceTest {
         ResponseStatusException exception = assertThrows(
                 ResponseStatusException.class,
                 () -> service.validateAndCreate(IdentityDocumentType.HKID, "invalid", null)
+        );
+
+        assertEquals(HttpStatus.BAD_REQUEST, exception.getStatusCode());
+        verifyNoInteractions(repository, hashService);
+    }
+
+    @Test
+    void acceptsTwoLetterHkidWithValidChecksum() {
+        when(hashService.generateDocumentNumberHash(any())).thenReturn("document-hash");
+
+        var document = service.validateAndCreate(IdentityDocumentType.HKID, "AB123456(9)", null);
+
+        assertEquals("AB123456(9)", document.getDocumentNumber());
+    }
+
+    @Test
+    void rejectsHkidWithIncorrectChecksum() {
+        ResponseStatusException exception = assertThrows(
+                ResponseStatusException.class,
+                () -> service.validateAndCreate(IdentityDocumentType.HKID, "A123456(7)", null)
         );
 
         assertEquals(HttpStatus.BAD_REQUEST, exception.getStatusCode());

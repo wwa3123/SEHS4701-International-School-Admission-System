@@ -53,7 +53,7 @@ class MembershipRegistrationControllerTest {
     private MembershipRegistrationRequest validRequest() {
         return new MembershipRegistrationRequest(
                 "Test", "Member", "member@example.com", "12345678",
-                IdentityDocumentType.HKID, "A123456(7)", null, "secure-password"
+                IdentityDocumentType.HKID, "A123456(8)", null, "secure-password"
         );
     }
 }
