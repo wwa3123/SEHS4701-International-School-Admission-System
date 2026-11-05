@@ -1,6 +1,6 @@
 package hk.edu.sehs4701.cissas.repository;
 
-import hk.edu.sehs4701.cissas.entity.RegistrationRateLimit;
+import hk.edu.sehs4701.cissas.entity.RateLimit;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Modifying;
 import org.springframework.data.jpa.repository.Query;
@@ -9,7 +9,7 @@ import org.springframework.transaction.annotation.Transactional;
 
 import java.time.LocalDateTime;
 
-public interface RegistrationRateLimitRepository extends JpaRepository<RegistrationRateLimit, String> {
+public interface RateLimitRepository extends JpaRepository<RateLimit, String> {
     @Modifying
     @Transactional
     @Query(value = """
@@ -25,11 +25,11 @@ public interface RegistrationRateLimitRepository extends JpaRepository<Registrat
             @Param("cutoff") LocalDateTime cutoff
     );
 
-    @Query("select r.requestCount from RegistrationRateLimit r where r.rateKey = :rateKey")
+    @Query("select r.requestCount from RateLimit r where r.rateKey = :rateKey")
     int findRequestCount(@Param("rateKey") String rateKey);
 
     @Modifying
     @Transactional
-    @Query("delete from RegistrationRateLimit r where r.windowStartedAt < :cutoff")
+    @Query("delete from RateLimit r where r.windowStartedAt < :cutoff")
     int deleteExpired(@Param("cutoff") LocalDateTime cutoff);
 }

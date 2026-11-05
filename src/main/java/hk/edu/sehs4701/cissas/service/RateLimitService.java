@@ -1,6 +1,6 @@
 package hk.edu.sehs4701.cissas.service;
 
-import hk.edu.sehs4701.cissas.repository.RegistrationRateLimitRepository;
+import hk.edu.sehs4701.cissas.repository.RateLimitRepository;
 import hk.edu.sehs4701.cissas.security.HashService;
 import jakarta.servlet.http.HttpServletRequest;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -19,16 +19,17 @@ import java.util.Set;
 import java.util.stream.Collectors;
 
 @Service
-public class RegistrationRateLimitService {
+public class RateLimitService {
     private static final int MAX_REQUESTS_PER_MINUTE = 10;
+    private static final int MAX_LOGIN_REQUESTS_PER_MINUTE = 100;
 
-    private final RegistrationRateLimitRepository rateLimitRepository;
+    private final RateLimitRepository rateLimitRepository;
     private final HashService hashService;
     private final Set<String> trustedProxies;
 
     @Autowired
-    public RegistrationRateLimitService(
-            RegistrationRateLimitRepository rateLimitRepository,
+    public RateLimitService(
+            RateLimitRepository rateLimitRepository,
             HashService hashService,
             @Value("${cissas.registration.trusted-proxies:}") String trustedProxies) {
         this.rateLimitRepository = rateLimitRepository;
@@ -53,12 +54,26 @@ public class RegistrationRateLimitService {
     }
 
     @Transactional(noRollbackFor = ResponseStatusException.class)
-    public void checkAllowed(String sourceAddress) {
+    public void checkAllowed(String rateLimitKey) {
+        checkAllowed(rateLimitKey, MAX_REQUESTS_PER_MINUTE, "Too many registration requests");
+    }
+
+    @Transactional(noRollbackFor = ResponseStatusException.class)
+    public void checkAllowed(String rateLimitKey, String limitMessage) {
+        checkAllowed(rateLimitKey, MAX_REQUESTS_PER_MINUTE, limitMessage);
+    }
+
+    @Transactional(noRollbackFor = ResponseStatusException.class)
+    public void checkLoginAllowed(String rateLimitKey, String limitMessage) {
+        checkAllowed(rateLimitKey, MAX_LOGIN_REQUESTS_PER_MINUTE, limitMessage);
+    }
+
+    private void checkAllowed(String rateLimitKey, int maxRequestsPerMinute, String limitMessage) {
         LocalDateTime now = LocalDateTime.now();
-        String rateKey = hashService.hashRegistrationSource(sourceAddress);
+        String rateKey = hashService.hashRateLimitKey(rateLimitKey);
         rateLimitRepository.incrementWindowCount(rateKey, now, now.minusMinutes(1));
-        if (rateLimitRepository.findRequestCount(rateKey) > MAX_REQUESTS_PER_MINUTE) {
-            throw new ResponseStatusException(HttpStatus.TOO_MANY_REQUESTS, "Too many registration requests");
+        if (rateLimitRepository.findRequestCount(rateKey) > maxRequestsPerMinute) {
+            throw new ResponseStatusException(HttpStatus.TOO_MANY_REQUESTS, limitMessage);
         }
     }
 

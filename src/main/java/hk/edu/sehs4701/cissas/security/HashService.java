@@ -12,10 +12,12 @@ import java.security.InvalidKeyException;
 import java.security.NoSuchAlgorithmException;
 import java.util.HexFormat;
 import java.util.Locale;
+import java.util.UUID;
 
 @Service
 public class HashService {
     private final BCryptPasswordEncoder passwordEncoder = new BCryptPasswordEncoder();
+    private final String dummyPasswordHash = passwordEncoder.encode(UUID.randomUUID().toString());
 
     @Value("${otc.code.hash.pepper}")
     private String otcCodeHashPepper;
@@ -29,6 +31,18 @@ public class HashService {
         }
 
         return passwordEncoder.encode(password);
+    }
+
+    public boolean verifyPassword(String password, String passwordHash) {
+        if (password == null || password.isBlank()) {
+            return false;
+        }
+
+        if (passwordHash == null) {
+            passwordEncoder.matches(password, dummyPasswordHash);
+            return false;
+        }
+        return passwordEncoder.matches(password, passwordHash);
     }
 
     public String generateDocumentNumberHash(IdentityDocument identityDocument) {
@@ -65,9 +79,9 @@ public class HashService {
         }
     }
 
-    public String hashRegistrationSource(String sourceAddress) {
-        if (sourceAddress == null || sourceAddress.isBlank()) {
-            throw new IllegalArgumentException("Registration source address must not be blank");
+    public String hashRateLimitKey(String rateLimitKey) {
+        if (rateLimitKey == null || rateLimitKey.isBlank()) {
+            throw new IllegalArgumentException("Rate limit key must not be blank");
         }
         if (identityDocumentHashPepper == null || identityDocumentHashPepper.isBlank()) {
             throw new IllegalStateException("Property identity-document.hash.pepper must be set and not blank");
@@ -77,7 +91,7 @@ public class HashService {
             Mac mac = Mac.getInstance("HmacSHA256");
             mac.init(new SecretKeySpec(identityDocumentHashPepper.getBytes(StandardCharsets.UTF_8), "HmacSHA256"));
             return HexFormat.of().formatHex(mac.doFinal(
-                    ("registration-rate-limit\0" + sourceAddress).getBytes(StandardCharsets.UTF_8)
+                    ("registration-rate-limit\0" + rateLimitKey).getBytes(StandardCharsets.UTF_8)
             ));
         } catch (NoSuchAlgorithmException | InvalidKeyException e) {
             throw new IllegalStateException("Unable to hash registration source address", e);

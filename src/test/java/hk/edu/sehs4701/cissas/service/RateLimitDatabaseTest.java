@@ -1,6 +1,6 @@
 package hk.edu.sehs4701.cissas.service;
 
-import hk.edu.sehs4701.cissas.repository.RegistrationRateLimitRepository;
+import hk.edu.sehs4701.cissas.repository.RateLimitRepository;
 import hk.edu.sehs4701.cissas.security.HashService;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
@@ -21,22 +21,22 @@ import static org.junit.jupiter.api.Assertions.assertThrows;
 
 @SpringBootTest
 @ActiveProfiles("dev")
-class RegistrationRateLimitDatabaseTest {
+class RateLimitDatabaseTest {
     private static final String TEST_SOURCE = "rate-limit-database-test";
 
     @Autowired
-    private RegistrationRateLimitRepository repository;
+    private RateLimitRepository repository;
 
     @Autowired
     private HashService hashService;
 
     @Autowired
-    private RegistrationRateLimitService rateLimitService;
+    private RateLimitService rateLimitService;
 
     @BeforeEach
     @AfterEach
     void clearRateLimitEntry() {
-        repository.deleteById(hashService.hashRegistrationSource(TEST_SOURCE));
+        repository.deleteById(hashService.hashRateLimitKey(TEST_SOURCE));
     }
 
     @Test
@@ -65,7 +65,7 @@ class RegistrationRateLimitDatabaseTest {
                 }
             }
             assertEquals(10, allowed);
-            assertEquals(20, repository.findRequestCount(hashService.hashRegistrationSource(TEST_SOURCE)));
+            assertEquals(20, repository.findRequestCount(hashService.hashRateLimitKey(TEST_SOURCE)));
         } finally {
             executor.shutdownNow();
         }

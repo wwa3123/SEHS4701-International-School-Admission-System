@@ -18,7 +18,7 @@ import java.time.LocalDateTime;
 @Getter
 @Setter
 @NoArgsConstructor
-public class RegistrationRateLimit {
+public class RateLimit {
     @Id
     @Column(name = "rate_key", length = 64)
     private String rateKey;
