@@ -1,13 +1,14 @@
 package hk.edu.sehs4701.cissas.service;
 
+import hk.edu.sehs4701.cissas.DisposableDatabase;
 import hk.edu.sehs4701.cissas.repository.RateLimitRepository;
 import hk.edu.sehs4701.cissas.security.HashService;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.condition.EnabledIfEnvironmentVariable;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
-import org.springframework.test.context.ActiveProfiles;
 import org.springframework.web.server.ResponseStatusException;
 
 import java.util.ArrayList;
@@ -20,8 +21,8 @@ import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 
 @SpringBootTest
-@ActiveProfiles("dev")
-class RateLimitDatabaseTest {
+@EnabledIfEnvironmentVariable(named = "CISSAS_TEST_DATABASE_URL", matches = ".+")
+class RateLimitDatabaseTest extends DisposableDatabase {
     private static final String TEST_SOURCE = "rate-limit-database-test";
 
     @Autowired
