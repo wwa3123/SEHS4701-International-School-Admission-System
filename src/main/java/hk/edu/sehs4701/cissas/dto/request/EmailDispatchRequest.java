@@ -12,5 +12,19 @@ public record EmailDispatchRequest(
         String applicationNumber,
         String actionRequired,
         String subject,
-        String body
-) {}
+        String body,
+        String recipientEmail
+) {
+    public EmailDispatchRequest(
+            Member member,
+            Application application,
+            EmailTemplateType templateType,
+            String applicantName,
+            String applicationNumber,
+            String actionRequired,
+            String subject,
+            String body) {
+        this(member, application, templateType, applicantName, applicationNumber,
+                actionRequired, subject, body, member.getEmail());
+    }
+}

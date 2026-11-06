@@ -22,7 +22,7 @@ public class IdentityDocumentService {
         this.hashService = hashService;
     }
 
-    public IdentityDocument validateAndCreate(
+    public void validateIdentityDocument(
             IdentityDocumentType documentType,
             String documentNumber,
             String issuingCountry) {
@@ -43,18 +43,52 @@ public class IdentityDocumentService {
                     "A two-letter issuing country is required for this document type"
             );
         }
+    }
 
-        IdentityDocument identityDocument = new IdentityDocument();
-        identityDocument.setDocumentType(documentType);
-        identityDocument.setDocumentNumber(documentNumber);
-        identityDocument.setIssuingCountry(issuingCountry);
+    public IdentityDocument createIdentityDocument(
+            IdentityDocumentType documentType,
+            String documentNumber,
+            String issuingCountry) {
+        IdentityDocument identityDocument = normalizeAndValidate(documentType, documentNumber, issuingCountry);
         String documentHash = hashService.generateDocumentNumberHash(identityDocument);
+
         if (identityDocumentRepository.existsByDocumentNumberHash(documentHash)) {
             throw new ResponseStatusException(HttpStatus.CONFLICT, "Identity document is already linked to an account");
         }
+
         identityDocument.setDocumentNumberHash(documentHash);
         return identityDocument;
     }
+
+    public String getDocumentNumberHash(
+            IdentityDocumentType documentType,
+            String documentNumber,
+            String issuingCountry) {
+        IdentityDocument identityDocument = normalizeAndValidate(documentType, documentNumber, issuingCountry);
+        return hashService.generateDocumentNumberHash(identityDocument);
+    }
+
+    private IdentityDocument normalizeAndValidate(
+            IdentityDocumentType documentType,
+            String documentNumber,
+            String issuingCountry) {
+        validateIdentityDocument(documentType, documentNumber, issuingCountry);
+
+        IdentityDocument identityDocument = new IdentityDocument();
+        identityDocument.setDocumentType(documentType);
+        identityDocument.setDocumentNumber(documentNumber.trim());
+        identityDocument.setIssuingCountry(issuingCountry == null
+                ? null
+                : issuingCountry.trim().toUpperCase(Locale.ROOT));
+        if (documentType == IdentityDocumentType.HKID) {
+            identityDocument.setDocumentNumber(identityDocument.getDocumentNumber().toUpperCase(Locale.ROOT));
+            identityDocument.setIssuingCountry("HK");
+        } else if (documentType == IdentityDocumentType.PASSPORT) {
+            identityDocument.setDocumentNumber(identityDocument.getDocumentNumber().toUpperCase(Locale.ROOT));
+        }
+        return identityDocument;
+    }
+
 
     private boolean validateHKIDChecksum(String documentNumber) {
         /* This regex checks for an HKID-shaped value:

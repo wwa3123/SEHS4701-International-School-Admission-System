@@ -61,7 +61,7 @@ class MembershipRegistrationServiceTest {
         );
         IdentityDocument document = new IdentityDocument();
         document.setDocumentNumberHash("document-hash");
-        when(identityDocumentService.validateAndCreate(
+        when(identityDocumentService.createIdentityDocument(
                 IdentityDocumentType.HKID, "A123456(8)", null
         )).thenReturn(document);
         when(memberRepository.findByEmailIgnoreCase("member@example.com")).thenReturn(Optional.empty());
@@ -76,7 +76,7 @@ class MembershipRegistrationServiceTest {
                         && member.getIdentityDocuments().getFirst().getDocumentNumberHash().equals("document-hash")
         ));
         verify(otcService).issueAndSendOtc(any(Member.class));
-        verify(identityDocumentService).validateAndCreate(IdentityDocumentType.HKID, "A123456(8)", null);
+        verify(identityDocumentService).createIdentityDocument(IdentityDocumentType.HKID, "A123456(8)", null);
     }
 
     @Test
@@ -89,7 +89,7 @@ class MembershipRegistrationServiceTest {
                 memberRepository, identityDocumentService, hashService, otcService
         );
         when(memberRepository.findByEmailIgnoreCase("member@example.com")).thenReturn(Optional.empty());
-        when(identityDocumentService.validateAndCreate(
+        when(identityDocumentService.createIdentityDocument(
                 IdentityDocumentType.HKID, "A123456(8)", null
         )).thenThrow(new ResponseStatusException(org.springframework.http.HttpStatus.CONFLICT));
 

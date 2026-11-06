@@ -58,7 +58,7 @@ public class MembershipRegistrationService {
         member.setPhoneNumber(request.phoneNumber().trim());
         member.setAccountStatus(AccountStatus.UNVERIFIED);
 
-        IdentityDocument identityDocument = identityDocumentService.validateAndCreate(
+        IdentityDocument identityDocument = identityDocumentService.createIdentityDocument(
                 request.documentType(),
                 request.documentNumber(),
                 request.issuingCountry()

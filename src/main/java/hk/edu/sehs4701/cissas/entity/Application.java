@@ -43,6 +43,9 @@ public class Application {
     @Column(nullable = false, length = 20)
     private ApplicationStatus status = ApplicationStatus.Pending;
 
+    @Column(name = "manual_identity_review_required", nullable = false)
+    private boolean manualIdentityReviewRequired;
+
     @Column(name = "submitted_at", nullable = false, updatable = false)
     private LocalDateTime submittedAt = LocalDateTime.now();
 

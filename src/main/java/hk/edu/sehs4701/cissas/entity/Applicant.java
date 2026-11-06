@@ -16,7 +16,8 @@ import java.util.List;
 @Setter
 @NoArgsConstructor
 @Table(
-        name = "applicant"
+        name = "applicant",
+        indexes = @Index(name = "idx_applicant_date_of_birth", columnList = "date_of_birth")
 )
 public class Applicant {
     @Id

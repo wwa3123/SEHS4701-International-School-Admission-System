@@ -30,7 +30,7 @@ public class EmailService {
         emailLog.setMember(request.member());
         emailLog.setApplication(request.application());
         emailLog.setTemplateType(request.templateType());
-        emailLog.setRecipientEmail(request.member().getEmail());
+        emailLog.setRecipientEmail(request.recipientEmail());
         emailLog.setApplicantName(request.applicantName());
         emailLog.setApplicationNumber(request.applicationNumber());
         emailLog.setActionRequired(request.actionRequired());
