@@ -59,10 +59,10 @@ class MembershipRegistrationServiceTest {
         MembershipRegistrationService service = new MembershipRegistrationService(
                 memberRepository, identityDocumentService, hashService, otcService
         );
-        IdentityDocument document = new IdentityDocument();
-        document.setDocumentNumberHash("document-hash");
+        IdentityDocument document = new IdentityDocument(
+                IdentityDocumentType.HKID, "A123456(3)", "HK", "document-hash");
         when(identityDocumentService.createIdentityDocument(
-                IdentityDocumentType.HKID, "A123456(8)", null
+                IdentityDocumentType.HKID, "A123456(3)", null
         )).thenReturn(document);
         when(memberRepository.findByEmailIgnoreCase("member@example.com")).thenReturn(Optional.empty());
         when(memberRepository.save(any(Member.class))).thenAnswer(invocation -> invocation.getArgument(0));
@@ -76,7 +76,7 @@ class MembershipRegistrationServiceTest {
                         && member.getIdentityDocuments().getFirst().getDocumentNumberHash().equals("document-hash")
         ));
         verify(otcService).issueAndSendOtc(any(Member.class));
-        verify(identityDocumentService).createIdentityDocument(IdentityDocumentType.HKID, "A123456(8)", null);
+        verify(identityDocumentService).createIdentityDocument(IdentityDocumentType.HKID, "A123456(3)", null);
     }
 
     @Test
@@ -90,7 +90,7 @@ class MembershipRegistrationServiceTest {
         );
         when(memberRepository.findByEmailIgnoreCase("member@example.com")).thenReturn(Optional.empty());
         when(identityDocumentService.createIdentityDocument(
-                IdentityDocumentType.HKID, "A123456(8)", null
+                IdentityDocumentType.HKID, "A123456(3)", null
         )).thenThrow(new ResponseStatusException(org.springframework.http.HttpStatus.CONFLICT));
 
         assertThrows(ResponseStatusException.class, () -> service.register(validRequest()));
@@ -102,7 +102,7 @@ class MembershipRegistrationServiceTest {
     private MembershipRegistrationRequest validRequest() {
         return new MembershipRegistrationRequest(
                 "Test", "Member", "member@example.com", "12345678",
-                IdentityDocumentType.HKID, "A123456(8)", null, "secure-password"
+                IdentityDocumentType.HKID, "A123456(3)", null, "secure-password"
         );
     }
 }

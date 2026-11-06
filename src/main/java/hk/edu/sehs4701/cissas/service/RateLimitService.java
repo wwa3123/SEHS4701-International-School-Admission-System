@@ -20,20 +20,26 @@ import java.util.stream.Collectors;
 
 @Service
 public class RateLimitService {
-    private static final int MAX_REQUESTS_PER_MINUTE = Integer.parseInt("${cissas.registration.max-requests-per-minute}");
-    private static final int MAX_LOGIN_REQUESTS_PER_MINUTE = Integer.parseInt("${cissas.login.max-requests-per-minute}");
-
     private final RateLimitRepository rateLimitRepository;
     private final HashService hashService;
     private final Set<String> trustedProxies;
+    private final int maxRequestsPerMinute;
+    private final int maxLoginRequestsPerMinute;
 
     @Autowired
     public RateLimitService(
             RateLimitRepository rateLimitRepository,
             HashService hashService,
-            @Value("${cissas.registration.trusted-proxies:}") String trustedProxies) {
+            @Value("${cissas.registration.trusted-proxies:}") String trustedProxies,
+            @Value("${cissas.registration.max-requests-per-minute}") int maxRequestsPerMinute,
+            @Value("${cissas.login.max-requests-per-minute}") int maxLoginRequestsPerMinute) {
+        if (maxRequestsPerMinute <= 0 || maxLoginRequestsPerMinute <= 0) {
+            throw new IllegalArgumentException("Rate limits must be positive");
+        }
         this.rateLimitRepository = rateLimitRepository;
         this.hashService = hashService;
+        this.maxRequestsPerMinute = maxRequestsPerMinute;
+        this.maxLoginRequestsPerMinute = maxLoginRequestsPerMinute;
         this.trustedProxies = Arrays.stream(trustedProxies.split(","))
                 .map(String::trim)
                 .filter(address -> !address.isEmpty())
@@ -55,17 +61,17 @@ public class RateLimitService {
 
     @Transactional(noRollbackFor = ResponseStatusException.class)
     public void checkAllowed(String rateLimitKey) {
-        checkAllowed(rateLimitKey, MAX_REQUESTS_PER_MINUTE, "Too many registration requests");
+        checkAllowed(rateLimitKey, maxRequestsPerMinute, "Too many registration requests");
     }
 
     @Transactional(noRollbackFor = ResponseStatusException.class)
     public void checkAllowed(String rateLimitKey, String limitMessage) {
-        checkAllowed(rateLimitKey, MAX_REQUESTS_PER_MINUTE, limitMessage);
+        checkAllowed(rateLimitKey, maxRequestsPerMinute, limitMessage);
     }
 
     @Transactional(noRollbackFor = ResponseStatusException.class)
     public void checkLoginAllowed(String rateLimitKey, String limitMessage) {
-        checkAllowed(rateLimitKey, MAX_LOGIN_REQUESTS_PER_MINUTE, limitMessage);
+        checkAllowed(rateLimitKey, maxLoginRequestsPerMinute, limitMessage);
     }
 
     private void checkAllowed(String rateLimitKey, int maxRequestsPerMinute, String limitMessage) {

@@ -9,6 +9,7 @@ import org.springframework.stereotype.Service;
 import org.springframework.web.server.ResponseStatusException;
 
 import java.util.Locale;
+import java.util.Optional;
 
 @Service
 public class IdentityDocumentService {
@@ -29,6 +30,7 @@ public class IdentityDocumentService {
         if (documentType == null || documentNumber == null || documentNumber.isBlank()) {
             throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Identity document details are required");
         }
+
         documentNumber = documentNumber.trim();
         issuingCountry = issuingCountry == null ? null : issuingCountry.trim().toUpperCase(Locale.ROOT);
         if (documentType == IdentityDocumentType.HKID) {
@@ -56,8 +58,8 @@ public class IdentityDocumentService {
             throw new ResponseStatusException(HttpStatus.CONFLICT, "Identity document is already linked to an account");
         }
 
-        identityDocument.setDocumentNumberHash(documentHash);
-        return identityDocument;
+        return new IdentityDocument(identityDocument.getDocumentType(), identityDocument.getDocumentNumber(),
+                identityDocument.getIssuingCountry(), documentHash);
     }
 
     public String getDocumentNumberHash(
@@ -68,25 +70,29 @@ public class IdentityDocumentService {
         return hashService.generateDocumentNumberHash(identityDocument);
     }
 
+    public Optional<IdentityDocument> findByHashForUpdate(String documentHash) {
+        return identityDocumentRepository.findByDocumentNumberHash(documentHash);
+    }
+
     private IdentityDocument normalizeAndValidate(
             IdentityDocumentType documentType,
             String documentNumber,
             String issuingCountry) {
         validateIdentityDocument(documentType, documentNumber, issuingCountry);
 
-        IdentityDocument identityDocument = new IdentityDocument();
-        identityDocument.setDocumentType(documentType);
-        identityDocument.setDocumentNumber(documentNumber.trim());
-        identityDocument.setIssuingCountry(issuingCountry == null
+        String normalizedNumber = documentNumber.trim();
+        String normalizedCountry = issuingCountry == null
                 ? null
-                : issuingCountry.trim().toUpperCase(Locale.ROOT));
+                : issuingCountry.trim().toUpperCase(Locale.ROOT);
+
         if (documentType == IdentityDocumentType.HKID) {
-            identityDocument.setDocumentNumber(identityDocument.getDocumentNumber().toUpperCase(Locale.ROOT));
-            identityDocument.setIssuingCountry("HK");
+            normalizedNumber = normalizedNumber.toUpperCase(Locale.ROOT);
+            normalizedCountry = "HK";
         } else if (documentType == IdentityDocumentType.PASSPORT) {
-            identityDocument.setDocumentNumber(identityDocument.getDocumentNumber().toUpperCase(Locale.ROOT));
+            normalizedNumber = normalizedNumber.toUpperCase(Locale.ROOT);
         }
-        return identityDocument;
+
+        return new IdentityDocument(documentType, normalizedNumber, normalizedCountry, null);
     }
 
 
@@ -97,8 +103,8 @@ public class IdentityDocumentService {
         * [0-9]{6}: six digits
         * \\([0-9A]\\): a digit or 'A' enclosed in parentheses
         *
-        * Correct examples: A123456(8), AB123456(9)
-        * Wrong examples: A1234567, A123456(7), a123456(8), A12345(8), AA123456(7)
+        * Correct examples: A123456(3), AB123456(9)
+        * Wrong examples: A1234567, A123456(8), A12345(3), AA123456(7)
         * */
         if (!documentNumber.matches("^[A-Z]{1,2}[0-9]{6}\\([0-9A]\\)$")) {
             return false;
@@ -108,7 +114,7 @@ public class IdentityDocumentService {
         char checksumChar = cleaned.charAt(cleaned.length() - 1);
         String numberPart = cleaned.substring(0, cleaned.length() - 1);
 
-        int sum = 0;
+        int sum = numberPart.length() == 7 ? 36 * 9 : 0;
         for (int i = 0; i < numberPart.length(); i++) {
             char c = numberPart.charAt(i);
             int value;

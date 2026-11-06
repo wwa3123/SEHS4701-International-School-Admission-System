@@ -22,7 +22,7 @@ class AdmissionsApplicationControllerTest {
     private final ApplicationSubmissionRequest request = new ApplicationSubmissionRequest(
             LevelCode.S1,
             "Applicant Name",
-            "A123456(8)",
+            "A123456(3)",
             IdentityDocumentType.HKID,
             null,
             LocalDate.of(2018, 1, 1),

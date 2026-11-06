@@ -2,10 +2,11 @@ package hk.edu.sehs4701.cissas.service;
 
 import hk.edu.sehs4701.cissas.dto.request.EmailDispatchRequest;
 import hk.edu.sehs4701.cissas.entity.Application;
-import hk.edu.sehs4701.cissas.entity.Applicant;
+import hk.edu.sehs4701.cissas.entity.ApplicantSnapshot;
 import hk.edu.sehs4701.cissas.entity.Member;
 import hk.edu.sehs4701.cissas.entity.ProgrammeLevel;
 import hk.edu.sehs4701.cissas.enums.EmailTemplateType;
+import hk.edu.sehs4701.cissas.enums.IdentityDocumentType;
 import hk.edu.sehs4701.cissas.enums.LevelCode;
 import org.junit.jupiter.api.Test;
 import org.mockito.ArgumentCaptor;
@@ -47,16 +48,17 @@ class NotificationServiceTest {
 
         Member member = new Member();
         member.setEmail("member@example.com");
-        Applicant applicant = new Applicant();
-        applicant.setFullName("Applicant Name");
-        applicant.setDateOfBirth(LocalDate.of(2018, 1, 1));
         ProgrammeLevel level = new ProgrammeLevel();
         level.setLevelCode(LevelCode.S1);
         Application application = new Application();
         application.setApplicationNumber("APP-123");
         application.setProgrammeLevel(level);
+        application.setApplicantSnapshot(new ApplicantSnapshot(
+                "Applicant Name", LocalDate.of(2018, 1, 1), "Unspecified",
+                "12345678", "Previous School", IdentityDocumentType.HKID, "A123456(3)", null
+        ));
 
-        service.notifyAdminOfIdentityReview(member, applicant, application, "2026/27");
+        service.notifyAdminOfIdentityReview(member, application, "2026/27");
 
         ArgumentCaptor<EmailDispatchRequest> requestCaptor = ArgumentCaptor.forClass(EmailDispatchRequest.class);
         verify(emailService).sendAndLogEmail(requestCaptor.capture());
@@ -64,6 +66,8 @@ class NotificationServiceTest {
         assertEquals(EmailTemplateType.IDENTITY_REVIEW_ALERT, request.templateType());
         assertEquals("admissions@example.com", request.recipientEmail());
         assertEquals(application, request.application());
+        assertTrue(request.body().contains("Applicant Name"));
+        assertTrue(request.body().contains("2018-01-01"));
     }
 
     @Test
@@ -75,7 +79,7 @@ class NotificationServiceTest {
         Application application = new Application();
         application.setApplicationNumber("APP-123");
 
-        service.notifyAdminOfIdentityReview(new Member(), new Applicant(), application, "2026/27");
+        service.notifyAdminOfIdentityReview(new Member(), application, "2026/27");
 
         verifyNoInteractions(emailService);
     }

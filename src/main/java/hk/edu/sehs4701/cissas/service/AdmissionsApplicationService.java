@@ -4,6 +4,7 @@ import hk.edu.sehs4701.cissas.dto.request.ApplicationSubmissionRequest;
 import hk.edu.sehs4701.cissas.dto.response.AcademicYearResponse;
 import hk.edu.sehs4701.cissas.entity.Application;
 import hk.edu.sehs4701.cissas.entity.Applicant;
+import hk.edu.sehs4701.cissas.entity.ApplicantSnapshot;
 import hk.edu.sehs4701.cissas.entity.IdentityDocument;
 import hk.edu.sehs4701.cissas.entity.Member;
 import hk.edu.sehs4701.cissas.entity.ProgrammeLevel;
@@ -14,18 +15,22 @@ import hk.edu.sehs4701.cissas.repository.ApplicantRepository;
 import hk.edu.sehs4701.cissas.repository.ApplicationRepository;
 import hk.edu.sehs4701.cissas.repository.MemberRepository;
 import hk.edu.sehs4701.cissas.repository.ProgrammeLevelRepository;
+import hk.edu.sehs4701.cissas.repository.IdentityReviewLockRepository;
 import io.hypersistence.tsid.TSID;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+import org.springframework.transaction.annotation.Isolation;
+import org.springframework.transaction.annotation.Propagation;
 import org.springframework.web.server.ResponseStatusException;
 
 import java.time.LocalDateTime;
 import java.time.LocalDate;
 import java.time.ZoneId;
-import java.util.Locale;
+import java.util.HashSet;
 import java.util.Objects;
+import java.util.Set;
 
 
 @Service
@@ -37,6 +42,8 @@ public class AdmissionsApplicationService {
     private final AcademicYearService academicYearService;
     private final IdentityDocumentService identityDocumentService;
     private final NotificationService notificationService;
+    private final IdentityReviewLockRepository identityReviewLockRepository;
+    private final IdentityReviewService identityReviewService;
 
     @Autowired
     public AdmissionsApplicationService(
@@ -46,7 +53,9 @@ public class AdmissionsApplicationService {
             ProgrammeLevelRepository programmeLevelRepository,
             AcademicYearService academicYearService,
             IdentityDocumentService identityDocumentService,
-            NotificationService notificationService) {
+            NotificationService notificationService,
+            IdentityReviewLockRepository identityReviewLockRepository,
+            IdentityReviewService identityReviewService) {
         this.applicationRepository = applicationRepository;
         this.applicantRepository = applicantRepository;
         this.memberRepository = memberRepository;
@@ -54,15 +63,16 @@ public class AdmissionsApplicationService {
         this.academicYearService = academicYearService;
         this.identityDocumentService = identityDocumentService;
         this.notificationService = notificationService;
+        this.identityReviewLockRepository = identityReviewLockRepository;
+        this.identityReviewService = identityReviewService;
     }
 
-    @Transactional
+    @Transactional(propagation = Propagation.REQUIRES_NEW, isolation = Isolation.READ_COMMITTED)
     public void submitApplication(ApplicationSubmissionRequest applicationSubmissionRequest, Long memberId) {
-        AcademicYearResponse openAcademicYear = academicYearService.getCurrentOpenForApplicationAcademicYear();
+        identityReviewLockRepository.acquire();
 
         Member member = memberRepository.findByIdForUpdate(memberId)
                 .orElseThrow(() -> new IllegalArgumentException("Member not found"));
-
         if (member.getAccountStatus() != AccountStatus.ACTIVE) {
             throw new IllegalStateException("Member account is not activated.");
         }
@@ -70,6 +80,7 @@ public class AdmissionsApplicationService {
         ProgrammeLevel level = programmeLevelRepository.findByLevelCode(applicationSubmissionRequest.levelCode())
                 .orElseThrow(() -> new IllegalArgumentException("Programme level not found."));
 
+        AcademicYearResponse openAcademicYear = academicYearService.getCurrentOpenForApplicationAcademicYear();
         if (level.getAcademicYear() == null
                 || !Objects.equals(level.getAcademicYear().getId(), openAcademicYear.id())) {
             throw new ResponseStatusException(
@@ -94,9 +105,14 @@ public class AdmissionsApplicationService {
         Applicant applicant = applicantRepository.findByIdentityDocumentHashForUpdate(documentNumberHash)
                 .orElse(null);
 
+        Set<Long> confirmedApplicantIds = Set.of();
+
         if (applicant != null) {
+            if (!Objects.equals(applicant.getMember().getId(), member.getId())) {
+                throw new ResponseStatusException(HttpStatus.CONFLICT, "Identity document is already linked");
+            }
             applicationRepository
-                    .findFirstByApplicant_IdentityDocuments_DocumentNumberHashAndProgrammeLevel_IdAndProgrammeLevel_AcademicYear_IdAndStatusNotOrderBySubmittedAtDesc(
+                    .findFirstByApplicant_IdentityDocuments_DocumentNumberHashAndProgrammeLevel_IdAndAcademicYear_IdAndStatusNotOrderBySubmittedAtDesc(
                             documentNumberHash,
                             level.getId(),
                             openAcademicYear.id(),
@@ -109,74 +125,104 @@ public class AdmissionsApplicationService {
                                         + existing.getApplicationNumber()
                         );
                     });
+
+            Long applicantId = Objects.requireNonNull(applicant.getId(), "Existing applicant must have an ID");
+            confirmedApplicantIds = identityReviewService.confirmedApplicantIds(applicantId);
+
+            var relatedIds = new HashSet<>(confirmedApplicantIds);
+            relatedIds.remove(applicantId);
+            if (!relatedIds.isEmpty()) {
+                applicationRepository
+                        .findFirstByApplicant_IdInAndProgrammeLevel_IdAndAcademicYear_IdAndStatusNotOrderBySubmittedAtDesc(
+                                relatedIds, level.getId(), openAcademicYear.id(), ApplicationStatus.Cancelled)
+                        .ifPresent(existing -> {
+                            throw new ResponseStatusException(HttpStatus.CONFLICT,
+                                    "An application already exists for a confirmed applicant.");
+                        });
+            }
         }
 
         boolean manualIdentityReviewRequired = hasCrossDocumentMatch(
-                applicationSubmissionRequest, level, openAcademicYear.id());
+                applicationSubmissionRequest, level, openAcademicYear.id(), applicant, confirmedApplicantIds);
 
         if (applicant == null) {
+            IdentityDocument identityDocument = identityDocumentService.findByHashForUpdate(documentNumberHash)
+                    .orElse(null);
+            if (identityDocument != null && (identityDocument.getMember() == null
+                    || !Objects.equals(identityDocument.getMember().getId(), member.getId())
+                    || identityDocument.getApplicant() != null)) {
+                throw new ResponseStatusException(HttpStatus.CONFLICT, "Identity document is already linked");
+            }
             applicant = new Applicant();
             applicant.setMember(member);
-            applicant.setFullName(applicationSubmissionRequest.applicantFullName().trim());
-            applicant.setDateOfBirth(applicationSubmissionRequest.dateOfBirth());
-            applicant.setGender(applicationSubmissionRequest.gender().trim());
-            applicant.setPhone(applicationSubmissionRequest.phone().trim());
-            applicant.setPreviousSchool(applicationSubmissionRequest.previousSchool().trim());
-
-            IdentityDocument identityDocument = identityDocumentService.createIdentityDocument(
-                    applicationSubmissionRequest.applicantIdentityDocumentType(),
-                    applicationSubmissionRequest.applicantIdentityDocumentNumber(),
-                    applicationSubmissionRequest.applicantIdentityDocumentIssuingCountry()
-            );
+            if (identityDocument == null) {
+                identityDocument = identityDocumentService.createIdentityDocument(
+                        applicationSubmissionRequest.applicantIdentityDocumentType(),
+                        applicationSubmissionRequest.applicantIdentityDocumentNumber(),
+                        applicationSubmissionRequest.applicantIdentityDocumentIssuingCountry()
+                );
+            }
             applicant.addIdentityDocument(identityDocument);
             applicant = applicantRepository.save(applicant);
         }
+
+        ApplicantSnapshot snapshot = new ApplicantSnapshot(
+                applicationSubmissionRequest.applicantFullName().trim(),
+                applicationSubmissionRequest.dateOfBirth(),
+                applicationSubmissionRequest.gender().trim(),
+                applicationSubmissionRequest.phone().trim(),
+                applicationSubmissionRequest.previousSchool().trim(),
+                applicationSubmissionRequest.applicantIdentityDocumentType(),
+                applicationSubmissionRequest.applicantIdentityDocumentNumber(),
+                applicationSubmissionRequest.applicantIdentityDocumentIssuingCountry() == null
+                        ? null : applicationSubmissionRequest.applicantIdentityDocumentIssuingCountry().trim()
+        );
 
         Application application = new Application();
         application.setApplicationNumber("APP-" + TSID.Factory.getTsid());
         application.setMember(member);
         application.setApplicant(applicant);
+        application.setApplicantSnapshot(snapshot);
         application.setProgrammeLevel(level);
+        application.setAcademicYear(level.getAcademicYear());
         application.setStatus(ApplicationStatus.Pending);
         application.setManualIdentityReviewRequired(manualIdentityReviewRequired);
         Application savedApplication = applicationRepository.save(application);
         if (manualIdentityReviewRequired) {
             notificationService.notifyAdminOfIdentityReview(
-                    member, applicant, savedApplication, openAcademicYear.name());
+                    member, savedApplication, openAcademicYear.name());
         }
     }
 
     private boolean hasCrossDocumentMatch(
             ApplicationSubmissionRequest request,
             ProgrammeLevel level,
-            Long academicYearId) {
+            Long academicYearId,
+            Applicant applicant,
+            Set<Long> confirmedApplicantIds) {
         IdentityDocumentType submittedType = request.applicantIdentityDocumentType();
-        var matchingApplicantIds = applicantRepository.findAllByDateOfBirth(request.dateOfBirth()).stream()
-                .filter(applicant -> normalizeName(applicant.getFullName())
-                        .equals(normalizeName(request.applicantFullName())))
-                .filter(applicant -> hasOppositeDocumentType(applicant, submittedType))
-                .map(Applicant::getId)
-                .toList();
-        return !matchingApplicantIds.isEmpty()
-                && applicationRepository.existsByApplicant_IdInAndProgrammeLevel_IdAndProgrammeLevel_AcademicYear_IdAndStatusNot(
-                        matchingApplicantIds,
-                        level.getId(),
-                        academicYearId,
-                        ApplicationStatus.Cancelled
-                );
-    }
+        IdentityDocumentType oppositeType;
+        if (submittedType == IdentityDocumentType.HKID) {
+            oppositeType = IdentityDocumentType.PASSPORT;
+        } else if (submittedType == IdentityDocumentType.PASSPORT) {
+            oppositeType = IdentityDocumentType.HKID;
+        } else {
+            return false;
+        }
 
-    private boolean hasOppositeDocumentType(Applicant applicant, IdentityDocumentType submittedType) {
-        boolean submittedPassport = submittedType == IdentityDocumentType.PASSPORT;
-        boolean submittedHkid = submittedType == IdentityDocumentType.HKID;
-        return applicant.getIdentityDocuments().stream().anyMatch(document ->
-                submittedPassport && document.getDocumentType() == IdentityDocumentType.HKID
-                        || submittedHkid && document.getDocumentType() == IdentityDocumentType.PASSPORT
-        );
+        String normalizedName = ApplicantSnapshot.normalizeName(request.applicantFullName());
+        return applicationRepository
+                .findAllByProgrammeLevel_IdAndAcademicYear_IdAndStatusNotAndApplicantSnapshot_DateOfBirthAndApplicantSnapshot_DocumentTypeAndApplicantSnapshot_NameHash(
+                        level.getId(), academicYearId, ApplicationStatus.Cancelled, request.dateOfBirth(), oppositeType,
+                        ApplicantSnapshot.hashName(request.applicantFullName()))
+                .stream()
+                .filter(application -> ApplicantSnapshot.normalizeName(application.getApplicantSnapshot().getFullName())
+                        .equals(normalizedName))
+                .anyMatch(application -> {
+                    if (applicant == null) return true;
+                    Long candidateId = application.getApplicant().getId();
+                    return !confirmedApplicantIds.contains(candidateId)
+                            && !identityReviewService.hasResolvedMatch(confirmedApplicantIds, candidateId);
+                });
     }
-
-    private String normalizeName(String fullName) {
-        return fullName.trim().replaceAll("\\s+", " ").toUpperCase(Locale.ROOT);
-    }
-
 }

@@ -69,17 +69,12 @@ public class Member {
     @Column(name = "updated_at", nullable = false)
     private LocalDateTime updatedAt;
 
-    @OneToMany(mappedBy = "member", cascade = CascadeType.ALL, orphanRemoval = true)
+    @OneToMany(mappedBy = "member", cascade = CascadeType.PERSIST)
     private List<IdentityDocument> identityDocuments = new ArrayList<>();
 
     public void addIdentityDocument(IdentityDocument identityDocument) {
+        identityDocument.attachToMember(this);
         identityDocuments.add(identityDocument);
-        identityDocument.setMember(this);
-    }
-
-    public void removeIdentityDocument(IdentityDocument identityDocument) {
-        identityDocuments.remove(identityDocument);
-        identityDocument.setMember(null);
     }
 
 }

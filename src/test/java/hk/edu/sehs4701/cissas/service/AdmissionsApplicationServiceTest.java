@@ -14,7 +14,10 @@ import org.springframework.web.server.ResponseStatusException;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.time.ZoneId;
+import java.util.List;
 import java.util.Optional;
+import java.util.HashSet;
+import org.mockito.ArgumentCaptor;
 
 import static org.junit.jupiter.api.Assertions.*;
 import static org.mockito.ArgumentMatchers.any;
@@ -33,6 +36,8 @@ class AdmissionsApplicationServiceTest {
     private final AcademicYearService academicYearService = mock(AcademicYearService.class);
     private final IdentityDocumentService identityDocumentService = mock(IdentityDocumentService.class);
     private final NotificationService notificationService = mock(NotificationService.class);
+    private final IdentityReviewLockRepository identityReviewLockRepository = mock(IdentityReviewLockRepository.class);
+    private final IdentityReviewService identityReviewService = mock(IdentityReviewService.class);
     private final AdmissionsApplicationService service = new AdmissionsApplicationService(
             applicationRepository,
             applicantRepository,
@@ -40,7 +45,9 @@ class AdmissionsApplicationServiceTest {
             programmeLevelRepository,
             academicYearService,
             identityDocumentService,
-            notificationService
+            notificationService,
+            identityReviewLockRepository,
+            identityReviewService
     );
 
     private Member member;
@@ -49,11 +56,12 @@ class AdmissionsApplicationServiceTest {
 
     @BeforeEach
     void setUp() {
+        LocalDate today = LocalDate.now(ZoneId.of("Asia/Hong_Kong"));
         AcademicYearResponse openYear = new AcademicYearResponse(
                 ACADEMIC_YEAR_ID,
                 "2026/27",
-                LocalDate.of(2026, 9, 1),
-                LocalDate.of(2027, 8, 31),
+                today.minusDays(10),
+                today.plusDays(10),
                 AcademicYearStatus.OPEN_FOR_ADMISSION
         );
         when(academicYearService.getCurrentOpenForApplicationAcademicYear()).thenReturn(openYear);
@@ -72,13 +80,15 @@ class AdmissionsApplicationServiceTest {
         programmeLevel.setApplicationDeadline(LocalDateTime.now(ZoneId.of("Asia/Hong_Kong")).plusDays(1));
         when(programmeLevelRepository.findByLevelCode(LevelCode.S1)).thenReturn(Optional.of(programmeLevel));
         when(identityDocumentService.getDocumentNumberHash(
-                IdentityDocumentType.HKID, "A123456(8)", null
+                IdentityDocumentType.HKID, "A123456(3)", null
         )).thenReturn(DOCUMENT_HASH);
+        when(identityReviewService.confirmedApplicantIds(any())).thenAnswer(invocation ->
+                new HashSet<>(List.of(invocation.<Long>getArgument(0))));
 
         request = new ApplicationSubmissionRequest(
                 LevelCode.S1,
                 "Applicant Name",
-                "A123456(8)",
+                "A123456(3)",
                 IdentityDocumentType.HKID,
                 null,
                 LocalDate.of(2018, 1, 1),
@@ -90,12 +100,14 @@ class AdmissionsApplicationServiceTest {
 
     @Test
     void blocksDuplicateAndReturnsExistingApplicationNumber() {
+        Applicant applicant = new Applicant();
+        applicant.setMember(member);
         when(applicantRepository.findByIdentityDocumentHashForUpdate(DOCUMENT_HASH))
-                .thenReturn(Optional.of(new Applicant()));
+                .thenReturn(Optional.of(applicant));
         Application existingApplication = new Application();
         existingApplication.setApplicationNumber("APP-EXISTING123");
         when(applicationRepository
-                .findFirstByApplicant_IdentityDocuments_DocumentNumberHashAndProgrammeLevel_IdAndProgrammeLevel_AcademicYear_IdAndStatusNotOrderBySubmittedAtDesc(
+                .findFirstByApplicant_IdentityDocuments_DocumentNumberHashAndProgrammeLevel_IdAndAcademicYear_IdAndStatusNotOrderBySubmittedAtDesc(
                         DOCUMENT_HASH, PROGRAMME_LEVEL_ID, ACADEMIC_YEAR_ID, ApplicationStatus.Cancelled
                 ))
                 .thenReturn(Optional.of(existingApplication));
@@ -106,6 +118,28 @@ class AdmissionsApplicationServiceTest {
 
         assertEquals(HttpStatus.CONFLICT, exception.getStatusCode());
         assertTrue(exception.getReason().contains("APP-EXISTING123"));
+        verify(applicationRepository, never()).save(any(Application.class));
+    }
+
+    @Test
+    void blocksDuplicateAcrossConfirmedApplicantRecords() {
+        Applicant applicant = new Applicant();
+        applicant.setId(1L);
+        applicant.setMember(member);
+        when(applicantRepository.findByIdentityDocumentHashForUpdate(DOCUMENT_HASH)).thenReturn(Optional.of(applicant));
+        when(identityReviewService.confirmedApplicantIds(1L)).thenReturn(new HashSet<>(List.of(1L, 2L)));
+        Application existing = new Application();
+        existing.setApplicationNumber("APP-LINKED");
+        when(applicationRepository
+                .findFirstByApplicant_IdInAndProgrammeLevel_IdAndAcademicYear_IdAndStatusNotOrderBySubmittedAtDesc(
+                        eq(java.util.Set.of(2L)), eq(PROGRAMME_LEVEL_ID), eq(ACADEMIC_YEAR_ID), eq(ApplicationStatus.Cancelled)))
+                .thenReturn(Optional.of(existing));
+
+        ResponseStatusException exception = assertThrows(ResponseStatusException.class,
+                () -> service.submitApplication(request, MEMBER_ID));
+
+        assertEquals(HttpStatus.CONFLICT, exception.getStatusCode());
+        assertFalse(exception.getReason().contains("APP-LINKED"));
         verify(applicationRepository, never()).save(any(Application.class));
     }
 
@@ -156,9 +190,10 @@ class AdmissionsApplicationServiceTest {
         );
         when(applicantRepository.findByIdentityDocumentHashForUpdate(DOCUMENT_HASH))
                 .thenReturn(Optional.empty());
-        IdentityDocument identityDocument = new IdentityDocument();
+        IdentityDocument identityDocument = new IdentityDocument(
+                IdentityDocumentType.HKID, "A123456(3)", "HK", DOCUMENT_HASH);
         when(identityDocumentService.createIdentityDocument(
-                IdentityDocumentType.HKID, "A123456(8)", null
+                IdentityDocumentType.HKID, "A123456(3)", null
         )).thenReturn(identityDocument);
         when(applicantRepository.save(any(Applicant.class))).thenAnswer(invocation -> invocation.getArgument(0));
 
@@ -170,10 +205,12 @@ class AdmissionsApplicationServiceTest {
     @Test
     void allowsSubmissionWhenPreviousApplicationIsCancelled() {
         Applicant applicant = new Applicant();
+        applicant.setId(1L);
+        applicant.setMember(member);
         when(applicantRepository.findByIdentityDocumentHashForUpdate(DOCUMENT_HASH))
                 .thenReturn(Optional.of(applicant));
         when(applicationRepository
-                .findFirstByApplicant_IdentityDocuments_DocumentNumberHashAndProgrammeLevel_IdAndProgrammeLevel_AcademicYear_IdAndStatusNotOrderBySubmittedAtDesc(
+                .findFirstByApplicant_IdentityDocuments_DocumentNumberHashAndProgrammeLevel_IdAndAcademicYear_IdAndStatusNotOrderBySubmittedAtDesc(
                         DOCUMENT_HASH, PROGRAMME_LEVEL_ID, ACADEMIC_YEAR_ID, ApplicationStatus.Cancelled
                 ))
                 .thenReturn(Optional.empty());
@@ -186,17 +223,95 @@ class AdmissionsApplicationServiceTest {
                         && application.getApplicant() == applicant
                         && application.getProgrammeLevel() == programmeLevel
                         && application.getMember() == member
+                        && application.getApplicantSnapshot().getFullName().equals("Applicant Name")
         ));
+    }
+
+    @Test
+    void resubmissionKeepsCancelledApplicationSnapshotAndSavesNewDetails() {
+        Applicant applicant = new Applicant();
+        applicant.setId(1L);
+        applicant.setMember(member);
+        Application cancelledApplication = new Application();
+        cancelledApplication.setStatus(ApplicationStatus.Cancelled);
+        cancelledApplication.setApplicant(applicant);
+        cancelledApplication.setApplicantSnapshot(new ApplicantSnapshot(
+                "Old Name", LocalDate.of(2017, 1, 1), "Old Gender", "11111111", "Old School",
+                IdentityDocumentType.HKID, "A123456(3)", null
+        ));
+        when(applicantRepository.findByIdentityDocumentHashForUpdate(DOCUMENT_HASH))
+                .thenReturn(Optional.of(applicant));
+        service.submitApplication(request, MEMBER_ID);
+
+        ArgumentCaptor<Application> captor = ArgumentCaptor.forClass(Application.class);
+        verify(applicationRepository).save(captor.capture());
+        ApplicantSnapshot snapshot = captor.getValue().getApplicantSnapshot();
+        assertSame(applicant, captor.getValue().getApplicant());
+        verify(applicantRepository, never()).save(any());
+        assertEquals("Applicant Name", snapshot.getFullName());
+        assertEquals(LocalDate.of(2018, 1, 1), snapshot.getDateOfBirth());
+        assertEquals("Unspecified", snapshot.getGender());
+        assertEquals("12345678", snapshot.getPhone());
+        assertEquals("Previous School", snapshot.getPreviousSchool());
+        assertEquals(IdentityDocumentType.HKID, snapshot.getDocumentType());
+        assertEquals("A123456(3)", snapshot.getDocumentNumber());
+        assertNull(snapshot.getIssuingCountry());
+        assertEquals("Old Name", cancelledApplication.getApplicantSnapshot().getFullName());
+        assertEquals(LocalDate.of(2017, 1, 1), cancelledApplication.getApplicantSnapshot().getDateOfBirth());
+        assertEquals("Old Gender", cancelledApplication.getApplicantSnapshot().getGender());
+        assertEquals("11111111", cancelledApplication.getApplicantSnapshot().getPhone());
+        assertEquals("Old School", cancelledApplication.getApplicantSnapshot().getPreviousSchool());
+        assertEquals("A123456(3)", cancelledApplication.getApplicantSnapshot().getDocumentNumber());
+        assertThrows(IllegalStateException.class, () -> cancelledApplication.setApplicantSnapshot(snapshot));
+    }
+
+    @Test
+    void rejectsResubmissionByAnotherMember() {
+        Member owner = new Member();
+        owner.setId(99L);
+        Applicant applicant = new Applicant();
+        applicant.setId(1L);
+        applicant.setMember(owner);
+        when(applicantRepository.findByIdentityDocumentHashForUpdate(DOCUMENT_HASH))
+                .thenReturn(Optional.of(applicant));
+
+        ResponseStatusException exception = assertThrows(
+                ResponseStatusException.class, () -> service.submitApplication(request, MEMBER_ID)
+        );
+
+        assertEquals(HttpStatus.CONFLICT, exception.getStatusCode());
+        assertEquals("Identity document is already linked", exception.getReason());
+        verifyNoInteractions(applicationRepository, identityReviewService);
+        verify(applicantRepository, never()).save(any());
+        verify(applicationRepository, never()).save(any());
+    }
+
+    @Test
+    void duplicateSubmittedByAnotherMemberDoesNotRevealApplication() {
+        Member owner = new Member();
+        owner.setId(99L);
+        Applicant applicant = new Applicant();
+        applicant.setMember(owner);
+        when(applicantRepository.findByIdentityDocumentHashForUpdate(DOCUMENT_HASH))
+                .thenReturn(Optional.of(applicant));
+        ResponseStatusException exception = assertThrows(
+                ResponseStatusException.class, () -> service.submitApplication(request, MEMBER_ID)
+        );
+
+        assertEquals(HttpStatus.CONFLICT, exception.getStatusCode());
+        assertEquals("Identity document is already linked", exception.getReason());
+        verifyNoInteractions(applicationRepository, identityReviewService);
+        verify(applicantRepository, never()).save(any());
     }
 
     @Test
     void createsApplicantAndApplicationForFirstSubmission() {
         when(applicantRepository.findByIdentityDocumentHashForUpdate(DOCUMENT_HASH))
                 .thenReturn(Optional.empty());
-        IdentityDocument identityDocument = new IdentityDocument();
-        identityDocument.setDocumentNumberHash(DOCUMENT_HASH);
+        IdentityDocument identityDocument = new IdentityDocument(
+                IdentityDocumentType.HKID, "A123456(3)", "HK", DOCUMENT_HASH);
         when(identityDocumentService.createIdentityDocument(
-                IdentityDocumentType.HKID, "A123456(8)", null
+                IdentityDocumentType.HKID, "A123456(3)", null
         )).thenReturn(identityDocument);
         when(applicantRepository.save(any(Applicant.class))).thenAnswer(invocation -> invocation.getArgument(0));
 
@@ -210,19 +325,81 @@ class AdmissionsApplicationServiceTest {
         verify(applicationRepository).save(argThat(application ->
                 application.getApplicationNumber().matches("APP-[0-9A-Z]{13}")
                         && application.getStatus() == ApplicationStatus.Pending
+                        && !application.isManualIdentityReviewRequired()
+                        && application.getApplicantSnapshot().getFullName().equals("Applicant Name")
+                        && application.getApplicantSnapshot().getDocumentNumber().equals("A123456(3)")
         ));
+    }
+
+    @Test
+    void memberCanSubmitUsingTheirOwnIdentityDocument() {
+        IdentityDocument document = new IdentityDocument(
+                IdentityDocumentType.HKID, "A123456(3)", "HK", DOCUMENT_HASH);
+        member.addIdentityDocument(document);
+        when(identityDocumentService.findByHashForUpdate(DOCUMENT_HASH)).thenReturn(Optional.of(document));
+        when(applicantRepository.save(any(Applicant.class))).thenAnswer(invocation -> invocation.getArgument(0));
+
+        service.submitApplication(request, MEMBER_ID);
+
+        assertSame(member, document.getMember());
+        assertNotNull(document.getApplicant());
+        assertSame(member, document.getApplicant().getMember());
+        verify(identityDocumentService, never()).createIdentityDocument(any(), any(), any());
+        verify(applicationRepository).save(any(Application.class));
+    }
+
+    @Test
+    void cannotSubmitUsingAnotherMembersIdentityDocument() {
+        Member anotherMember = new Member();
+        anotherMember.setId(99L);
+        IdentityDocument document = new IdentityDocument(
+                IdentityDocumentType.HKID, "A123456(3)", "HK", DOCUMENT_HASH);
+        anotherMember.addIdentityDocument(document);
+        when(identityDocumentService.findByHashForUpdate(DOCUMENT_HASH)).thenReturn(Optional.of(document));
+
+        ResponseStatusException exception = assertThrows(
+                ResponseStatusException.class, () -> service.submitApplication(request, MEMBER_ID));
+
+        assertEquals(HttpStatus.CONFLICT, exception.getStatusCode());
+        assertNull(document.getApplicant());
+        verify(applicantRepository, never()).save(any());
+        verify(applicationRepository, never()).save(any());
+    }
+
+    @Test
+    void snapshotKeepsSubmittedDocumentFormatting() {
+        request = new ApplicationSubmissionRequest(
+                LevelCode.S1, "Applicant Name", " a123456(3) ", IdentityDocumentType.HKID, null,
+                LocalDate.of(2018, 1, 1), "Unspecified", "12345678", "Previous School");
+        when(identityDocumentService.getDocumentNumberHash(IdentityDocumentType.HKID, " a123456(3) ", null))
+                .thenReturn(DOCUMENT_HASH);
+        IdentityDocument document = new IdentityDocument(
+                IdentityDocumentType.HKID, "A123456(3)", "HK", DOCUMENT_HASH);
+        member.addIdentityDocument(document);
+        when(identityDocumentService.findByHashForUpdate(DOCUMENT_HASH)).thenReturn(Optional.of(document));
+        when(applicantRepository.save(any(Applicant.class))).thenAnswer(invocation -> invocation.getArgument(0));
+
+        service.submitApplication(request, MEMBER_ID);
+
+        ArgumentCaptor<Application> captor = ArgumentCaptor.forClass(Application.class);
+        verify(applicationRepository).save(captor.capture());
+        assertEquals(" a123456(3) ", captor.getValue().getApplicantSnapshot().getDocumentNumber());
+        assertNull(captor.getValue().getApplicantSnapshot().getIssuingCountry());
+        assertEquals("A123456(3)", document.getDocumentNumber());
+        assertEquals("HK", document.getIssuingCountry());
     }
 
     @Test
     void duplicateLookupCanTraverseApplicantDocumentAndAcademicYear() {
         assertDoesNotThrow(() -> new PartTree(
                 "findFirstByApplicant_IdentityDocuments_DocumentNumberHash"
-                        + "AndProgrammeLevel_IdAndProgrammeLevel_AcademicYear_Id"
+                        + "AndProgrammeLevel_IdAndAcademicYear_Id"
                         + "AndStatusNotOrderBySubmittedAtDesc",
                 Application.class
         ));
         assertDoesNotThrow(() -> new PartTree(
-                "existsByApplicant_IdInAndProgrammeLevel_IdAndProgrammeLevel_AcademicYear_IdAndStatusNot",
+                "findAllByProgrammeLevel_IdAndAcademicYear_IdAndStatusNot"
+                        + "AndApplicantSnapshot_DateOfBirthAndApplicantSnapshot_DocumentTypeAndApplicantSnapshot_NameHash",
                 Application.class
         ));
     }
@@ -240,7 +417,7 @@ class AdmissionsApplicationServiceTest {
     private void assertManualReviewForCrossDocument(
             IdentityDocumentType submittedDocumentType,
             IdentityDocumentType existingDocumentType) {
-        String submittedNumber = submittedDocumentType == IdentityDocumentType.PASSPORT ? "P123456" : "A123456(8)";
+        String submittedNumber = submittedDocumentType == IdentityDocumentType.PASSPORT ? "P123456" : "A123456(3)";
         String submittedHash = "submitted-" + submittedDocumentType;
         request = new ApplicationSubmissionRequest(
                 LevelCode.S1,
@@ -259,23 +436,19 @@ class AdmissionsApplicationServiceTest {
         when(applicantRepository.findByIdentityDocumentHashForUpdate(submittedHash))
                 .thenReturn(Optional.empty());
 
-        Applicant existingApplicant = new Applicant();
-        existingApplicant.setId(99L);
-        existingApplicant.setFullName("Applicant Name");
-        existingApplicant.setDateOfBirth(LocalDate.of(2018, 1, 1));
-        IdentityDocument existingDocument = new IdentityDocument();
-        existingDocument.setDocumentType(existingDocumentType);
-        existingApplicant.addIdentityDocument(existingDocument);
-        when(applicantRepository.findAllByDateOfBirth(LocalDate.of(2018, 1, 1)))
-                .thenReturn(java.util.List.of(existingApplicant));
+        Application existingApplication = new Application();
+        existingApplication.setApplicantSnapshot(new ApplicantSnapshot(
+                "Applicant Name", LocalDate.of(2018, 1, 1), "Unspecified", "12345678",
+                "Previous School", existingDocumentType, "old-document", "HK"
+        ));
         when(applicationRepository
-                .existsByApplicant_IdInAndProgrammeLevel_IdAndProgrammeLevel_AcademicYear_IdAndStatusNot(
-                        java.util.List.of(99L), PROGRAMME_LEVEL_ID, ACADEMIC_YEAR_ID, ApplicationStatus.Cancelled
+                .findAllByProgrammeLevel_IdAndAcademicYear_IdAndStatusNotAndApplicantSnapshot_DateOfBirthAndApplicantSnapshot_DocumentTypeAndApplicantSnapshot_NameHash(
+                        PROGRAMME_LEVEL_ID, ACADEMIC_YEAR_ID, ApplicationStatus.Cancelled,
+                        LocalDate.of(2018, 1, 1), existingDocumentType, ApplicantSnapshot.hashName(request.applicantFullName())
                 ))
-                .thenReturn(true);
-        IdentityDocument newDocument = new IdentityDocument();
-        newDocument.setDocumentType(submittedDocumentType);
-        newDocument.setDocumentNumberHash(submittedHash);
+                .thenReturn(List.of(existingApplication));
+        IdentityDocument newDocument = new IdentityDocument(
+                submittedDocumentType, submittedNumber, "HK", submittedHash);
         when(identityDocumentService.createIdentityDocument(
                 submittedDocumentType, submittedNumber, "HK"
         )).thenReturn(newDocument);
@@ -285,9 +458,12 @@ class AdmissionsApplicationServiceTest {
 
         service.submitApplication(request, MEMBER_ID);
 
-        verify(applicationRepository).save(argThat(application -> application.isManualIdentityReviewRequired()));
+        verify(applicationRepository).save(argThat(application -> application.isManualIdentityReviewRequired()
+                && application.getApplicantSnapshot().getDocumentType() == submittedDocumentType
+                && application.getApplicantSnapshot().getDocumentNumber().equals(submittedNumber)
+                && application.getApplicantSnapshot().getIssuingCountry().equals("HK")));
         verify(notificationService).notifyAdminOfIdentityReview(
-                eq(member), any(Applicant.class), same(savedApplication), eq("2026/27")
+                eq(member), same(savedApplication), eq("2026/27")
         );
     }
 }

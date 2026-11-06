@@ -6,7 +6,6 @@ import lombok.NoArgsConstructor;
 import lombok.Setter;
 import org.hibernate.annotations.CreationTimestamp;
 
-import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.util.ArrayList;
 import java.util.List;
@@ -16,8 +15,7 @@ import java.util.List;
 @Setter
 @NoArgsConstructor
 @Table(
-        name = "applicant",
-        indexes = @Index(name = "idx_applicant_date_of_birth", columnList = "date_of_birth")
+        name = "applicant"
 )
 public class Applicant {
     @Id
@@ -28,35 +26,16 @@ public class Applicant {
     @JoinColumn(name = "member_id", nullable = false)
     private Member member;
 
-    @Column(name = "full_name", nullable = false, length = 120)
-    private String fullName;
-
-    @Column(name = "date_of_birth", nullable = false)
-    private LocalDate dateOfBirth;
-
-    @Column(nullable = false, length = 20)
-    private String gender;
-
-    @Column(nullable = false, length = 25)
-    private String phone;
-
-    @Column(name = "previous_school", nullable = false, length = 150)
-    private String previousSchool;
-
     @CreationTimestamp
     @Column(name = "created_at", nullable = false, updatable = false)
     private LocalDateTime createdAt = LocalDateTime.now();
 
-    @OneToMany(mappedBy = "applicant", cascade = CascadeType.ALL, orphanRemoval = true)
+    @OneToMany(mappedBy = "applicant", cascade = CascadeType.PERSIST)
     private List<IdentityDocument> identityDocuments = new ArrayList<>();
 
     public void addIdentityDocument(IdentityDocument identityDocument) {
+        identityDocument.attachToApplicant(this);
         identityDocuments.add(identityDocument);
-        identityDocument.setApplicant(this);
     }
 
-    public void removeIdentityDocument(IdentityDocument identityDocument) {
-        identityDocuments.remove(identityDocument);
-        identityDocument.setApplicant(null);
-    }
 }

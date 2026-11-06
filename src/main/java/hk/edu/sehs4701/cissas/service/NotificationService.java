@@ -3,7 +3,7 @@ package hk.edu.sehs4701.cissas.service;
 import hk.edu.sehs4701.cissas.dto.request.EmailDispatchRequest;
 import hk.edu.sehs4701.cissas.entity.Application;
 import hk.edu.sehs4701.cissas.entity.Member;
-import hk.edu.sehs4701.cissas.entity.Applicant;
+import hk.edu.sehs4701.cissas.entity.ApplicantSnapshot;
 import hk.edu.sehs4701.cissas.enums.EmailTemplateType;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;
@@ -58,7 +58,6 @@ public class NotificationService {
     @Transactional
     public void notifyAdminOfIdentityReview(
             Member member,
-            Applicant applicant,
             Application application,
             String academicYearName) {
         if (adminNotificationEmail == null || adminNotificationEmail.isBlank()) {
@@ -69,6 +68,7 @@ public class NotificationService {
 
         String recipient = adminNotificationEmail.trim().toLowerCase(Locale.ROOT);
         String actionRequired = "Review the possible cross-document applicant match.";
+        ApplicantSnapshot applicant = application.getApplicantSnapshot();
         String body = formatStandardBody(
                 "Admissions Team",
                 applicant.getFullName(),
