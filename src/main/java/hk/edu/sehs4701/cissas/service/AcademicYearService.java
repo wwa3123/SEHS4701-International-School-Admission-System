@@ -2,6 +2,7 @@ package hk.edu.sehs4701.cissas.service;
 
 import hk.edu.sehs4701.cissas.dto.response.AcademicYearResponse;
 import hk.edu.sehs4701.cissas.entity.AcademicYear;
+import hk.edu.sehs4701.cissas.enums.AcademicYearStatus;
 import hk.edu.sehs4701.cissas.repository.AcademicYearRepository;
 import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Service;
@@ -20,7 +21,7 @@ public class AcademicYearService {
 
     @Transactional(readOnly = true)
     public List<AcademicYearResponse> list() {
-        return academicYearRepository.findAllByOrderByStartDateDesc().stream()
+        return academicYearRepository.findAllByOrderByApplicationStartDateDesc().stream()
                 .map(this::toResponse)
                 .toList();
     }
@@ -32,12 +33,21 @@ public class AcademicYearService {
                 .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Academic year not found"));
     }
 
+    @Transactional(readOnly = true)
+    public AcademicYearResponse getCurrentOpenForApplicationAcademicYear() {
+        return academicYearRepository.findFirstByStatusOrderByApplicationStartDateDesc(
+                        AcademicYearStatus.OPEN_FOR_ADMISSION)
+                .map(this::toResponse)
+                .orElseThrow(() -> new ResponseStatusException(
+                        HttpStatus.NOT_FOUND, "No academic year open for applications found"));
+    }
+
     private AcademicYearResponse toResponse(AcademicYear academicYear) {
         return new AcademicYearResponse(
                 academicYear.getId(),
                 academicYear.getName(),
-                academicYear.getStartDate(),
-                academicYear.getEndDate(),
+                academicYear.getApplicationStartDate(),
+                academicYear.getApplicationEndDate(),
                 academicYear.getStatus()
         );
     }

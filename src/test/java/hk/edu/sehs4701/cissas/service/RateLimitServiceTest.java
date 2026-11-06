@@ -17,7 +17,7 @@ class RateLimitServiceTest {
         HashService hashService = mock(HashService.class);
         when(hashService.hashRateLimitKey("192.0.2.1")).thenReturn("hashed-address");
         when(repository.findRequestCount("hashed-address")).thenReturn(11);
-        RateLimitService service = new RateLimitService(repository, hashService, "");
+        RateLimitService service = new RateLimitService(repository, hashService, "", 10, 100);
 
         ResponseStatusException exception = assertThrows(
                 ResponseStatusException.class,
@@ -34,7 +34,7 @@ class RateLimitServiceTest {
         HashService hashService = mock(HashService.class);
         when(hashService.hashRateLimitKey("login-ip:192.0.2.1")).thenReturn("hashed-address");
         when(repository.findRequestCount("hashed-address")).thenReturn(11);
-        RateLimitService service = new RateLimitService(repository, hashService, "");
+        RateLimitService service = new RateLimitService(repository, hashService, "", 10, 100);
 
         service.checkLoginAllowed("login-ip:192.0.2.1", "Too many login attempts");
     }
@@ -45,7 +45,7 @@ class RateLimitServiceTest {
         HashService hashService = mock(HashService.class);
         when(hashService.hashRateLimitKey("login-ip:192.0.2.1")).thenReturn("hashed-address");
         when(repository.findRequestCount("hashed-address")).thenReturn(101);
-        RateLimitService service = new RateLimitService(repository, hashService, "");
+        RateLimitService service = new RateLimitService(repository, hashService, "", 10, 100);
 
         ResponseStatusException exception = assertThrows(
                 ResponseStatusException.class,
@@ -61,7 +61,7 @@ class RateLimitServiceTest {
         HashService hashService = mock(HashService.class);
         when(hashService.hashRateLimitKey("login-ip:192.0.2.1")).thenReturn("hashed-address");
         when(repository.findRequestCount("hashed-address")).thenReturn(11);
-        RateLimitService service = new RateLimitService(repository, hashService, "");
+        RateLimitService service = new RateLimitService(repository, hashService, "", 10, 100);
 
         ResponseStatusException exception = assertThrows(
                 ResponseStatusException.class,
@@ -74,7 +74,7 @@ class RateLimitServiceTest {
     @Test
     void trustsForwardedAddressOnlyFromConfiguredProxy() {
         RateLimitService service = new RateLimitService(
-                mock(RateLimitRepository.class), mock(HashService.class), "10.0.0.5"
+                mock(RateLimitRepository.class), mock(HashService.class), "10.0.0.5", 10, 100
         );
         HttpServletRequest proxyRequest = mock(HttpServletRequest.class);
         when(proxyRequest.getRemoteAddr()).thenReturn("10.0.0.5");
@@ -86,5 +86,18 @@ class RateLimitServiceTest {
         when(directRequest.getRemoteAddr()).thenReturn("198.51.100.8");
         when(directRequest.getHeader("X-Forwarded-For")).thenReturn("192.0.2.17");
         assertEquals("198.51.100.8", service.resolveClientAddress(directRequest));
+    }
+
+    @Test
+    void appliesConfiguredLimitsAndRejectsInvalidConfiguration() {
+        RateLimitRepository repository = mock(RateLimitRepository.class);
+        HashService hashService = mock(HashService.class);
+        when(hashService.hashRateLimitKey("address")).thenReturn("hash");
+        when(repository.findRequestCount("hash")).thenReturn(3);
+        RateLimitService service = new RateLimitService(repository, hashService, "", 2, 4);
+        assertThrows(ResponseStatusException.class, () -> service.checkAllowed("address"));
+        service.checkLoginAllowed("address", "Too many login attempts");
+        assertThrows(IllegalArgumentException.class,
+                () -> new RateLimitService(repository, hashService, "", 0, 4));
     }
 }

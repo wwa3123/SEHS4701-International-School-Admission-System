@@ -17,7 +17,7 @@ import jakarta.persistence.Table;
 import jakarta.persistence.UniqueConstraint;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
-import lombok.Setter;
+import lombok.AccessLevel;
 
 @Entity
 @Table(
@@ -27,10 +27,9 @@ import lombok.Setter;
                 @UniqueConstraint(name = "uk_identity_document_member_type", columnNames = {"member_id", "document_type"})
         }
 )
-@Check(constraints = "(applicant_id IS NOT NULL AND member_id IS NULL) OR (applicant_id IS NULL AND member_id IS NOT NULL)")
+@Check(constraints = "applicant_id IS NOT NULL OR member_id IS NOT NULL")
 @Getter
-@Setter
-@NoArgsConstructor
+@NoArgsConstructor(access = AccessLevel.PROTECTED)
 public class IdentityDocument {
     @Id
     @Tsid
@@ -46,16 +45,40 @@ public class IdentityDocument {
     private Member member;
 
     @Enumerated(EnumType.STRING)
-    @Column(name = "document_type", nullable = false, length = 32)
+    @Column(name = "document_type", nullable = false, updatable = false, length = 32)
     private IdentityDocumentType documentType;
 
     @Convert(converter = AesEncryptionConverter.class)
-    @Column(name = "encrypted_document_number", nullable = false, length = 512)
+    @Column(name = "encrypted_document_number", nullable = false, updatable = false, length = 8192)
     private String documentNumber;
 
-    @Column(name = "document_number_hash", nullable = false, unique = true, length = 64)
+    @Column(name = "document_number_hash", nullable = false, updatable = false, unique = true, length = 64)
     private String documentNumberHash;
 
-    @Column(name = "issuing_country", length = 2)
+    @Column(name = "issuing_country", updatable = false, length = 2)
     private String issuingCountry;
+
+    public IdentityDocument(IdentityDocumentType documentType, String documentNumber,
+                            String issuingCountry, String documentNumberHash) {
+        this.documentType = documentType;
+        this.documentNumber = documentNumber;
+        this.issuingCountry = issuingCountry;
+        this.documentNumberHash = documentNumberHash;
+    }
+
+    public void attachToApplicant(Applicant applicant) {
+        if (this.applicant != null || applicant == null || applicant.getMember() == null
+                || (member != null && member != applicant.getMember()
+                && (member.getId() == null || !member.getId().equals(applicant.getMember().getId())))) {
+            throw new IllegalStateException("Identity document cannot be linked to this applicant");
+        }
+        this.applicant = applicant;
+    }
+
+    public void attachToMember(Member member) {
+        if (this.member != null || member == null || applicant != null) {
+            throw new IllegalStateException("Identity document cannot be linked to this member");
+        }
+        this.member = member;
+    }
 }

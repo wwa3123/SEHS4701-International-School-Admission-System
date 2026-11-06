@@ -23,7 +23,7 @@ class AcademicYearServiceTest {
     @Test
     void listsAcademicYearsAsResponses() {
         AcademicYear academicYear = academicYear(1L, "2026/27");
-        when(repository.findAllByOrderByStartDateDesc()).thenReturn(List.of(academicYear));
+        when(repository.findAllByOrderByApplicationStartDateDesc()).thenReturn(List.of(academicYear));
 
         assertEquals(
                 List.of(new AcademicYearResponse(
@@ -48,6 +48,34 @@ class AcademicYearServiceTest {
     }
 
     @Test
+    void getsCurrentOpenForApplicationAcademicYear() {
+        AcademicYear activeYear = academicYear(1L, "2026/27");
+        activeYear.setStatus(AcademicYearStatus.OPEN_FOR_ADMISSION);
+        when(repository.findFirstByStatusOrderByApplicationStartDateDesc(AcademicYearStatus.OPEN_FOR_ADMISSION))
+                .thenReturn(Optional.of(activeYear));
+
+        assertEquals(
+                new AcademicYearResponse(
+                        1L, "2026/27", LocalDate.of(2026, 9, 1), LocalDate.of(2027, 8, 31),
+                        AcademicYearStatus.OPEN_FOR_ADMISSION
+                ),
+                service.getCurrentOpenForApplicationAcademicYear()
+        );
+    }
+
+    @Test
+    void returnsNotFoundWhenThereIsNoAcademicYearOpenForApplications() {
+        when(repository.findFirstByStatusOrderByApplicationStartDateDesc(AcademicYearStatus.OPEN_FOR_ADMISSION))
+                .thenReturn(Optional.empty());
+
+        ResponseStatusException exception = assertThrows(
+                ResponseStatusException.class, service::getCurrentOpenForApplicationAcademicYear
+        );
+
+        assertEquals(HttpStatus.NOT_FOUND, exception.getStatusCode());
+    }
+
+    @Test
     void returnsNotFoundForUnknownId() {
         when(repository.findById(99L)).thenReturn(Optional.empty());
 
@@ -62,8 +90,8 @@ class AcademicYearServiceTest {
         AcademicYear academicYear = new AcademicYear();
         academicYear.setId(id);
         academicYear.setName(name);
-        academicYear.setStartDate(LocalDate.of(2026, 9, 1));
-        academicYear.setEndDate(LocalDate.of(2027, 8, 31));
+        academicYear.setApplicationStartDate(LocalDate.of(2026, 9, 1));
+        academicYear.setApplicationEndDate(LocalDate.of(2027, 8, 31));
         academicYear.setStatus(AcademicYearStatus.OPEN_FOR_ADMISSION);
         return academicYear;
     }

@@ -19,8 +19,8 @@ class OtcServiceTest {
     void persistsLastFailedAttemptAndRejectsFurtherChecks() {
         OneTimeCodeRepository repository = mock(OneTimeCodeRepository.class);
         HashService hashService = mock(HashService.class);
-        EmailService emailService = mock(EmailService.class);
-        OtcService service = new OtcService(repository, hashService, emailService);
+        NotificationService notificationService = mock(NotificationService.class);
+        OtcService service = new OtcService(repository, hashService, notificationService);
         ReflectionTestUtils.setField(service, "otcMaxAttempts", 5);
 
         Member member = new Member();

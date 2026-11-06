@@ -30,7 +30,7 @@ public class EmailSendAttemptService {
     private final EmailLogRepository emailLogRepository;
     private final JavaMailSender mailSender;
 
-    @Value("${spring.mail.username:noreply@cis.edu.hk}")
+    @Value("${spring.mail.username}")
     private String fromAddress;
 
     @Autowired
@@ -42,7 +42,7 @@ public class EmailSendAttemptService {
     @Async
     @Retryable(
             retryFor = { MailException.class },
-            maxAttemptsExpression = "${cissas.email.max-retries:3}",
+            maxAttemptsExpression = "${cissas.email.max-retries}",
             backoff = @Backoff(delay = 5000)
     )
     @TransactionalEventListener(phase = TransactionPhase.AFTER_COMMIT)

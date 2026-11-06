@@ -6,9 +6,11 @@ import jakarta.persistence.*;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
 import lombok.Setter;
+import lombok.AccessLevel;
 import org.hibernate.annotations.UpdateTimestamp;
 
 import java.time.LocalDateTime;
+import java.util.Objects;
 
 @Entity
 @Getter
@@ -16,7 +18,9 @@ import java.time.LocalDateTime;
 @NoArgsConstructor
 @Table(
         name = "application",
-        uniqueConstraints = @UniqueConstraint(name = "uk_application_number", columnNames = "application_number")
+        uniqueConstraints = @UniqueConstraint(name = "uk_application_number", columnNames = "application_number"),
+        indexes = @Index(name = "idx_application_identity_review",
+                columnList = "programme_level_id, academic_year_id, submitted_date_of_birth, submitted_document_type, submitted_name_hash")
 )
 public class Application {
     @Id
@@ -35,13 +39,24 @@ public class Application {
     @JoinColumn(name = "applicant_id", nullable = false)
     private Applicant applicant;
 
+    @Embedded
+    @Setter(AccessLevel.NONE)
+    private ApplicantSnapshot applicantSnapshot;
+
     @ManyToOne(fetch = FetchType.LAZY, optional = false)
     @JoinColumn(name = "programme_level_id", nullable = false)
     private ProgrammeLevel programmeLevel;
 
+    @ManyToOne(fetch = FetchType.LAZY, optional = false)
+    @JoinColumn(name = "academic_year_id", nullable = false, updatable = false)
+    private AcademicYear academicYear;
+
     @Enumerated(EnumType.STRING)
     @Column(nullable = false, length = 20)
     private ApplicationStatus status = ApplicationStatus.Pending;
+
+    @Column(name = "manual_identity_review_required", nullable = false)
+    private boolean manualIdentityReviewRequired;
 
     @Column(name = "submitted_at", nullable = false, updatable = false)
     private LocalDateTime submittedAt = LocalDateTime.now();
@@ -59,5 +74,10 @@ public class Application {
     @Column(name = "updated_at", nullable = false)
     private LocalDateTime updatedAt = LocalDateTime.now();
 
-
+    public void setApplicantSnapshot(ApplicantSnapshot applicantSnapshot) {
+        if (this.applicantSnapshot != null) {
+            throw new IllegalStateException("Application snapshot cannot be replaced");
+        }
+        this.applicantSnapshot = Objects.requireNonNull(applicantSnapshot, "Applicant snapshot is required");
+    }
 }

@@ -30,7 +30,7 @@ public class EmailService {
         emailLog.setMember(request.member());
         emailLog.setApplication(request.application());
         emailLog.setTemplateType(request.templateType());
-        emailLog.setRecipientEmail(request.member().getEmail());
+        emailLog.setRecipientEmail(request.recipientEmail());
         emailLog.setApplicantName(request.applicantName());
         emailLog.setApplicationNumber(request.applicationNumber());
         emailLog.setActionRequired(request.actionRequired());
@@ -65,28 +65,7 @@ public class EmailService {
         return savedLog;
     }
 
-    public String formatStandardBody(
-            String memberName,
-            String applicantName,
-            String applicationNumber,
-            String actionRequired,
-            String messageContent) {
-        return """
-            Dear %s,
 
-            %s
-
-            ------------------------------------------------------------
-            Applicant Name     : %s
-            Application Number : %s
-            Action Required    : %s
-            ------------------------------------------------------------
-
-            Best regards,
-            Admissions Office
-            Christian International School (CIS)
-            """.formatted(memberName, messageContent, applicantName, applicationNumber, actionRequired);
-    }
 
 
 }
