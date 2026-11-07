@@ -1,7 +1,7 @@
 package hk.edu.sehs4701.cissas.service;
 
 import hk.edu.sehs4701.cissas.dto.request.ApplicationSubmissionRequest;
-import hk.edu.sehs4701.cissas.controller.member.AdmissionsApplicationController;
+import hk.edu.sehs4701.cissas.controller.api.member.member.AdmissionsApplicationController;
 import hk.edu.sehs4701.cissas.entity.*;
 import hk.edu.sehs4701.cissas.enums.*;
 import hk.edu.sehs4701.cissas.repository.*;

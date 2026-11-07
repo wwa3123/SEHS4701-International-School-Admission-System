@@ -25,13 +25,39 @@
         <div class="container-fluid py-3">
             <h1 class="display-5 fw-bold text-primary">Hello, Spring Boot!</h1>
             <p class="col-md-8 fs-4 text-secondary">
-                This is a dynamic index page rendered using Spring Boot and Thymeleaf, styled with Bootstrap 5.
+                Welcome to the International School Admission System.
             </p>
-            <hr class="my-4">
-            <p>Get started by exploring your backend APIs or building out your views.</p>
-            <a href="https://spring.io/projects/spring-boot" target="_blank" class="btn btn-dark btn-lg">Spring Boot Docs</a>
         </div>
     </div>
+
+    <section class="card shadow-sm mb-4">
+        <div class="card-body">
+            <h2 class="h4 card-title">Academic Years</h2>
+            <div th:if="${#lists.isEmpty(academicYears)}" class="text-muted">
+                No academic years are available.
+            </div>
+            <div th:unless="${#lists.isEmpty(academicYears)}" class="table-responsive">
+                <table class="table table-striped mb-0">
+                    <thead>
+                    <tr>
+                        <th scope="col">Year</th>
+                        <th scope="col">Application opens</th>
+                        <th scope="col">Application closes</th>
+                        <th scope="col">Status</th>
+                    </tr>
+                    </thead>
+                    <tbody>
+                    <tr th:each="year : ${academicYears}">
+                        <td th:text="${year.name}"></td>
+                        <td th:text="${year.applicationStartDate}"></td>
+                        <td th:text="${year.applicationEndDate}"></td>
+                        <td th:text="${year.status}"></td>
+                    </tr>
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </section>
 
     <!-- Feature Cards Row -->
     <div class="row text-center">

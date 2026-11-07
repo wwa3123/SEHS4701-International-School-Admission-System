@@ -1,4 +1,4 @@
-package hk.edu.sehs4701.cissas.controller.pub;
+package hk.edu.sehs4701.cissas.controller.api.pub;
 
 import hk.edu.sehs4701.cissas.dto.request.MembershipRegistrationRequest;
 import hk.edu.sehs4701.cissas.dto.request.MembershipEmailRequest;

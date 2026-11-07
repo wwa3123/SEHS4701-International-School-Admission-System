@@ -1,4 +1,4 @@
-package hk.edu.sehs4701.cissas.controller.pub;
+package hk.edu.sehs4701.cissas.controller.api.pub;
 
 import hk.edu.sehs4701.cissas.dto.response.AcademicYearResponse;
 import hk.edu.sehs4701.cissas.service.AcademicYearService;
