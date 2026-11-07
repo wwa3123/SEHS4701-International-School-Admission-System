@@ -1,5 +1,6 @@
 package hk.edu.sehs4701.cissas.controller.admin;
 
+import hk.edu.sehs4701.cissas.controller.api.admin.IdentityReviewController;
 import hk.edu.sehs4701.cissas.service.IdentityReviewService;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpSession;

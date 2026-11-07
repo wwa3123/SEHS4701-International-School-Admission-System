@@ -1,5 +1,6 @@
 package hk.edu.sehs4701.cissas.controller.pub;
 
+import hk.edu.sehs4701.cissas.controller.api.pub.LoginController;
 import hk.edu.sehs4701.cissas.dto.request.LoginRequest;
 import hk.edu.sehs4701.cissas.dto.response.LoginResponse;
 import hk.edu.sehs4701.cissas.enums.ActorRole;

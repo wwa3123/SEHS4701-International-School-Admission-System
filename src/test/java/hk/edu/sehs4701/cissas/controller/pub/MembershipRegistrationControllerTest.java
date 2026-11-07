@@ -1,5 +1,6 @@
 package hk.edu.sehs4701.cissas.controller.pub;
 
+import hk.edu.sehs4701.cissas.controller.api.pub.MembershipRegistrationController;
 import hk.edu.sehs4701.cissas.dto.request.MembershipRegistrationRequest;
 import hk.edu.sehs4701.cissas.enums.IdentityDocumentType;
 import hk.edu.sehs4701.cissas.service.MembershipRegistrationService;

@@ -1,4 +1,4 @@
-package hk.edu.sehs4701.cissas.controller.admin;
+package hk.edu.sehs4701.cissas.controller.api.admin;
 
 import hk.edu.sehs4701.cissas.enums.ActorRole;
 import hk.edu.sehs4701.cissas.service.IdentityReviewService;
