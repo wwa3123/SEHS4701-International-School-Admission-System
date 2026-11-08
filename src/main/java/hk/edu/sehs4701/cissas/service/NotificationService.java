@@ -29,11 +29,11 @@ public class NotificationService {
 
     @Transactional
     public void sendVerificationCode(Member member, String rawSixDigitCode, int otcExpiryMinutes) {
-        String memberName = member.getFirstName() + " " + member.getLastName();
+        String memberName = "New CIS Member";
         String applicantName = "N/A";
         String applicationNumber = "N/A (Membership Verification)";
         String actionRequired = "Enter the 6-digit verification code within " + otcExpiryMinutes
-                + " minutes to activate your CIS membership account.";
+                + " minutes to verify your email and continue your CIS membership registration.";
         String body = formatStandardBody(
                 memberName,
                 applicantName,
