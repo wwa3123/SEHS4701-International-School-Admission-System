@@ -32,13 +32,13 @@ public class Member {
     @Column(unique = true, nullable = false, length = 150)
     private String email;
 
-    @Column(name = "password_hash", nullable = false)
+    @Column(name = "password_hash")
     private String passwordHash;
 
-    @Column(name = "first_name", nullable = false, length = 120)
+    @Column(name = "first_name", length = 120)
     private String firstName;
 
-    @Column(name = "last_name", nullable = false, length = 120)
+    @Column(name = "last_name", length = 120)
     private String lastName;
 
     @Column(name = "phone_number", length = 25)

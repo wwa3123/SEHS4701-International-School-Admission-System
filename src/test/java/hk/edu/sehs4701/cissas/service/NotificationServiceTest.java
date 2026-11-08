@@ -24,8 +24,6 @@ class NotificationServiceTest {
         EmailService emailService = mock(EmailService.class);
         NotificationService service = new NotificationService(emailService);
         Member member = new Member();
-        member.setFirstName("Ada");
-        member.setLastName("Lovelace");
 
         service.sendVerificationCode(member, "123456", 15);
 
@@ -35,7 +33,7 @@ class NotificationServiceTest {
         assertEquals(member, request.member());
         assertEquals(EmailTemplateType.OTC_VERIFICATION, request.templateType());
         assertEquals("[CIS SAS] Email Verification Code", request.subject());
-        assertTrue(request.body().contains("Dear Ada Lovelace"));
+        assertTrue(request.body().contains("Dear Applicant"));
         assertTrue(request.body().contains("code is: 123456"));
         assertTrue(request.body().contains("expires in 15 minutes"));
     }

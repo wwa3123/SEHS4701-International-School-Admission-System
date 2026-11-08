@@ -1,5 +1,6 @@
 package hk.edu.sehs4701.cissas.service;
 
+import hk.edu.sehs4701.cissas.dto.request.MembershipEmailRequest;
 import hk.edu.sehs4701.cissas.dto.request.MembershipRegistrationRequest;
 import hk.edu.sehs4701.cissas.entity.IdentityDocument;
 import hk.edu.sehs4701.cissas.entity.Member;
@@ -12,97 +13,99 @@ import org.springframework.web.server.ResponseStatusException;
 
 import java.util.Optional;
 
-import static org.junit.jupiter.api.Assertions.assertEquals;
-import static org.junit.jupiter.api.Assertions.assertThrows;
+import static org.junit.jupiter.api.Assertions.*;
 import static org.mockito.Mockito.*;
 
 class MembershipRegistrationServiceTest {
-    @Test
-    void pendingRegistrationCanResendButCannotReplaceAccountDetails() {
-        MemberRepository memberRepository = mock(MemberRepository.class);
-        IdentityDocumentService identityDocumentService = mock(IdentityDocumentService.class);
-        HashService hashService = mock(HashService.class);
-        OtcService otcService = mock(OtcService.class);
-        MembershipRegistrationService service = new MembershipRegistrationService(
-                memberRepository, identityDocumentService, hashService, otcService
-        );
+    private final MemberRepository members = mock(MemberRepository.class);
+    private final IdentityDocumentService documents = mock(IdentityDocumentService.class);
+    private final HashService hashes = mock(HashService.class);
+    private final OtcService codes = mock(OtcService.class);
+    private final MembershipRegistrationService service = new MembershipRegistrationService(members, documents, hashes, codes);
 
+    @Test
+    void registrationStoresOnlyEmailAndSendsCode() {
+        when(members.findByEmailIgnoreCase("member@example.com")).thenReturn(Optional.empty());
+        when(members.save(any(Member.class))).thenAnswer(invocation -> invocation.getArgument(0));
+        service.register(new MembershipEmailRequest(" Member@example.com "));
+        verify(members).save(argThat(member -> member.getEmail().equals("member@example.com")
+                && member.getAccountStatus() == AccountStatus.UNVERIFIED
+                && member.getPasswordHash() == null && member.getFirstName() == null
+                && member.getLastName() == null && member.getIdentityDocuments().isEmpty()));
+        verify(codes).issueAndSendOtc(any(Member.class));
+        verifyNoInteractions(documents, hashes);
+    }
+
+    @Test
+    void pendingRegistrationResendsWithoutChangingDetails() {
+        Member member = pendingMember();
+        member.setPasswordHash("old-hash");
+        when(members.findByEmailIgnoreCase("member@example.com")).thenReturn(Optional.of(member));
+        service.register(new MembershipEmailRequest("member@example.com"));
+        assertEquals("old-hash", member.getPasswordHash());
+        verify(codes).throttleAndResendOtc(member);
+        verifyNoInteractions(documents, hashes);
+    }
+
+    @Test
+    void verifyDoesNotActivateAccount() {
+        Member member = pendingMember();
+        when(members.findByEmailIgnoreCase("member@example.com")).thenReturn(Optional.of(member));
+        service.verifyEmail("member@example.com", "123456");
+        verify(codes).verifyOtc(1L, "123456");
+        assertEquals(AccountStatus.UNVERIFIED, member.getAccountStatus());
+        assertNull(member.getEmailVerifiedAt());
+    }
+
+    @Test
+    void completionReplacesOldCredentialsOnlyAfterVerification() {
+        Member member = pendingMember();
+        member.setPasswordHash("old-hash");
+        when(members.findByEmailIgnoreCase("member@example.com")).thenReturn(Optional.of(member));
+        IdentityDocument document = new IdentityDocument(IdentityDocumentType.HKID, "A123456(3)", "HK", "hash");
+        when(documents.createIdentityDocument(IdentityDocumentType.HKID, "A123456(3)", null)).thenReturn(document);
+        when(hashes.hashPassword("secure-password")).thenReturn("new-hash");
+
+        assertThrows(ResponseStatusException.class, () -> service.completeRegistration("other@example.com", request()));
+        service.completeRegistration("member@example.com", request());
+        assertEquals("new-hash", member.getPasswordHash());
+        assertEquals("Test", member.getFirstName());
+        assertEquals(AccountStatus.ACTIVE, member.getAccountStatus());
+        assertNotNull(member.getEmailVerifiedAt());
+        assertSame(document, member.getIdentityDocuments().getFirst());
+    }
+
+    @Test
+    void completionRejectsLegacyIdentityDocumentsWithoutModifyingThem() {
+        Member member = pendingMember();
+        member.addIdentityDocument(new IdentityDocument(IdentityDocumentType.HKID, "A123456(3)", "HK", "hash"));
+        when(members.findByEmailIgnoreCase("member@example.com")).thenReturn(Optional.of(member));
+        assertThrows(ResponseStatusException.class, () -> service.completeRegistration("member@example.com", request()));
+        assertEquals(AccountStatus.UNVERIFIED, member.getAccountStatus());
+        verifyNoInteractions(documents, hashes);
+    }
+
+    @Test
+    void duplicateDocumentDoesNotActivateAccount() {
+        Member member = pendingMember();
+        when(members.findByEmailIgnoreCase("member@example.com")).thenReturn(Optional.of(member));
+        when(documents.createIdentityDocument(any(), any(), any()))
+                .thenThrow(new ResponseStatusException(org.springframework.http.HttpStatus.CONFLICT));
+        assertThrows(ResponseStatusException.class, () -> service.completeRegistration("member@example.com", request()));
+        assertEquals(AccountStatus.UNVERIFIED, member.getAccountStatus());
+        verify(members, never()).save(any());
+    }
+
+    private Member pendingMember() {
         Member member = new Member();
         member.setId(1L);
         member.setEmail("member@example.com");
-        member.setPasswordHash("original-password-hash");
-        member.setFirstName("Original");
-        member.setLastName("Member");
-        member.setPhoneNumber("12345678");
         member.setAccountStatus(AccountStatus.UNVERIFIED);
-        when(memberRepository.findByEmailIgnoreCase("member@example.com")).thenReturn(Optional.of(member));
-
-        service.register(new MembershipRegistrationRequest(
-                "Attacker", "Name", "member@example.com", "87654321",
-                null, null, null, "attacker-password"
-        ));
-
-        assertEquals("original-password-hash", member.getPasswordHash());
-        assertEquals("Original", member.getFirstName());
-        assertEquals("Member", member.getLastName());
-        assertEquals("12345678", member.getPhoneNumber());
-        verify(otcService).throttleAndResendOtc(member);
-        verifyNoInteractions(identityDocumentService, hashService);
+        return member;
     }
 
-    @Test
-    void newRegistrationSavesMemberAndIssuesVerificationCode() {
-        MemberRepository memberRepository = mock(MemberRepository.class);
-        IdentityDocumentService identityDocumentService = mock(IdentityDocumentService.class);
-        HashService hashService = mock(HashService.class);
-        OtcService otcService = mock(OtcService.class);
-        MembershipRegistrationService service = new MembershipRegistrationService(
-                memberRepository, identityDocumentService, hashService, otcService
-        );
-        IdentityDocument document = new IdentityDocument(
-                IdentityDocumentType.HKID, "A123456(3)", "HK", "document-hash");
-        when(identityDocumentService.createIdentityDocument(
-                IdentityDocumentType.HKID, "A123456(3)", null
-        )).thenReturn(document);
-        when(memberRepository.findByEmailIgnoreCase("member@example.com")).thenReturn(Optional.empty());
-        when(memberRepository.save(any(Member.class))).thenAnswer(invocation -> invocation.getArgument(0));
-
-        service.register(validRequest());
-
-        verify(memberRepository).save(argThat(member ->
-                member.getAccountStatus() == AccountStatus.UNVERIFIED
-                        && member.getEmail().equals("member@example.com")
-                        && member.getIdentityDocuments().size() == 1
-                        && member.getIdentityDocuments().getFirst().getDocumentNumberHash().equals("document-hash")
-        ));
-        verify(otcService).issueAndSendOtc(any(Member.class));
-        verify(identityDocumentService).createIdentityDocument(IdentityDocumentType.HKID, "A123456(3)", null);
-    }
-
-    @Test
-    void duplicateIdentityDocumentDoesNotCreateMemberOrIssueCode() {
-        MemberRepository memberRepository = mock(MemberRepository.class);
-        IdentityDocumentService identityDocumentService = mock(IdentityDocumentService.class);
-        HashService hashService = mock(HashService.class);
-        OtcService otcService = mock(OtcService.class);
-        MembershipRegistrationService service = new MembershipRegistrationService(
-                memberRepository, identityDocumentService, hashService, otcService
-        );
-        when(memberRepository.findByEmailIgnoreCase("member@example.com")).thenReturn(Optional.empty());
-        when(identityDocumentService.createIdentityDocument(
-                IdentityDocumentType.HKID, "A123456(3)", null
-        )).thenThrow(new ResponseStatusException(org.springframework.http.HttpStatus.CONFLICT));
-
-        assertThrows(ResponseStatusException.class, () -> service.register(validRequest()));
-
-        verify(memberRepository, never()).save(any(Member.class));
-        verifyNoInteractions(otcService);
-    }
-
-    private MembershipRegistrationRequest validRequest() {
-        return new MembershipRegistrationRequest(
-                "Test", "Member", "member@example.com", "12345678",
-                IdentityDocumentType.HKID, "A123456(3)", null, "secure-password"
-        );
+    private MembershipRegistrationRequest request() {
+        return new MembershipRegistrationRequest("Test", "Member", "member@example.com", "12345678",
+                IdentityDocumentType.HKID, "A123456(3)", null, "secure-password");
     }
 }

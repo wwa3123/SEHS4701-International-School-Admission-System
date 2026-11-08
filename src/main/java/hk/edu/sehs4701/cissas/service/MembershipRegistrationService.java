@@ -1,6 +1,7 @@
 package hk.edu.sehs4701.cissas.service;
 
 import hk.edu.sehs4701.cissas.dto.request.MembershipRegistrationRequest;
+import hk.edu.sehs4701.cissas.dto.request.MembershipEmailRequest;
 import hk.edu.sehs4701.cissas.entity.IdentityDocument;
 import hk.edu.sehs4701.cissas.entity.Member;
 import hk.edu.sehs4701.cissas.enums.AccountStatus;
@@ -36,10 +37,7 @@ public class MembershipRegistrationService {
     }
 
     @Transactional
-    public void register(MembershipRegistrationRequest request) {
-        if (request.password().getBytes(StandardCharsets.UTF_8).length > 72) {
-            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Password exceeds the 72-byte limit");
-        }
+    public void register(MembershipEmailRequest request) {
         String email = request.email().trim().toLowerCase(Locale.ROOT);
         Member member = memberRepository.findByEmailIgnoreCase(email).orElse(null);
         if (member != null) {
@@ -52,18 +50,7 @@ public class MembershipRegistrationService {
         member = new Member();
         member.setUsername(email);
         member.setEmail(email);
-        member.setPasswordHash(hashService.hashPassword(request.password()));
-        member.setFirstName(request.firstName().trim());
-        member.setLastName(request.lastName().trim());
-        member.setPhoneNumber(request.phoneNumber().trim());
         member.setAccountStatus(AccountStatus.UNVERIFIED);
-
-        IdentityDocument identityDocument = identityDocumentService.createIdentityDocument(
-                request.documentType(),
-                request.documentNumber(),
-                request.issuingCountry()
-        );
-        member.addIdentityDocument(identityDocument);
 
         Member savedMember = memberRepository.save(member);
         otcService.issueAndSendOtc(savedMember);
@@ -78,9 +65,33 @@ public class MembershipRegistrationService {
         }
 
         otcService.verifyOtc(member.getId(), code);
-        member.setAccountStatus(AccountStatus.ACTIVE);
+    }
+
+    @Transactional
+    public void completeRegistration(String verifiedEmail, MembershipRegistrationRequest request) {
+        String email = request.email().trim().toLowerCase(Locale.ROOT);
+        if (!email.equals(verifiedEmail)) {
+            throw new ResponseStatusException(HttpStatus.FORBIDDEN, "Email verification is required");
+        }
+        if (request.password().getBytes(StandardCharsets.UTF_8).length > 72) {
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Password exceeds the 72-byte limit");
+        }
+        Member member = memberRepository.findByEmailIgnoreCase(email)
+                .filter(existing -> existing.getAccountStatus() == AccountStatus.UNVERIFIED)
+                .orElseThrow(() -> new ResponseStatusException(HttpStatus.CONFLICT, "Unable to complete registration"));
+        if (!member.getIdentityDocuments().isEmpty()) {
+            throw new ResponseStatusException(HttpStatus.CONFLICT,
+                    "This pending registration requires administrator assistance");
+        }
+        IdentityDocument document = identityDocumentService.createIdentityDocument(
+                request.documentType(), request.documentNumber(), request.issuingCountry());
+        member.setPasswordHash(hashService.hashPassword(request.password()));
+        member.setFirstName(request.firstName().trim());
+        member.setLastName(request.lastName().trim());
+        member.setPhoneNumber(request.phoneNumber().trim());
+        member.addIdentityDocument(document);
         member.setEmailVerifiedAt(LocalDateTime.now());
-        memberRepository.save(member);
+        member.setAccountStatus(AccountStatus.ACTIVE);
     }
 
     @Transactional
