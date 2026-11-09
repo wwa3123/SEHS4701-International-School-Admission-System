@@ -5,6 +5,7 @@ import hk.edu.sehs4701.cissas.entity.AcademicYear;
 import hk.edu.sehs4701.cissas.enums.AcademicYearStatus;
 import hk.edu.sehs4701.cissas.repository.AcademicYearRepository;
 import hk.edu.sehs4701.cissas.repository.IdentityReviewLockRepository;
+import hk.edu.sehs4701.cissas.repository.ProgrammeLevelRepository;
 import org.junit.jupiter.api.Test;
 import org.springframework.http.HttpStatus;
 import org.springframework.web.server.ResponseStatusException;
@@ -15,22 +16,24 @@ import java.util.List;
 import java.util.Optional;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.mockito.Mockito.*;
 
 class AcademicYearServiceTest {
     private final AcademicYearRepository repository = mock(AcademicYearRepository.class);
     private final IdentityReviewLockRepository lock = mock(IdentityReviewLockRepository.class);
-    private final AcademicYearService service = new AcademicYearService(repository, lock);
+    private final ProgrammeLevelRepository levels = mock(ProgrammeLevelRepository.class);
+    private final AcademicYearService service = new AcademicYearService(repository, lock, levels);
 
     @Test
     void listsAcademicYearsAsResponses() {
         AcademicYear academicYear = academicYear(1L, "2026/27");
-        when(repository.findAllByOrderByApplicationStartDateDesc()).thenReturn(List.of(academicYear));
+        when(repository.findAllByOrderByCreationDateDesc()).thenReturn(List.of(academicYear));
 
         assertEquals(
                 List.of(new AcademicYearResponse(
-                        1L, "2026/27", LocalDate.of(2026, 9, 1), LocalDate.of(2027, 8, 31),
+                        1L, "2026/27", LocalDate.of(2026, 9, 1), null,
                         AcademicYearStatus.ACTIVE
                 )),
                 service.list()
@@ -43,7 +46,7 @@ class AcademicYearServiceTest {
 
         assertEquals(
                 new AcademicYearResponse(
-                        1L, "2026/27", LocalDate.of(2026, 9, 1), LocalDate.of(2027, 8, 31),
+                        1L, "2026/27", LocalDate.of(2026, 9, 1), null,
                         AcademicYearStatus.ACTIVE
                 ),
                 service.get(1L)
@@ -51,17 +54,17 @@ class AcademicYearServiceTest {
     }
 
     @Test
-    void getsCurrentOpenForApplicationAcademicYear() {
+    void getsCurrentOpenForApplicationAcademicYearWhenAnyLevelIsOpen() {
         AcademicYear activeYear = academicYear(1L, "2026/27");
         LocalDate today = LocalDate.now(ZoneId.of("Asia/Hong_Kong"));
-        activeYear.setApplicationStartDate(today.minusDays(1));
-        activeYear.setApplicationEndDate(today.plusDays(1));
-        when(repository.findFirstByStatusOrderByApplicationStartDateDesc(AcademicYearStatus.ACTIVE))
+        when(repository.findFirstByStatusOrderByCreationDateDesc(AcademicYearStatus.ACTIVE))
                 .thenReturn(Optional.of(activeYear));
+        when(levels.existsByAcademicYear_IdAndApplicationStartDateLessThanEqualAndApplicationEndDateGreaterThanEqual(
+                1L, today, today)).thenReturn(true);
 
         assertEquals(
                 new AcademicYearResponse(
-                        1L, "2026/27", today.minusDays(1), today.plusDays(1),
+                        1L, "2026/27", LocalDate.of(2026, 9, 1), null,
                         AcademicYearStatus.ACTIVE
                 ),
                 service.getCurrentOpenForApplicationAcademicYear()
@@ -69,32 +72,25 @@ class AcademicYearServiceTest {
     }
 
     @Test
-    void openYearRequiresTodayWithinInclusiveHongKongApplicationDates() {
+    void openYearRequiresAtLeastOneProgrammeLevelOpenToday() {
         LocalDate today = LocalDate.now(ZoneId.of("Asia/Hong_Kong"));
         AcademicYear year = academicYear(1L, "test");
-        when(repository.findFirstByStatusOrderByApplicationStartDateDesc(AcademicYearStatus.ACTIVE))
+        when(repository.findFirstByStatusOrderByCreationDateDesc(AcademicYearStatus.ACTIVE))
                 .thenReturn(Optional.of(year));
 
-        year.setApplicationStartDate(today.plusDays(1));
-        year.setApplicationEndDate(today.plusDays(2));
+        when(levels.existsByAcademicYear_IdAndApplicationStartDateLessThanEqualAndApplicationEndDateGreaterThanEqual(
+                1L, today, today)).thenReturn(false, true, true, false);
         assertEquals(HttpStatus.NOT_FOUND, assertThrows(ResponseStatusException.class,
                 service::getCurrentOpenForApplicationAcademicYear).getStatusCode());
-
-        year.setApplicationStartDate(today);
         assertEquals(1L, service.getCurrentOpenForApplicationAcademicYear().id());
-        year.setApplicationStartDate(today.minusDays(1));
-        year.setApplicationEndDate(today);
         assertEquals(1L, service.getCurrentOpenForApplicationAcademicYear().id());
-
-        year.setApplicationEndDate(today.minusDays(1));
-        year.setApplicationStartDate(today.minusDays(2));
         assertEquals(HttpStatus.NOT_FOUND, assertThrows(ResponseStatusException.class,
                 service::getCurrentOpenForApplicationAcademicYear).getStatusCode());
     }
 
     @Test
     void returnsNotFoundWhenThereIsNoAcademicYearOpenForApplications() {
-        when(repository.findFirstByStatusOrderByApplicationStartDateDesc(AcademicYearStatus.ACTIVE))
+        when(repository.findFirstByStatusOrderByCreationDateDesc(AcademicYearStatus.ACTIVE))
                 .thenReturn(Optional.empty());
 
         ResponseStatusException exception = assertThrows(
@@ -113,10 +109,11 @@ class AcademicYearServiceTest {
         });
 
         assertEquals(new AcademicYearResponse(
-                        5L, "2028/29", LocalDate.of(2028, 9, 1), LocalDate.of(2029, 8, 31),
+                        5L, "2028/29", LocalDate.now(ZoneId.of("Asia/Hong_Kong")), null,
                         AcademicYearStatus.PLANNING),
-                service.create(" 2028/29 ", LocalDate.of(2028, 9, 1), LocalDate.of(2029, 8, 31)));
-        verify(repository).save(argThat(year -> year.getStatus() == AcademicYearStatus.PLANNING));
+                service.create(" 2028/29 "));
+        verify(repository).save(argThat(year -> year.getStatus() == AcademicYearStatus.PLANNING
+                && year.getCreationDate().equals(LocalDate.now(ZoneId.of("Asia/Hong_Kong")))));
     }
 
     @Test
@@ -124,19 +121,10 @@ class AcademicYearServiceTest {
         when(repository.existsByName("2028/29")).thenReturn(true);
 
         ResponseStatusException exception = assertThrows(ResponseStatusException.class,
-                () -> service.create("2028/29", LocalDate.of(2028, 9, 1), LocalDate.of(2029, 8, 31)));
+                () -> service.create("2028/29"));
 
         assertEquals(HttpStatus.CONFLICT, exception.getStatusCode());
         verify(repository, never()).save(any());
-    }
-
-    @Test
-    void rejectsInvalidApplicationDateRange() {
-        ResponseStatusException exception = assertThrows(ResponseStatusException.class,
-                () -> service.create("2028/29", LocalDate.of(2029, 9, 1), LocalDate.of(2028, 8, 31)));
-
-        assertEquals(HttpStatus.BAD_REQUEST, exception.getStatusCode());
-        verifyNoInteractions(repository);
     }
 
     @Test
@@ -148,6 +136,7 @@ class AcademicYearServiceTest {
         assertEquals(AcademicYearStatus.ARCHIVED,
                 service.updateLifecycle(1L, AcademicYearStatus.ARCHIVED).status());
         assertEquals(AcademicYearStatus.ARCHIVED, year.getStatus());
+        assertEquals(LocalDate.now(ZoneId.of("Asia/Hong_Kong")), year.getArchiveDate());
     }
 
     @Test
@@ -168,6 +157,9 @@ class AcademicYearServiceTest {
             assertEquals(status, service.updateLifecycle(1L, status).status());
             assertEquals(status, year.getStatus());
         }
+        assertEquals(LocalDate.now(ZoneId.of("Asia/Hong_Kong")), year.getArchiveDate());
+        service.updateLifecycle(1L, AcademicYearStatus.ACTIVE);
+        assertNull(year.getArchiveDate());
     }
 
     @Test
@@ -199,8 +191,7 @@ class AcademicYearServiceTest {
         AcademicYear academicYear = new AcademicYear();
         academicYear.setId(id);
         academicYear.setName(name);
-        academicYear.setApplicationStartDate(LocalDate.of(2026, 9, 1));
-        academicYear.setApplicationEndDate(LocalDate.of(2027, 8, 31));
+        academicYear.setCreationDate(LocalDate.of(2026, 9, 1));
         academicYear.setStatus(AcademicYearStatus.ACTIVE);
         return academicYear;
     }

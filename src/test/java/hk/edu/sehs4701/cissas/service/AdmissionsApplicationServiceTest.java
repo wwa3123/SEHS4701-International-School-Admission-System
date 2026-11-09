@@ -61,7 +61,7 @@ class AdmissionsApplicationServiceTest {
                 ACADEMIC_YEAR_ID,
                 "2026/27",
                 today.minusDays(10),
-                today.plusDays(10),
+                null,
                 AcademicYearStatus.ACTIVE
         );
         when(academicYearService.getActiveAcademicYear()).thenReturn(openYear);
@@ -77,7 +77,8 @@ class AdmissionsApplicationServiceTest {
         programmeLevel.setId(PROGRAMME_LEVEL_ID);
         programmeLevel.setLevelCode(LevelCode.S1);
         programmeLevel.setAcademicYear(academicYear);
-        programmeLevel.setApplicationDeadline(LocalDateTime.now(ZoneId.of("Asia/Hong_Kong")).plusDays(1));
+        programmeLevel.setApplicationStartDate(today.minusDays(10));
+        programmeLevel.setApplicationEndDate(today.plusDays(10));
         when(programmeLevelRepository.findByLevelCodeAndAcademicYear_Id(LevelCode.S1, ACADEMIC_YEAR_ID))
                 .thenReturn(Optional.of(programmeLevel));
         when(identityDocumentService.getDocumentNumberHash(
@@ -145,14 +146,9 @@ class AdmissionsApplicationServiceTest {
     }
 
     @Test
-    void blocksSubmissionBeforeAcademicYearApplicationStartDate() {
+    void blocksSubmissionBeforeProgrammeApplicationStartDate() {
         LocalDate today = LocalDate.now(ZoneId.of("Asia/Hong_Kong"));
-        when(academicYearService.getActiveAcademicYear()).thenReturn(
-                new AcademicYearResponse(
-                        ACADEMIC_YEAR_ID, "2026/27", today.plusDays(1), today.plusDays(10),
-                        AcademicYearStatus.ACTIVE
-                )
-        );
+        programmeLevel.setApplicationStartDate(today.plusDays(1));
 
         ResponseStatusException exception = assertThrows(
                 ResponseStatusException.class, () -> service.submitApplication(request, MEMBER_ID)
@@ -172,14 +168,9 @@ class AdmissionsApplicationServiceTest {
     }
 
     @Test
-    void blocksSubmissionAfterAcademicYearApplicationEndDate() {
+    void blocksSubmissionAfterProgrammeApplicationEndDate() {
         LocalDate today = LocalDate.now(ZoneId.of("Asia/Hong_Kong"));
-        when(academicYearService.getActiveAcademicYear()).thenReturn(
-                new AcademicYearResponse(
-                        ACADEMIC_YEAR_ID, "2026/27", today.minusDays(10), today.minusDays(1),
-                        AcademicYearStatus.ACTIVE
-                )
-        );
+        programmeLevel.setApplicationEndDate(today.minusDays(1));
 
         ResponseStatusException exception = assertThrows(
                 ResponseStatusException.class, () -> service.submitApplication(request, MEMBER_ID)
@@ -190,14 +181,10 @@ class AdmissionsApplicationServiceTest {
     }
 
     @Test
-    void acceptsSubmissionOnAcademicYearStartAndEndDates() {
+    void acceptsSubmissionDuringTheProgrammeApplicationPeriod() {
         LocalDate today = LocalDate.now(ZoneId.of("Asia/Hong_Kong"));
-        when(academicYearService.getActiveAcademicYear()).thenReturn(
-                new AcademicYearResponse(
-                        ACADEMIC_YEAR_ID, "2026/27", today, today,
-                        AcademicYearStatus.ACTIVE
-                )
-        );
+        programmeLevel.setApplicationStartDate(today);
+        programmeLevel.setApplicationEndDate(today.plusDays(1));
         when(applicantRepository.findByIdentityDocumentHashForUpdate(DOCUMENT_HASH))
                 .thenReturn(Optional.empty());
         IdentityDocument identityDocument = new IdentityDocument(

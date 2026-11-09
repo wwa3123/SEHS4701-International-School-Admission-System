@@ -11,13 +11,13 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.server.ResponseStatusException;
 
-import java.time.LocalDateTime;
+import java.time.LocalDate;
 import java.util.List;
 
 @Service
 public class ProgrammeLevelService {
     public record Response(Long id, Long academicYearId, LevelCode levelCode, String programmeName,
-                           Integer seatQuota, LocalDateTime applicationDeadline) {
+                           Integer seatQuota, LocalDate applicationStartDate, LocalDate applicationEndDate) {
     }
 
     @Transactional(readOnly = true)
@@ -41,47 +41,49 @@ public class ProgrammeLevelService {
     }
 
     @Transactional
-    public Response create(Long yearId, LevelCode code, String name, int quota, LocalDateTime deadline) {
+    public Response create(Long yearId, LevelCode code, String name, int quota,
+                           LocalDate applicationStartDate, LocalDate applicationEndDate) {
         lock.acquire();
         AcademicYear year = years.findById(yearId)
                 .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Academic year not found"));
-        validateDeadline(year, deadline);
+        validateDates(applicationStartDate, applicationEndDate);
         if (levels.existsByLevelCodeAndAcademicYear_Id(code, yearId)) {
             throw new ResponseStatusException(HttpStatus.CONFLICT, "Programme level already exists for academic year");
         }
         ProgrammeLevel level = new ProgrammeLevel();
         level.setAcademicYear(year);
         level.setLevelCode(code);
-        return save(level, name, quota, deadline);
+        return save(level, name, quota, applicationStartDate, applicationEndDate);
     }
 
     @Transactional
-    public Response update(Long yearId, Long levelId, String name, int quota, LocalDateTime deadline) {
+    public Response update(Long yearId, Long levelId, String name, int quota,
+                           LocalDate applicationStartDate, LocalDate applicationEndDate) {
         lock.acquire();
         ProgrammeLevel level = levels.findByIdAndAcademicYear_Id(levelId, yearId)
                 .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Programme level not found"));
-        validateDeadline(level.getAcademicYear(), deadline);
-        return save(level, name, quota, deadline);
+        validateDates(applicationStartDate, applicationEndDate);
+        return save(level, name, quota, applicationStartDate, applicationEndDate);
     }
 
-    private void validateDeadline(AcademicYear year, LocalDateTime deadline) {
-        if (deadline.toLocalDate().isBefore(year.getApplicationStartDate())
-                || deadline.toLocalDate().isAfter(year.getApplicationEndDate())) {
-            throw new ResponseStatusException(HttpStatus.BAD_REQUEST,
-                    "Programme deadline must be within the academic year application period");
+    private void validateDates(LocalDate startDate, LocalDate endDate) {
+        if (startDate == null || endDate == null || !startDate.isBefore(endDate)) {
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Invalid programme application period");
         }
     }
 
-    private Response save(ProgrammeLevel level, String name, int quota, LocalDateTime deadline) {
+    private Response save(ProgrammeLevel level, String name, int quota,
+                          LocalDate applicationStartDate, LocalDate applicationEndDate) {
         level.setProgrammeName(name.trim());
         level.setSeatQuota(quota);
-        level.setApplicationDeadline(deadline);
+        level.setApplicationStartDate(applicationStartDate);
+        level.setApplicationEndDate(applicationEndDate);
         level = levels.save(level);
         return response(level, level.getAcademicYear().getId());
     }
 
     private Response response(ProgrammeLevel level, Long yearId) {
         return new Response(level.getId(), yearId, level.getLevelCode(), level.getProgrammeName(),
-                level.getSeatQuota(), level.getApplicationDeadline());
+                level.getSeatQuota(), level.getApplicationStartDate(), level.getApplicationEndDate());
     }
 }

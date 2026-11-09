@@ -20,7 +20,6 @@ import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.bind.annotation.*;
 
 import java.time.LocalDate;
-import java.time.LocalDateTime;
 import java.util.List;
 
 @RestController
@@ -39,9 +38,7 @@ public class SuperAdminAcademicYearController {
     }
 
     public record CreateRequest(
-            @NotBlank @Size(max = 20) String name,
-            @NotNull LocalDate applicationStartDate,
-            @NotNull LocalDate applicationEndDate) {
+            @NotBlank @Size(max = 20) String name) {
     }
 
     public record LifecycleRequest(@NotNull AcademicYearStatus status) {
@@ -50,12 +47,14 @@ public class SuperAdminAcademicYearController {
     public record ProgrammeRequest(@NotNull LevelCode levelCode,
                                    @NotBlank @Size(max = 120) String programmeName,
                                    @NotNull @Min(0) Integer seatQuota,
-                                   @NotNull LocalDateTime applicationDeadline) {
+                                   @NotNull LocalDate applicationStartDate,
+                                   @NotNull LocalDate applicationEndDate) {
     }
 
     public record ProgrammeUpdateRequest(@NotBlank @Size(max = 120) String programmeName,
                                          @NotNull @Min(0) Integer seatQuota,
-                                         @NotNull LocalDateTime applicationDeadline) {
+                                         @NotNull LocalDate applicationStartDate,
+                                         @NotNull LocalDate applicationEndDate) {
     }
 
     @PostMapping
@@ -63,7 +62,7 @@ public class SuperAdminAcademicYearController {
     @Transactional(isolation = Isolation.READ_COMMITTED)
     public AcademicYearResponse create(@Valid @RequestBody CreateRequest request, HttpServletRequest servletRequest) {
         adminAccountService.requireSuperAdminForUpdate(servletRequest);
-        return academicYearService.create(request.name(), request.applicationStartDate(), request.applicationEndDate());
+        return academicYearService.create(request.name());
     }
 
     @PutMapping("/{id}/status")
@@ -83,7 +82,7 @@ public class SuperAdminAcademicYearController {
             @PathVariable Long id, @Valid @RequestBody ProgrammeRequest request, HttpServletRequest servletRequest) {
         adminAccountService.requireSuperAdminForUpdate(servletRequest);
         return programmeLevelService.create(id, request.levelCode(), request.programmeName(),
-                request.seatQuota(), request.applicationDeadline());
+                request.seatQuota(), request.applicationStartDate(), request.applicationEndDate());
     }
 
     @GetMapping("/{id}/programme-levels")
@@ -101,6 +100,6 @@ public class SuperAdminAcademicYearController {
             @Valid @RequestBody ProgrammeUpdateRequest request, HttpServletRequest servletRequest) {
         adminAccountService.requireSuperAdminForUpdate(servletRequest);
         return programmeLevelService.update(yearId, levelId, request.programmeName(),
-                request.seatQuota(), request.applicationDeadline());
+                request.seatQuota(), request.applicationStartDate(), request.applicationEndDate());
     }
 }

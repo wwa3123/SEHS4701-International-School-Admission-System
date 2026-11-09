@@ -6,8 +6,10 @@ import jakarta.validation.constraints.Min;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
 import lombok.Setter;
+import org.hibernate.annotations.Check;
 import org.hibernate.annotations.UpdateTimestamp;
 
+import java.time.LocalDate;
 import java.time.LocalDateTime;
 
 @Entity
@@ -19,6 +21,7 @@ import java.time.LocalDateTime;
         uniqueConstraints = @UniqueConstraint(name = "uk_programme_level_year_code",
                 columnNames = {"academic_year_id", "level_code"})
 )
+@Check(constraints = "application_start_date < application_end_date")
 public class ProgrammeLevel {
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
@@ -39,8 +42,11 @@ public class ProgrammeLevel {
     @Column(name = "seat_quota", nullable = false)
     private Integer seatQuota = 150;
 
-    @Column(name = "application_deadline", nullable = false)
-    private LocalDateTime applicationDeadline;
+    @Column(name = "application_start_date", nullable = false)
+    private LocalDate applicationStartDate;
+
+    @Column(name = "application_end_date", nullable = false)
+    private LocalDate applicationEndDate;
 
     @UpdateTimestamp
     @Column(name = "updated_at", nullable = false)

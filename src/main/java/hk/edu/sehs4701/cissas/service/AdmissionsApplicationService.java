@@ -25,7 +25,6 @@ import org.springframework.transaction.annotation.Isolation;
 import org.springframework.transaction.annotation.Propagation;
 import org.springframework.web.server.ResponseStatusException;
 
-import java.time.LocalDateTime;
 import java.time.LocalDate;
 import java.time.ZoneId;
 import java.util.HashSet;
@@ -84,13 +83,8 @@ public class AdmissionsApplicationService {
                         HttpStatus.CONFLICT, "Programme level is not in the currently open academic year."));
 
         LocalDate today = LocalDate.now(ZoneId.of("Asia/Hong_Kong"));
-        if (today.isBefore(openAcademicYear.applicationStartDate())
-                || today.isAfter(openAcademicYear.applicationEndDate())) {
+        if (today.isBefore(level.getApplicationStartDate()) || today.isAfter(level.getApplicationEndDate())) {
             throw new ResponseStatusException(HttpStatus.CONFLICT, "Application period is closed.");
-        }
-
-        if (LocalDateTime.now(ZoneId.of("Asia/Hong_Kong")).isAfter(level.getApplicationDeadline())) {
-            throw new IllegalStateException("Application deadline for " + level.getLevelCode() + " has passed.");
         }
 
         String documentNumberHash = identityDocumentService.getDocumentNumberHash(

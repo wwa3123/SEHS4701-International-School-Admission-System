@@ -102,15 +102,15 @@ class IdentityReviewDatabaseTest {
         LocalDate today = LocalDate.now(ZoneId.of("Asia/Hong_Kong"));
         AcademicYear year = new AcademicYear();
         year.setName("test-year");
-        year.setApplicationStartDate(today.minusDays(1));
-        year.setApplicationEndDate(today.plusDays(2));
+        year.setCreationDate(today);
         year.setStatus(AcademicYearStatus.ACTIVE);
         year = years.saveAndFlush(year);
         ProgrammeLevel level = new ProgrammeLevel();
         level.setLevelCode(LevelCode.S1);
         level.setProgrammeName("Test");
         level.setAcademicYear(year);
-        level.setApplicationDeadline(LocalDateTime.now(ZoneId.of("Asia/Hong_Kong")).plusDays(1));
+        level.setApplicationStartDate(today.minusDays(1));
+        level.setApplicationEndDate(today.plusDays(2));
         levels.saveAndFlush(level);
     }
 
@@ -207,7 +207,7 @@ class IdentityReviewDatabaseTest {
     @Test
     void databaseDoesNotPageThroughTwoThousandFiveHundredDifferentNamePairs() {
         Member owner = member("bulk-name-filter");
-        Long activeYearId = years.findFirstByStatusOrderByApplicationStartDateDesc(AcademicYearStatus.ACTIVE)
+        Long activeYearId = years.findFirstByStatusOrderByCreationDateDesc(AcademicYearStatus.ACTIVE)
                 .orElseThrow().getId();
         ProgrammeLevel level = levels.findAll().stream()
                 .filter(p -> p.getLevelCode() == LevelCode.S1 && p.getAcademicYear().getId().equals(activeYearId))
@@ -285,7 +285,7 @@ class IdentityReviewDatabaseTest {
         Member member = member("year");
         ApplicationSubmissionRequest request = request("Year Applicant", IdentityDocumentType.PASSPORT, "YEAR1", "HK");
         assertEquals(201, submit(request, member.getId()));
-        Long activeYearId = years.findFirstByStatusOrderByApplicationStartDateDesc(AcademicYearStatus.ACTIVE)
+        Long activeYearId = years.findFirstByStatusOrderByCreationDateDesc(AcademicYearStatus.ACTIVE)
                 .orElseThrow().getId();
         ProgrammeLevel level = levels.findAll().stream()
                 .filter(p -> p.getLevelCode() == LevelCode.S1 && p.getAcademicYear().getId().equals(activeYearId))
@@ -297,15 +297,14 @@ class IdentityReviewDatabaseTest {
         LocalDate today = LocalDate.now(ZoneId.of("Asia/Hong_Kong"));
         AcademicYear next = new AcademicYear();
         next.setName("test-next-year");
-        next.setApplicationStartDate(today.minusDays(1));
-        next.setApplicationEndDate(today.plusDays(2));
+        next.setCreationDate(today);
         next.setStatus(AcademicYearStatus.ACTIVE);
         try {
             original.setStatus(AcademicYearStatus.ARCHIVED);
             years.saveAndFlush(original);
             next = years.saveAndFlush(next);
             var nextLevel = programmeLevels.create(next.getId(), level.getLevelCode(), level.getProgrammeName(),
-                    level.getSeatQuota(), LocalDateTime.now(ZoneId.of("Asia/Hong_Kong")).plusDays(1));
+                    level.getSeatQuota(), level.getApplicationStartDate(), level.getApplicationEndDate());
             assertEquals(201, submit(request, member.getId()));
             assertEquals(originalId, applications.findById(first.getId()).orElseThrow().getAcademicYear().getId());
             assertEquals(level.getId(), applications.findById(first.getId()).orElseThrow().getProgrammeLevel().getId());
@@ -329,7 +328,7 @@ class IdentityReviewDatabaseTest {
             var tasks = java.util.stream.IntStream.range(0, 2).mapToObj(index -> executor.submit(() -> {
                 start.await();
                 try {
-                    academicYears.create("concurrent-year", today, today.plusDays(2));
+                    academicYears.create("concurrent-year");
                     return 201;
                 } catch (ResponseStatusException ex) {
                     return ex.getStatusCode().value();
@@ -354,13 +353,11 @@ class IdentityReviewDatabaseTest {
         LocalDate today = LocalDate.now(ZoneId.of("Asia/Hong_Kong"));
         AcademicYear first = new AcademicYear();
         first.setName("activation-test-1");
-        first.setApplicationStartDate(today);
-        first.setApplicationEndDate(today.plusDays(1));
+        first.setCreationDate(today);
         first.setStatus(AcademicYearStatus.PLANNING);
         AcademicYear second = new AcademicYear();
         second.setName("activation-test-2");
-        second.setApplicationStartDate(today);
-        second.setApplicationEndDate(today.plusDays(1));
+        second.setCreationDate(today);
         second.setStatus(AcademicYearStatus.PLANNING);
         original.setStatus(AcademicYearStatus.ARCHIVED);
         years.saveAndFlush(original);
@@ -771,8 +768,7 @@ class IdentityReviewDatabaseTest {
         var request = new org.springframework.mock.web.MockHttpServletRequest();
         request.setSession(session);
         LocalDate today = LocalDate.now(ZoneId.of("Asia/Hong_Kong"));
-        var create = new SuperAdminAcademicYearController.CreateRequest(
-                "revoked-year", today, today.plusDays(2));
+        var create = new SuperAdminAcademicYearController.CreateRequest("revoked-year");
         var executor = Executors.newSingleThreadExecutor();
         CountDownLatch started = new CountDownLatch(1);
         AtomicReference<Future<?>> operation = new AtomicReference<>();

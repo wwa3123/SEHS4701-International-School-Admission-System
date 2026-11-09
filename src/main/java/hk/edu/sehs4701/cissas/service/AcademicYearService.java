@@ -5,6 +5,7 @@ import hk.edu.sehs4701.cissas.entity.AcademicYear;
 import hk.edu.sehs4701.cissas.enums.AcademicYearStatus;
 import hk.edu.sehs4701.cissas.repository.AcademicYearRepository;
 import hk.edu.sehs4701.cissas.repository.IdentityReviewLockRepository;
+import hk.edu.sehs4701.cissas.repository.ProgrammeLevelRepository;
 import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -18,15 +19,18 @@ import java.util.List;
 public class AcademicYearService {
     private final AcademicYearRepository academicYearRepository;
     private final IdentityReviewLockRepository lock;
+    private final ProgrammeLevelRepository programmeLevels;
 
-    public AcademicYearService(AcademicYearRepository academicYearRepository, IdentityReviewLockRepository lock) {
+    public AcademicYearService(AcademicYearRepository academicYearRepository, IdentityReviewLockRepository lock,
+                               ProgrammeLevelRepository programmeLevels) {
         this.academicYearRepository = academicYearRepository;
         this.lock = lock;
+        this.programmeLevels = programmeLevels;
     }
 
     @Transactional(readOnly = true)
     public List<AcademicYearResponse> list() {
-        return academicYearRepository.findAllByOrderByApplicationStartDateDesc().stream()
+        return academicYearRepository.findAllByOrderByCreationDateDesc().stream()
                 .map(this::toResponse)
                 .toList();
     }
@@ -42,7 +46,8 @@ public class AcademicYearService {
     public AcademicYearResponse getCurrentOpenForApplicationAcademicYear() {
         AcademicYearResponse year = getActiveAcademicYear();
         LocalDate today = LocalDate.now(ZoneId.of("Asia/Hong_Kong"));
-        if (today.isBefore(year.applicationStartDate()) || today.isAfter(year.applicationEndDate())) {
+        if (!programmeLevels.existsByAcademicYear_IdAndApplicationStartDateLessThanEqualAndApplicationEndDateGreaterThanEqual(
+                year.id(), today, today)) {
             throw new ResponseStatusException(HttpStatus.NOT_FOUND, "No academic year open for applications found");
         }
         return year;
@@ -50,18 +55,14 @@ public class AcademicYearService {
 
     @Transactional(readOnly = true)
     public AcademicYearResponse getActiveAcademicYear() {
-        return academicYearRepository.findFirstByStatusOrderByApplicationStartDateDesc(AcademicYearStatus.ACTIVE)
+        return academicYearRepository.findFirstByStatusOrderByCreationDateDesc(AcademicYearStatus.ACTIVE)
                 .map(this::toResponse)
                 .orElseThrow(() -> new ResponseStatusException(
                         HttpStatus.NOT_FOUND, "No academic year open for applications found"));
     }
 
     @Transactional
-    public AcademicYearResponse create(String name, LocalDate applicationStartDate, LocalDate applicationEndDate) {
-        if (!applicationStartDate.isBefore(applicationEndDate)) {
-            throw new ResponseStatusException(HttpStatus.BAD_REQUEST,
-                    "Application start date must be before application end date");
-        }
+    public AcademicYearResponse create(String name) {
         String normalizedName = name.trim();
         lock.acquire();
         if (academicYearRepository.existsByName(normalizedName)) {
@@ -70,8 +71,7 @@ public class AcademicYearService {
 
         AcademicYear academicYear = new AcademicYear();
         academicYear.setName(normalizedName);
-        academicYear.setApplicationStartDate(applicationStartDate);
-        academicYear.setApplicationEndDate(applicationEndDate);
+        academicYear.setCreationDate(LocalDate.now(ZoneId.of("Asia/Hong_Kong")));
         academicYear.setStatus(AcademicYearStatus.PLANNING);
         return toResponse(academicYearRepository.save(academicYear));
     }
@@ -89,6 +89,12 @@ public class AcademicYearService {
                 && academicYearRepository.existsByStatusAndIdNot(AcademicYearStatus.ACTIVE, id)) {
             throw new ResponseStatusException(HttpStatus.CONFLICT, "Another academic year is active");
         }
+        if (lifecycle == AcademicYearStatus.ARCHIVED
+                && (academicYear.getStatus() != AcademicYearStatus.ARCHIVED || academicYear.getArchiveDate() == null)) {
+            academicYear.setArchiveDate(LocalDate.now(ZoneId.of("Asia/Hong_Kong")));
+        } else if (lifecycle != AcademicYearStatus.ARCHIVED) {
+            academicYear.setArchiveDate(null);
+        }
         academicYear.setStatus(lifecycle);
         return toResponse(academicYearRepository.save(academicYear));
     }
@@ -97,8 +103,8 @@ public class AcademicYearService {
         return new AcademicYearResponse(
                 academicYear.getId(),
                 academicYear.getName(),
-                academicYear.getApplicationStartDate(),
-                academicYear.getApplicationEndDate(),
+                academicYear.getCreationDate(),
+                academicYear.getArchiveDate(),
                 academicYear.getStatus()
         );
     }

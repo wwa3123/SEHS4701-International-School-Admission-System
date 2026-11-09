@@ -19,7 +19,7 @@ import org.springframework.test.web.servlet.setup.MockMvcBuilders;
 import org.springframework.web.server.ResponseStatusException;
 
 import java.time.LocalDate;
-import java.time.LocalDateTime;
+import java.time.ZoneId;
 import java.util.Optional;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
@@ -44,7 +44,7 @@ class SuperAdminAcademicYearControllerTest {
 
         ResponseStatusException exception = assertThrows(ResponseStatusException.class,
                 () -> controller.create(new SuperAdminAcademicYearController.CreateRequest(
-                        "2028/29", LocalDate.of(2028, 9, 1), LocalDate.of(2029, 8, 31)), request));
+                        "2028/29"), request));
 
         assertEquals(HttpStatus.FORBIDDEN, exception.getStatusCode());
         verifyNoInteractions(service);
@@ -57,13 +57,11 @@ class SuperAdminAcademicYearControllerTest {
         admin.setRole(ActorRole.ROLE_SUPER_ADMIN);
         when(admins.findById(42L)).thenReturn(Optional.of(admin));
         when(admins.findLockedById(42L)).thenReturn(Optional.of(admin));
-        var createRequest = new SuperAdminAcademicYearController.CreateRequest(
-                "2028/29", LocalDate.of(2028, 9, 1), LocalDate.of(2029, 8, 31));
+        var createRequest = new SuperAdminAcademicYearController.CreateRequest("2028/29");
         AcademicYearResponse response = new AcademicYearResponse(
-                1L, "2028/29", createRequest.applicationStartDate(), createRequest.applicationEndDate(),
+                1L, "2028/29", LocalDate.now(ZoneId.of("Asia/Hong_Kong")), null,
                 AcademicYearStatus.PLANNING);
-        when(service.create("2028/29", createRequest.applicationStartDate(), createRequest.applicationEndDate()))
-                .thenReturn(response);
+        when(service.create("2028/29")).thenReturn(response);
 
         assertEquals(response, controller.create(createRequest, request));
     }
@@ -95,7 +93,7 @@ class SuperAdminAcademicYearControllerTest {
     @Test
     void onlySuperAdminsCanCreateProgrammeLevels() {
         var programme = new SuperAdminAcademicYearController.ProgrammeRequest(
-                LevelCode.S1, "Secondary", 150, LocalDateTime.of(2028, 9, 15, 17, 0));
+                LevelCode.S1, "Secondary", 150, LocalDate.of(2028, 9, 1), LocalDate.of(2028, 9, 30));
         assertEquals(HttpStatus.FORBIDDEN, assertThrows(ResponseStatusException.class,
                 () -> controller.createProgramme(1L, programme, requestWithRole("ROLE_ADMIN"))).getStatusCode());
         verifyNoInteractions(programmes);
@@ -105,13 +103,14 @@ class SuperAdminAcademicYearControllerTest {
         when(admins.findById(42L)).thenReturn(Optional.of(admin));
         when(admins.findLockedById(42L)).thenReturn(Optional.of(admin));
         controller.createProgramme(1L, programme, requestWithRole("ROLE_SUPER_ADMIN"));
-        verify(programmes).create(1L, LevelCode.S1, "Secondary", 150, programme.applicationDeadline());
+        verify(programmes).create(1L, LevelCode.S1, "Secondary", 150, programme.applicationStartDate(),
+                programme.applicationEndDate());
     }
 
     @Test
     void onlySuperAdminsCanUpdateProgrammeLevels() {
         var update = new SuperAdminAcademicYearController.ProgrammeUpdateRequest(
-                "Corrected", 100, LocalDateTime.of(2028, 9, 15, 17, 0));
+                "Corrected", 100, LocalDate.of(2028, 9, 1), LocalDate.of(2028, 9, 30));
         assertEquals(HttpStatus.FORBIDDEN, assertThrows(ResponseStatusException.class,
                 () -> controller.updateProgramme(1L, 10L, update, requestWithRole("ROLE_ADMIN"))).getStatusCode());
         verifyNoInteractions(programmes);
@@ -120,7 +119,8 @@ class SuperAdminAcademicYearControllerTest {
         when(admins.findById(42L)).thenReturn(Optional.of(admin));
         when(admins.findLockedById(42L)).thenReturn(Optional.of(admin));
         controller.updateProgramme(1L, 10L, update, requestWithRole("ROLE_SUPER_ADMIN"));
-        verify(programmes).update(1L, 10L, "Corrected", 100, update.applicationDeadline());
+        verify(programmes).update(1L, 10L, "Corrected", 100, update.applicationStartDate(),
+                update.applicationEndDate());
     }
 
     @Test
@@ -134,7 +134,8 @@ class SuperAdminAcademicYearControllerTest {
                         .session(session).contentType(MediaType.APPLICATION_JSON)
                         .content("""
                                 {"levelCode":"S1","programmeName":"Secondary",
-                                 "seatQuota":-1,"applicationDeadline":"2028-09-15T17:00:00"}
+                                 "seatQuota":-1,"applicationStartDate":"2028-09-01",
+                                 "applicationEndDate":"2028-09-30"}
                                 """))
                 .andExpect(status().isBadRequest());
         verifyNoInteractions(programmes);
@@ -151,7 +152,8 @@ class SuperAdminAcademicYearControllerTest {
                         .session(session).contentType(MediaType.APPLICATION_JSON)
                         .content("""
                                 {"programmeName":"Secondary",
-                                 "seatQuota":-1,"applicationDeadline":"2028-09-15T17:00:00"}
+                                 "seatQuota":-1,"applicationStartDate":"2028-09-01",
+                                 "applicationEndDate":"2028-09-30"}
                                 """))
                 .andExpect(status().isBadRequest());
         verifyNoInteractions(programmes);
