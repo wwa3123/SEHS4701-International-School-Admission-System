@@ -32,11 +32,13 @@ public class LoginController {
         String clientAddress = rateLimitService.resolveClientAddress(servletRequest);
         rateLimitService.checkLoginAllowed("login-ip:" + clientAddress, LOGIN_RATE_LIMIT_MESSAGE);
 
-        LoginResponse response = loginService.login(request.email(), request.password(), request.accountType());
+        LoginService.LoginResult result = loginService.login(request.email(), request.password(), request.accountType());
+        LoginResponse response = result.response();
         HttpSession session = servletRequest.getSession(true);
         servletRequest.changeSessionId();
         session.setAttribute("authenticatedUserId", response.id());
         session.setAttribute("authenticatedUserRole", response.role().name());
+        session.setAttribute("adminCredentialVersion", result.credentialVersion());
         return response;
     }
 }

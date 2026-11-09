@@ -10,4 +10,9 @@ public interface IdentityReviewLockRepository extends JpaRepository<IdentityRevi
     @Query(value = "INSERT INTO identity_review_lock (lock_id) VALUES (1) "
             + "ON DUPLICATE KEY UPDATE lock_id = lock_id", nativeQuery = true)
     void acquire();
+
+    @Modifying
+    @Query(value = "INSERT INTO identity_review_lock (lock_id) VALUES (2) "
+            + "ON DUPLICATE KEY UPDATE lock_id = lock_id", nativeQuery = true)
+    void acquireAccountLock();
 }

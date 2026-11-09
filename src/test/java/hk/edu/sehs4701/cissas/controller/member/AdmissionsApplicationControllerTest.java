@@ -1,6 +1,6 @@
 package hk.edu.sehs4701.cissas.controller.member;
 
-import hk.edu.sehs4701.cissas.controller.api.member.member.AdmissionsApplicationController;
+import hk.edu.sehs4701.cissas.controller.api.member.AdmissionsApplicationController;
 import hk.edu.sehs4701.cissas.dto.request.ApplicationSubmissionRequest;
 import hk.edu.sehs4701.cissas.enums.IdentityDocumentType;
 import hk.edu.sehs4701.cissas.enums.LevelCode;

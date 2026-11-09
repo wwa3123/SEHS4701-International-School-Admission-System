@@ -62,9 +62,9 @@ class AdmissionsApplicationServiceTest {
                 "2026/27",
                 today.minusDays(10),
                 today.plusDays(10),
-                AcademicYearStatus.OPEN_FOR_ADMISSION
+                AcademicYearStatus.ACTIVE
         );
-        when(academicYearService.getCurrentOpenForApplicationAcademicYear()).thenReturn(openYear);
+        when(academicYearService.getActiveAcademicYear()).thenReturn(openYear);
 
         member = new Member();
         member.setId(MEMBER_ID);
@@ -78,7 +78,8 @@ class AdmissionsApplicationServiceTest {
         programmeLevel.setLevelCode(LevelCode.S1);
         programmeLevel.setAcademicYear(academicYear);
         programmeLevel.setApplicationDeadline(LocalDateTime.now(ZoneId.of("Asia/Hong_Kong")).plusDays(1));
-        when(programmeLevelRepository.findByLevelCode(LevelCode.S1)).thenReturn(Optional.of(programmeLevel));
+        when(programmeLevelRepository.findByLevelCodeAndAcademicYear_Id(LevelCode.S1, ACADEMIC_YEAR_ID))
+                .thenReturn(Optional.of(programmeLevel));
         when(identityDocumentService.getDocumentNumberHash(
                 IdentityDocumentType.HKID, "A123456(3)", null
         )).thenReturn(DOCUMENT_HASH);
@@ -146,10 +147,10 @@ class AdmissionsApplicationServiceTest {
     @Test
     void blocksSubmissionBeforeAcademicYearApplicationStartDate() {
         LocalDate today = LocalDate.now(ZoneId.of("Asia/Hong_Kong"));
-        when(academicYearService.getCurrentOpenForApplicationAcademicYear()).thenReturn(
+        when(academicYearService.getActiveAcademicYear()).thenReturn(
                 new AcademicYearResponse(
                         ACADEMIC_YEAR_ID, "2026/27", today.plusDays(1), today.plusDays(10),
-                        AcademicYearStatus.OPEN_FOR_ADMISSION
+                        AcademicYearStatus.ACTIVE
                 )
         );
 
@@ -162,12 +163,21 @@ class AdmissionsApplicationServiceTest {
     }
 
     @Test
+    void rejectsLevelAbsentFromActiveYear() {
+        when(programmeLevelRepository.findByLevelCodeAndAcademicYear_Id(LevelCode.S1, ACADEMIC_YEAR_ID))
+                .thenReturn(Optional.empty());
+        assertEquals(HttpStatus.CONFLICT, assertThrows(ResponseStatusException.class,
+                () -> service.submitApplication(request, MEMBER_ID)).getStatusCode());
+        verifyNoInteractions(identityDocumentService);
+    }
+
+    @Test
     void blocksSubmissionAfterAcademicYearApplicationEndDate() {
         LocalDate today = LocalDate.now(ZoneId.of("Asia/Hong_Kong"));
-        when(academicYearService.getCurrentOpenForApplicationAcademicYear()).thenReturn(
+        when(academicYearService.getActiveAcademicYear()).thenReturn(
                 new AcademicYearResponse(
                         ACADEMIC_YEAR_ID, "2026/27", today.minusDays(10), today.minusDays(1),
-                        AcademicYearStatus.OPEN_FOR_ADMISSION
+                        AcademicYearStatus.ACTIVE
                 )
         );
 
@@ -182,10 +192,10 @@ class AdmissionsApplicationServiceTest {
     @Test
     void acceptsSubmissionOnAcademicYearStartAndEndDates() {
         LocalDate today = LocalDate.now(ZoneId.of("Asia/Hong_Kong"));
-        when(academicYearService.getCurrentOpenForApplicationAcademicYear()).thenReturn(
+        when(academicYearService.getActiveAcademicYear()).thenReturn(
                 new AcademicYearResponse(
                         ACADEMIC_YEAR_ID, "2026/27", today, today,
-                        AcademicYearStatus.OPEN_FOR_ADMISSION
+                        AcademicYearStatus.ACTIVE
                 )
         );
         when(applicantRepository.findByIdentityDocumentHashForUpdate(DOCUMENT_HASH))

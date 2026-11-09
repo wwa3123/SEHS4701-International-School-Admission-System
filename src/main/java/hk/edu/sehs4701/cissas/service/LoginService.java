@@ -19,6 +19,8 @@ import java.util.Locale;
 
 @Service
 public class LoginService {
+    public record LoginResult(LoginResponse response, Long credentialVersion) {}
+
     private final MemberRepository memberRepository;
     private final AdminRepository adminRepository;
     private final HashService hashService;
@@ -30,7 +32,7 @@ public class LoginService {
     }
 
     @Transactional(readOnly = true)
-    public LoginResponse login(String email, String password, LoginAccountType accountType) {
+    public LoginResult login(String email, String password, LoginAccountType accountType) {
         if (email == null || email.isBlank()
                 || password == null || password.isBlank()
                 || accountType == null
@@ -47,8 +49,8 @@ public class LoginService {
             if (member == null || member.getAccountStatus() != AccountStatus.ACTIVE || !passwordMatches) {
                 throw invalidCredentials();
             }
-            return new LoginResponse(member.getId(), member.getEmail(), member.getFirstName(), member.getLastName(),
-                    ActorRole.ROLE_MEMBER);
+            return new LoginResult(new LoginResponse(member.getId(), member.getEmail(), member.getFirstName(),
+                    member.getLastName(), ActorRole.ROLE_MEMBER, false), null);
         }
 
         Admin admin = adminRepository.findByEmailIgnoreCase(normalizedEmail).orElse(null);
@@ -56,8 +58,8 @@ public class LoginService {
         if (admin == null || !admin.isActive() || !passwordMatches) {
             throw invalidCredentials();
         }
-        return new LoginResponse(admin.getId(), admin.getEmail(), admin.getFirstName(), admin.getLastName(),
-                ActorRole.ROLE_ADMIN);
+        return new LoginResult(new LoginResponse(admin.getId(), admin.getEmail(), admin.getFirstName(),
+                admin.getLastName(), admin.getRole(), admin.isPasswordChangeRequired()), admin.getCredentialVersion());
     }
 
     private ResponseStatusException invalidCredentials() {

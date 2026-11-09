@@ -1,5 +1,6 @@
 package hk.edu.sehs4701.cissas.entity;
 
+import hk.edu.sehs4701.cissas.enums.ActorRole;
 import io.hypersistence.utils.hibernate.id.Tsid;
 import jakarta.persistence.*;
 import lombok.Getter;
@@ -38,6 +39,16 @@ public class Admin {
 
     @Column(name = "is_active", nullable = false)
     private boolean active = true;
+
+    @Column(name = "credential_version", nullable = false)
+    private long credentialVersion = 0;
+
+    @Column(name = "password_change_required", nullable = false)
+    private boolean passwordChangeRequired = false;
+
+    @Enumerated(EnumType.STRING)
+    @Column(nullable = false, length = 32, columnDefinition = "varchar(32) default 'ROLE_ADMIN'")
+    private ActorRole role = ActorRole.ROLE_ADMIN;
 
     @CreationTimestamp
     @Column(name = "created_at", nullable = false, updatable = false)
