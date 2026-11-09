@@ -1,6 +1,9 @@
 package hk.edu.sehs4701.cissas.controller.admin;
 
 import hk.edu.sehs4701.cissas.controller.api.admin.IdentityReviewController;
+import hk.edu.sehs4701.cissas.dto.request.IdentityReviewRequest;
+import hk.edu.sehs4701.cissas.dto.response.Decision;
+import hk.edu.sehs4701.cissas.dto.response.HistoryPage;
 import hk.edu.sehs4701.cissas.service.IdentityReviewService;
 import hk.edu.sehs4701.cissas.service.AdminAccountService;
 import hk.edu.sehs4701.cissas.repository.AdminRepository;
@@ -48,7 +51,7 @@ class IdentityReviewControllerTest {
         when(session.getAttribute("authenticatedUserId")).thenReturn(42L);
         when(session.getAttribute("adminCredentialVersion")).thenReturn(0L);
         activeAdmin(ActorRole.ROLE_ADMIN);
-        controller.review(new IdentityReviewController.ReviewRequest("APP-1", "APP-2", true), request);
+        controller.review(new IdentityReviewRequest("APP-1", "APP-2", true), request);
         verify(service).review(42L, "APP-1", "APP-2", true);
     }
 
@@ -61,7 +64,7 @@ class IdentityReviewControllerTest {
         when(session.getAttribute("authenticatedUserId")).thenReturn(42L);
         when(session.getAttribute("adminCredentialVersion")).thenReturn(0L);
         activeAdmin(ActorRole.ROLE_SUPER_ADMIN);
-        controller.review(new IdentityReviewController.ReviewRequest("APP-1", "APP-2", true), request);
+        controller.review(new IdentityReviewRequest("APP-1", "APP-2", true), request);
         verify(service).review(42L, "APP-1", "APP-2", true);
     }
 
@@ -103,8 +106,8 @@ class IdentityReviewControllerTest {
         session.setAttribute("adminCredentialVersion", 0L);
         activeAdmin(ActorRole.ROLE_ADMIN);
         when(service.history(42L, "42", 1))
-                .thenReturn(new IdentityReviewService.HistoryPage(List.of(
-                        new IdentityReviewService.Decision("APP-1", "APP-2", true,
+                .thenReturn(new HistoryPage(List.of(
+                        new Decision("APP-1", "APP-2", true,
                                 "9007199254740993", null, true)), "41"));
         MockMvcBuilders.standaloneSetup(controller).build()
                 .perform(get("/api/admin/identity-reviews/history").param("cursor", "42").param("size", "1")

@@ -1,5 +1,6 @@
 package hk.edu.sehs4701.cissas.config;
 
+import hk.edu.sehs4701.cissas.dto.request.AccountRequest;
 import hk.edu.sehs4701.cissas.service.AdminAccountService;
 import org.springframework.boot.ApplicationArguments;
 import org.springframework.boot.ApplicationRunner;
@@ -24,7 +25,7 @@ public class SuperAdminProvisioning implements ApplicationRunner {
                     environment.getProperty("CISSAS_RECOVERY_PASSWORD", ""));
             return;
         }
-        accounts.provisionSuperAdmin(new AdminAccountService.AccountRequest(
+        accounts.provisionSuperAdmin(new AccountRequest(
                 environment.getProperty("CISSAS_SUPER_ADMIN_EMAIL", ""),
                 environment.getProperty("CISSAS_SUPER_ADMIN_FIRST_NAME", ""),
                 environment.getProperty("CISSAS_SUPER_ADMIN_LAST_NAME", ""),

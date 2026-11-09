@@ -1,6 +1,7 @@
 package hk.edu.sehs4701.cissas.controller.pub;
 
 import hk.edu.sehs4701.cissas.controller.api.pub.LoginController;
+import hk.edu.sehs4701.cissas.dto.internal.LoginResult;
 import hk.edu.sehs4701.cissas.dto.request.LoginRequest;
 import hk.edu.sehs4701.cissas.dto.response.LoginResponse;
 import hk.edu.sehs4701.cissas.enums.ActorRole;
@@ -32,7 +33,7 @@ class LoginControllerTest {
         LoginController controller = new LoginController(loginService, rateLimitService);
         LoginResponse response = new LoginResponse(1L, "member@example.com", "Test", "Member", ActorRole.ROLE_MEMBER, false);
         when(loginService.login("member@example.com", "valid-password", LoginAccountType.MEMBER))
-                .thenReturn(new LoginService.LoginResult(response, null));
+                .thenReturn(new LoginResult(response, null));
         when(rateLimitService.resolveClientAddress(servletRequest)).thenReturn("127.0.0.1");
         when(servletRequest.getSession(true)).thenReturn(session);
 
@@ -78,7 +79,7 @@ class LoginControllerTest {
         HttpSession session = mock(HttpSession.class);
         LoginResponse response = new LoginResponse(2L, "admin@example.com", "Test", "Admin", ActorRole.ROLE_ADMIN, true);
         when(loginService.login("admin@example.com", "password", LoginAccountType.ADMIN))
-                .thenReturn(new LoginService.LoginResult(response, 4L));
+                .thenReturn(new LoginResult(response, 4L));
         when(request.getSession(true)).thenReturn(session);
         new LoginController(loginService, rateLimitService).login(
                 new LoginRequest("admin@example.com", "password", LoginAccountType.ADMIN), request);
@@ -91,7 +92,7 @@ class LoginControllerTest {
         RateLimitService rateLimitService = mock(RateLimitService.class);
         LoginResponse response = new LoginResponse(2L, "admin@example.com", "Test", "Admin", ActorRole.ROLE_ADMIN, true);
         when(loginService.login("admin@example.com", "password", LoginAccountType.ADMIN))
-                .thenReturn(new LoginService.LoginResult(response, 4L));
+                .thenReturn(new LoginResult(response, 4L));
         MockMvcBuilders.standaloneSetup(new LoginController(loginService, rateLimitService)).build()
                 .perform(post("/api/public/auth/login").contentType(MediaType.APPLICATION_JSON)
                         .content("""

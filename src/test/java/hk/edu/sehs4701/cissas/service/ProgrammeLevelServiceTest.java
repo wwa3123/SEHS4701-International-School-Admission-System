@@ -1,5 +1,6 @@
 package hk.edu.sehs4701.cissas.service;
 
+import hk.edu.sehs4701.cissas.dto.response.ProgrammeLevelResponse;
 import hk.edu.sehs4701.cissas.entity.AcademicYear;
 import hk.edu.sehs4701.cissas.entity.ProgrammeLevel;
 import hk.edu.sehs4701.cissas.enums.LevelCode;
@@ -40,7 +41,7 @@ class ProgrammeLevelServiceTest {
             level.setId(10L);
             return level;
         });
-        assertEquals(new ProgrammeLevelService.Response(10L, 1L, LevelCode.S1, "Secondary", 150,
+        assertEquals(new ProgrammeLevelResponse(10L, 1L, LevelCode.S1, "Secondary", 150,
                         applicationStartDate, applicationEndDate),
                 service.create(1L, LevelCode.S1, " Secondary ", 150,
                         applicationStartDate, applicationEndDate));
@@ -77,7 +78,7 @@ class ProgrammeLevelServiceTest {
         assertEquals(HttpStatus.BAD_REQUEST, assertThrows(ResponseStatusException.class,
                 () -> service.update(1L, 10L, "Corrected", 100,
                         applicationEndDate, applicationStartDate)).getStatusCode());
-        assertEquals(new ProgrammeLevelService.Response(10L, 1L, LevelCode.S1, "Corrected", 100,
+        assertEquals(new ProgrammeLevelResponse(10L, 1L, LevelCode.S1, "Corrected", 100,
                         applicationStartDate, applicationEndDate),
                 service.update(1L, 10L, " Corrected ", 100,
                         applicationStartDate, applicationEndDate));
@@ -95,7 +96,7 @@ class ProgrammeLevelServiceTest {
         level.setApplicationEndDate(applicationEndDate);
         when(years.existsById(1L)).thenReturn(true);
         when(levels.findAllByAcademicYear_IdOrderByLevelCodeAsc(1L)).thenReturn(List.of(level));
-        assertEquals(List.of(new ProgrammeLevelService.Response(10L, 1L, LevelCode.S1, "Secondary", 150,
+        assertEquals(List.of(new ProgrammeLevelResponse(10L, 1L, LevelCode.S1, "Secondary", 150,
                         applicationStartDate, applicationEndDate)),
                 service.list(1L));
         assertEquals(HttpStatus.NOT_FOUND, assertThrows(ResponseStatusException.class,

@@ -1,11 +1,13 @@
 package hk.edu.sehs4701.cissas.controller.api.admin;
 
+import hk.edu.sehs4701.cissas.dto.request.IdentityReviewRequest;
+import hk.edu.sehs4701.cissas.dto.response.ApplicationEvidence;
+import hk.edu.sehs4701.cissas.dto.response.CandidatePage;
+import hk.edu.sehs4701.cissas.dto.response.HistoryPage;
 import hk.edu.sehs4701.cissas.service.AdminAccountService;
 import hk.edu.sehs4701.cissas.service.IdentityReviewService;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.validation.Valid;
-import jakarta.validation.constraints.NotBlank;
-import jakarta.validation.constraints.NotNull;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.CacheControl;
 import org.springframework.http.ResponseEntity;
@@ -24,13 +26,9 @@ public class IdentityReviewController {
         this.accounts = accounts;
     }
 
-    public record ReviewRequest(@NotBlank String flaggedApplicationNumber,
-                                @NotBlank String candidateApplicationNumber,
-                                @NotNull Boolean samePerson) {}
-
     @GetMapping
     @Transactional(isolation = Isolation.READ_COMMITTED)
-    public ResponseEntity<IdentityReviewService.CandidatePage> pending(@RequestParam(required = false) String cursor,
+    public ResponseEntity<CandidatePage> pending(@RequestParam(required = false) String cursor,
                                                        @RequestParam(defaultValue = "25") int size,
                                                        HttpServletRequest request) {
         return ResponseEntity.ok().cacheControl(CacheControl.noStore()).body(service.pending(adminId(request), cursor, size));
@@ -38,14 +36,14 @@ public class IdentityReviewController {
 
     @GetMapping("/applications/{applicationNumber}")
     @Transactional(isolation = Isolation.READ_COMMITTED)
-    public ResponseEntity<IdentityReviewService.ApplicationEvidence> evidence(@PathVariable String applicationNumber,
+    public ResponseEntity<ApplicationEvidence> evidence(@PathVariable String applicationNumber,
                                                                HttpServletRequest request) {
         return ResponseEntity.ok().cacheControl(CacheControl.noStore()).body(service.evidence(adminId(request), applicationNumber));
     }
 
     @GetMapping("/history")
     @Transactional(isolation = Isolation.READ_COMMITTED)
-    public ResponseEntity<IdentityReviewService.HistoryPage> history(@RequestParam(required = false) String cursor,
+    public ResponseEntity<HistoryPage> history(@RequestParam(required = false) String cursor,
                                                                      @RequestParam(defaultValue = "25") int size,
                                                                      HttpServletRequest request) {
         return ResponseEntity.ok().cacheControl(CacheControl.noStore()).body(service.history(adminId(request), cursor, size));
@@ -54,7 +52,7 @@ public class IdentityReviewController {
     @PostMapping
     @ResponseStatus(HttpStatus.CREATED)
     @Transactional(isolation = Isolation.READ_COMMITTED)
-    public void review(@Valid @RequestBody ReviewRequest review, HttpServletRequest request) {
+    public void review(@Valid @RequestBody IdentityReviewRequest review, HttpServletRequest request) {
         service.review(accounts.requireAdminForUpdate(request), review.flaggedApplicationNumber(),
                 review.candidateApplicationNumber(), review.samePerson());
     }

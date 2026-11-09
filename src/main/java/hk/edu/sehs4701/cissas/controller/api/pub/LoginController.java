@@ -1,5 +1,6 @@
 package hk.edu.sehs4701.cissas.controller.api.pub;
 
+import hk.edu.sehs4701.cissas.dto.internal.LoginResult;
 import hk.edu.sehs4701.cissas.dto.request.LoginRequest;
 import hk.edu.sehs4701.cissas.dto.response.LoginResponse;
 import hk.edu.sehs4701.cissas.service.LoginService;
@@ -32,7 +33,7 @@ public class LoginController {
         String clientAddress = rateLimitService.resolveClientAddress(servletRequest);
         rateLimitService.checkLoginAllowed("login-ip:" + clientAddress, LOGIN_RATE_LIMIT_MESSAGE);
 
-        LoginService.LoginResult result = loginService.login(request.email(), request.password(), request.accountType());
+        LoginResult result = loginService.login(request.email(), request.password(), request.accountType());
         LoginResponse response = result.response();
         HttpSession session = servletRequest.getSession(true);
         servletRequest.changeSessionId();

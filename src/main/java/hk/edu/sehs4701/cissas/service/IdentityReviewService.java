@@ -1,5 +1,11 @@
 package hk.edu.sehs4701.cissas.service;
 
+import hk.edu.sehs4701.cissas.dto.response.ApplicationEvidence;
+import hk.edu.sehs4701.cissas.dto.response.ApplicationSummary;
+import hk.edu.sehs4701.cissas.dto.response.Candidate;
+import hk.edu.sehs4701.cissas.dto.response.CandidatePage;
+import hk.edu.sehs4701.cissas.dto.response.Decision;
+import hk.edu.sehs4701.cissas.dto.response.HistoryPage;
 import hk.edu.sehs4701.cissas.entity.Admin;
 import hk.edu.sehs4701.cissas.entity.Application;
 import hk.edu.sehs4701.cissas.entity.ApplicantSnapshot;
@@ -17,8 +23,6 @@ import org.springframework.transaction.annotation.Isolation;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.server.ResponseStatusException;
 
-import java.time.LocalDate;
-import java.time.LocalDateTime;
 import java.util.ArrayDeque;
 import java.util.ArrayList;
 import java.util.HashMap;
@@ -40,23 +44,6 @@ public class IdentityReviewService {
         this.applications = applications;
         this.admins = admins;
     }
-
-    public record ApplicationSummary(String applicationNumber, String fullName, LocalDate dateOfBirth,
-                                     IdentityDocumentType documentType, String status) {}
-
-    public record Candidate(ApplicationSummary flagged, ApplicationSummary possibleMatch) {}
-
-    public record CandidatePage(List<Candidate> items, String nextCursor) {}
-
-    public record ApplicationEvidence(String applicationNumber, String fullName, LocalDate dateOfBirth,
-                                      String gender, String phone, String previousSchool,
-                                      IdentityDocumentType documentType, String documentNumber,
-                                      String issuingCountry, String academicYear, String status) {}
-
-    public record Decision(String flaggedApplicationNumber, String candidateApplicationNumber, boolean samePerson,
-                           String reviewedBy, LocalDateTime reviewedAt, boolean current) {}
-
-    public record HistoryPage(List<Decision> items, String nextCursor) {}
 
     @Transactional(readOnly = true)
     public HistoryPage history(Long adminId, String cursor, int size) {

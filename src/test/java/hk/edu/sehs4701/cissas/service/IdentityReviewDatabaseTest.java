@@ -1,6 +1,13 @@
 package hk.edu.sehs4701.cissas.service;
 
 import hk.edu.sehs4701.cissas.dto.request.ApplicationSubmissionRequest;
+import hk.edu.sehs4701.cissas.dto.request.AccountRequest;
+import hk.edu.sehs4701.cissas.dto.request.CreateAcademicYearRequest;
+import hk.edu.sehs4701.cissas.dto.request.PasswordChangeRequest;
+import hk.edu.sehs4701.cissas.dto.request.PasswordResetRequest;
+import hk.edu.sehs4701.cissas.dto.response.Candidate;
+import hk.edu.sehs4701.cissas.dto.response.CandidatePage;
+import hk.edu.sehs4701.cissas.dto.response.Decision;
 import hk.edu.sehs4701.cissas.controller.api.member.AdmissionsApplicationController;
 import hk.edu.sehs4701.cissas.controller.api.admin.IdentityReviewController;
 import hk.edu.sehs4701.cissas.controller.api.admin.SuperAdminAcademicYearController;
@@ -430,7 +437,7 @@ class IdentityReviewDatabaseTest {
         boolean found = false;
         int pages = 0;
         String cursor = null;
-        IdentityReviewService.CandidatePage result;
+        CandidatePage result;
         do {
             result = reviewService.pending(admin.getId(), cursor, 1);
             assertTrue(result.items().size() <= 1);
@@ -554,7 +561,7 @@ class IdentityReviewDatabaseTest {
         assertTrue(applications.findByApplicationNumber(thirdNumber).orElseThrow().isManualIdentityReviewRequired());
         verify(notifications).notifyAdminOfIdentityReview(any(), any(), anyString());
 
-        List<IdentityReviewService.Candidate> matches = new java.util.ArrayList<>();
+        List<Candidate> matches = new java.util.ArrayList<>();
         String cursor = null;
         do {
             var page = reviewService.pending(admin.getId(), cursor, 2);
@@ -610,8 +617,8 @@ class IdentityReviewDatabaseTest {
         assertTrue(pendingPair(admin.getId(), resubmittedNumber, differentNumber).isEmpty());
     }
 
-    private List<IdentityReviewService.Candidate> pendingPair(Long adminId, String first, String second) {
-        List<IdentityReviewService.Candidate> result = new java.util.ArrayList<>();
+    private List<Candidate> pendingPair(Long adminId, String first, String second) {
+        List<Candidate> result = new java.util.ArrayList<>();
         String cursor = null;
         int pages = 0;
         do {
@@ -685,7 +692,7 @@ class IdentityReviewDatabaseTest {
 
     @Test
     void officerResetRevokesOldSessionsInDatabase() {
-        var officer = adminAccounts.createOfficer(new AdminAccountService.AccountRequest(
+        var officer = adminAccounts.createOfficer(new AccountRequest(
                 "recovery-officer@example.test", "Test", "Officer", "initial-password"));
         var login = loginService.login(officer.email(), "initial-password", LoginAccountType.ADMIN);
         MockHttpSession session = new MockHttpSession();
@@ -694,14 +701,14 @@ class IdentityReviewDatabaseTest {
         session.setAttribute("adminCredentialVersion", login.credentialVersion());
         org.springframework.mock.web.MockHttpServletRequest request = new org.springframework.mock.web.MockHttpServletRequest();
         request.setSession(session);
-        adminAccounts.changePassword(request, new AdminAccountService.PasswordChangeRequest(
+        adminAccounts.changePassword(request, new PasswordChangeRequest(
                 "initial-password", "private-password"));
         assertThrows(ResponseStatusException.class, () -> adminAccounts.requireAdmin(request));
         var freshLogin = loginService.login(officer.email(), "private-password", LoginAccountType.ADMIN);
         session.setAttribute("adminCredentialVersion", freshLogin.credentialVersion());
         assertEquals(login.response().id(), adminAccounts.requireAdmin(request));
         adminAccounts.resetOfficerPassword(Long.valueOf(officer.id()),
-                new AdminAccountService.PasswordResetRequest("temporary-password"));
+                new PasswordResetRequest("temporary-password"));
         assertThrows(ResponseStatusException.class, () -> adminAccounts.requireAdmin(request));
         assertThrows(ResponseStatusException.class,
                 () -> loginService.login(officer.email(), "private-password", LoginAccountType.ADMIN));
@@ -768,7 +775,7 @@ class IdentityReviewDatabaseTest {
         var request = new org.springframework.mock.web.MockHttpServletRequest();
         request.setSession(session);
         LocalDate today = LocalDate.now(ZoneId.of("Asia/Hong_Kong"));
-        var create = new SuperAdminAcademicYearController.CreateRequest("revoked-year");
+        var create = new CreateAcademicYearRequest("revoked-year");
         var executor = Executors.newSingleThreadExecutor();
         CountDownLatch started = new CountDownLatch(1);
         AtomicReference<Future<?>> operation = new AtomicReference<>();
@@ -862,7 +869,7 @@ class IdentityReviewDatabaseTest {
         admin.setLastName("Test");
         admin.setPasswordHash("test");
         admin = admins.saveAndFlush(admin);
-        List<IdentityReviewService.Candidate> pending = new java.util.ArrayList<>();
+        List<Candidate> pending = new java.util.ArrayList<>();
         String cursor = null;
         do {
             var page = reviewService.pending(admin.getId(), cursor, 100);
@@ -898,7 +905,7 @@ class IdentityReviewDatabaseTest {
                         && item.candidateApplicationNumber().equals(pair.possibleMatch().applicationNumber()))
                 .toList();
         assertEquals(2, pairDecisions.size());
-        assertFalse(pairDecisions.stream().filter(IdentityReviewService.Decision::current).findFirst().orElseThrow().samePerson());
+        assertFalse(pairDecisions.stream().filter(Decision::current).findFirst().orElseThrow().samePerson());
         assertEquals(201, submit(passport, second.getId()));
     }
 

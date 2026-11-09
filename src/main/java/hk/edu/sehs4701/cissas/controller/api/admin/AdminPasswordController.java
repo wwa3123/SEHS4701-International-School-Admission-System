@@ -1,5 +1,7 @@
 package hk.edu.sehs4701.cissas.controller.api.admin;
 
+import hk.edu.sehs4701.cissas.dto.internal.PasswordSession;
+import hk.edu.sehs4701.cissas.dto.request.PasswordChangeRequest;
 import hk.edu.sehs4701.cissas.service.AdminAccountService;
 import hk.edu.sehs4701.cissas.service.RateLimitService;
 import jakarta.servlet.http.HttpServletRequest;
@@ -24,10 +26,10 @@ public class AdminPasswordController {
 
     @PutMapping("/password")
     @ResponseStatus(HttpStatus.NO_CONTENT)
-    public void changePassword(@RequestBody AdminAccountService.PasswordChangeRequest change,
+    public void changePassword(@RequestBody PasswordChangeRequest change,
                                HttpServletRequest request) {
         HttpSession session = request.getSession(false);
-        AdminAccountService.PasswordSession authenticated = accounts.requirePasswordSession(request);
+        PasswordSession authenticated = accounts.requirePasswordSession(request);
         rateLimits.checkAllowed("admin-password-account:" + authenticated.id() + ":" + authenticated.credentialVersion(),
                 "Too many password attempts");
         accounts.changePassword(request, change);

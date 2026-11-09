@@ -1,5 +1,10 @@
 package hk.edu.sehs4701.cissas.service;
 
+import hk.edu.sehs4701.cissas.dto.internal.PasswordSession;
+import hk.edu.sehs4701.cissas.dto.request.AccountRequest;
+import hk.edu.sehs4701.cissas.dto.request.PasswordChangeRequest;
+import hk.edu.sehs4701.cissas.dto.request.PasswordResetRequest;
+import hk.edu.sehs4701.cissas.dto.response.AccountResponse;
 import hk.edu.sehs4701.cissas.entity.Admin;
 import hk.edu.sehs4701.cissas.enums.ActorRole;
 import hk.edu.sehs4701.cissas.repository.AdminRepository;
@@ -8,9 +13,6 @@ import hk.edu.sehs4701.cissas.security.HashService;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpSession;
 import jakarta.validation.Validator;
-import jakarta.validation.constraints.Email;
-import jakarta.validation.constraints.NotBlank;
-import jakarta.validation.constraints.Size;
 import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -24,25 +26,6 @@ import java.util.Objects;
 
 @Service
 public class AdminAccountService {
-    public record AccountRequest(
-            @NotBlank @Email @Size(max = 150) String email,
-            @NotBlank @Size(max = 120) String firstName,
-            @NotBlank @Size(max = 120) String lastName,
-            @NotBlank @Size(min = 8, max = 256) String password) {
-    }
-
-    public record AccountResponse(String id, String email, String firstName, String lastName, boolean active) {
-    }
-
-    public record PasswordChangeRequest(String currentPassword, String newPassword) {
-    }
-
-    public record PasswordResetRequest(String newPassword) {
-    }
-
-    public record PasswordSession(Long id, long credentialVersion) {
-    }
-
     private final AdminRepository admins;
     private final IdentityReviewLockRepository lock;
     private final HashService hashService;

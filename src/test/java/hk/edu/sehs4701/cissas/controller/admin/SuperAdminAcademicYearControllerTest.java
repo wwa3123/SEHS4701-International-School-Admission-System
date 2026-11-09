@@ -1,6 +1,10 @@
 package hk.edu.sehs4701.cissas.controller.admin;
 
 import hk.edu.sehs4701.cissas.controller.api.admin.SuperAdminAcademicYearController;
+import hk.edu.sehs4701.cissas.dto.request.AcademicYearLifecycleRequest;
+import hk.edu.sehs4701.cissas.dto.request.CreateAcademicYearRequest;
+import hk.edu.sehs4701.cissas.dto.request.ProgrammeLevelRequest;
+import hk.edu.sehs4701.cissas.dto.request.ProgrammeLevelUpdateRequest;
 import hk.edu.sehs4701.cissas.dto.response.AcademicYearResponse;
 import hk.edu.sehs4701.cissas.enums.AcademicYearStatus;
 import hk.edu.sehs4701.cissas.enums.ActorRole;
@@ -43,7 +47,7 @@ class SuperAdminAcademicYearControllerTest {
         MockHttpServletRequest request = requestWithRole("ROLE_ADMIN");
 
         ResponseStatusException exception = assertThrows(ResponseStatusException.class,
-                () -> controller.create(new SuperAdminAcademicYearController.CreateRequest(
+                () -> controller.create(new CreateAcademicYearRequest(
                         "2028/29"), request));
 
         assertEquals(HttpStatus.FORBIDDEN, exception.getStatusCode());
@@ -57,7 +61,7 @@ class SuperAdminAcademicYearControllerTest {
         admin.setRole(ActorRole.ROLE_SUPER_ADMIN);
         when(admins.findById(42L)).thenReturn(Optional.of(admin));
         when(admins.findLockedById(42L)).thenReturn(Optional.of(admin));
-        var createRequest = new SuperAdminAcademicYearController.CreateRequest("2028/29");
+        var createRequest = new CreateAcademicYearRequest("2028/29");
         AcademicYearResponse response = new AcademicYearResponse(
                 1L, "2028/29", LocalDate.now(ZoneId.of("Asia/Hong_Kong")), null,
                 AcademicYearStatus.PLANNING);
@@ -74,7 +78,7 @@ class SuperAdminAcademicYearControllerTest {
         admin.setActive(false);
         when(admins.findById(42L)).thenReturn(Optional.of(admin));
         when(admins.findLockedById(42L)).thenReturn(Optional.of(admin));
-        var update = new SuperAdminAcademicYearController.LifecycleRequest(AcademicYearStatus.ACTIVE);
+        var update = new AcademicYearLifecycleRequest(AcademicYearStatus.ACTIVE);
 
         assertEquals(HttpStatus.FORBIDDEN, assertThrows(ResponseStatusException.class,
                 () -> controller.updateStatus(1L, update, requestWithRole("ROLE_ADMIN"))).getStatusCode());
@@ -92,7 +96,7 @@ class SuperAdminAcademicYearControllerTest {
 
     @Test
     void onlySuperAdminsCanCreateProgrammeLevels() {
-        var programme = new SuperAdminAcademicYearController.ProgrammeRequest(
+        var programme = new ProgrammeLevelRequest(
                 LevelCode.S1, "Secondary", 150, LocalDate.of(2028, 9, 1), LocalDate.of(2028, 9, 30));
         assertEquals(HttpStatus.FORBIDDEN, assertThrows(ResponseStatusException.class,
                 () -> controller.createProgramme(1L, programme, requestWithRole("ROLE_ADMIN"))).getStatusCode());
@@ -109,7 +113,7 @@ class SuperAdminAcademicYearControllerTest {
 
     @Test
     void onlySuperAdminsCanUpdateProgrammeLevels() {
-        var update = new SuperAdminAcademicYearController.ProgrammeUpdateRequest(
+        var update = new ProgrammeLevelUpdateRequest(
                 "Corrected", 100, LocalDate.of(2028, 9, 1), LocalDate.of(2028, 9, 30));
         assertEquals(HttpStatus.FORBIDDEN, assertThrows(ResponseStatusException.class,
                 () -> controller.updateProgramme(1L, 10L, update, requestWithRole("ROLE_ADMIN"))).getStatusCode());
