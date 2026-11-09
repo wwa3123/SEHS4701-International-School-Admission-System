@@ -1,4 +1,4 @@
-package hk.edu.sehs4701.cissas.controller.api.member.member;
+package hk.edu.sehs4701.cissas.controller.api.member;
 
 import hk.edu.sehs4701.cissas.dto.request.ApplicationSubmissionRequest;
 import hk.edu.sehs4701.cissas.enums.ActorRole;

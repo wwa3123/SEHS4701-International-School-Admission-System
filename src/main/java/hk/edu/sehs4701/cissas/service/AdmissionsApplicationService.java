@@ -77,15 +77,11 @@ public class AdmissionsApplicationService {
             throw new IllegalStateException("Member account is not activated.");
         }
 
-        ProgrammeLevel level = programmeLevelRepository.findByLevelCode(applicationSubmissionRequest.levelCode())
-                .orElseThrow(() -> new IllegalArgumentException("Programme level not found."));
-
-        AcademicYearResponse openAcademicYear = academicYearService.getCurrentOpenForApplicationAcademicYear();
-        if (level.getAcademicYear() == null
-                || !Objects.equals(level.getAcademicYear().getId(), openAcademicYear.id())) {
-            throw new ResponseStatusException(
-                    HttpStatus.CONFLICT, "Programme level is not in the currently open academic year.");
-        }
+        AcademicYearResponse openAcademicYear = academicYearService.getActiveAcademicYear();
+        ProgrammeLevel level = programmeLevelRepository
+                .findByLevelCodeAndAcademicYear_Id(applicationSubmissionRequest.levelCode(), openAcademicYear.id())
+                .orElseThrow(() -> new ResponseStatusException(
+                        HttpStatus.CONFLICT, "Programme level is not in the currently open academic year."));
 
         LocalDate today = LocalDate.now(ZoneId.of("Asia/Hong_Kong"));
         if (today.isBefore(openAcademicYear.applicationStartDate())

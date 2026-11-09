@@ -24,7 +24,7 @@ class DummyHomeControllerTest {
                 "2026/27",
                 LocalDate.of(2026, 9, 1),
                 LocalDate.of(2027, 8, 31),
-                AcademicYearStatus.OPEN_FOR_ADMISSION
+                AcademicYearStatus.ACTIVE
         ));
         when(academicYearService.list()).thenReturn(academicYears);
         ExtendedModelMap model = new ExtendedModelMap();

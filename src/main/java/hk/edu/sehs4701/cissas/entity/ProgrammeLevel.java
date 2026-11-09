@@ -16,7 +16,8 @@ import java.time.LocalDateTime;
 @NoArgsConstructor
 @Table(
         name = "programme_level",
-        uniqueConstraints = @UniqueConstraint(name = "uk_programme_level_code", columnNames = "level_code")
+        uniqueConstraints = @UniqueConstraint(name = "uk_programme_level_year_code",
+                columnNames = {"academic_year_id", "level_code"})
 )
 public class ProgrammeLevel {
     @Id
@@ -31,7 +32,7 @@ public class ProgrammeLevel {
     private String programmeName;
 
     @ManyToOne(fetch = FetchType.LAZY)
-    @JoinColumn(name = "academic_year_id")
+    @JoinColumn(name = "academic_year_id", nullable = false, updatable = false)
     private AcademicYear academicYear;
 
     @Min(0)

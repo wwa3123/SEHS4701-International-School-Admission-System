@@ -38,8 +38,8 @@ class LoginServiceTest {
         when(hashService.verifyPassword("valid-password", "member-hash")).thenReturn(true);
 
         assertEquals(
-                new LoginResponse(1L, "member@example.com", "Test", "Member", ActorRole.ROLE_MEMBER),
-                service.login(" MEMBER@example.com ", "valid-password", LoginAccountType.MEMBER)
+                new LoginResponse(1L, "member@example.com", "Test", "Member", ActorRole.ROLE_MEMBER, false),
+                service.login(" MEMBER@example.com ", "valid-password", LoginAccountType.MEMBER).response()
         );
         verifyNoInteractions(adminRepository);
     }
@@ -52,6 +52,8 @@ class LoginServiceTest {
         admin.setFirstName("Test");
         admin.setLastName("Admin");
         admin.setPasswordHash("admin-hash");
+        admin.setRole(ActorRole.ROLE_SUPER_ADMIN);
+        admin.setPasswordChangeRequired(true);
         Member memberWithSameEmail = new Member();
         memberWithSameEmail.setEmail("admin@example.com");
         memberWithSameEmail.setAccountStatus(AccountStatus.ACTIVE);
@@ -61,8 +63,12 @@ class LoginServiceTest {
         when(adminRepository.findByEmailIgnoreCase("admin@example.com")).thenReturn(Optional.of(admin));
         when(hashService.verifyPassword("valid-password", "admin-hash")).thenReturn(true);
 
-        assertEquals(ActorRole.ROLE_ADMIN,
-                service.login("admin@example.com", "valid-password", LoginAccountType.ADMIN).role());
+        assertEquals(ActorRole.ROLE_SUPER_ADMIN,
+                service.login("admin@example.com", "valid-password", LoginAccountType.ADMIN).response().role());
+        assertEquals(0L, service.login("admin@example.com", "valid-password", LoginAccountType.ADMIN).credentialVersion());
+        org.junit.jupiter.api.Assertions.assertTrue(
+                service.login("admin@example.com", "valid-password", LoginAccountType.ADMIN)
+                        .response().passwordChangeRequired());
         verifyNoInteractions(memberRepository);
     }
 
@@ -80,7 +86,7 @@ class LoginServiceTest {
 
         LoginResponse response = service.login(
                 "shared@example.com", "member-password", LoginAccountType.MEMBER
-        );
+        ).response();
 
         assertEquals(ActorRole.ROLE_MEMBER, response.role());
         verifyNoInteractions(adminRepository);
@@ -95,6 +101,17 @@ class LoginServiceTest {
 
         assertUnauthorized(() -> service.login("member@example.com", "valid-password", LoginAccountType.MEMBER));
         verify(hashService).verifyPassword("valid-password", "member-hash");
+    }
+
+    @Test
+    void rejectsDeactivatedOfficer() {
+        Admin admin = new Admin();
+        admin.setActive(false);
+        admin.setPasswordHash("admin-hash");
+        when(adminRepository.findByEmailIgnoreCase("officer@example.com")).thenReturn(Optional.of(admin));
+        when(hashService.verifyPassword("valid-password", "admin-hash")).thenReturn(true);
+
+        assertUnauthorized(() -> service.login("officer@example.com", "valid-password", LoginAccountType.ADMIN));
     }
 
     @Test

@@ -9,6 +9,8 @@ import org.springframework.context.event.EventListener;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.util.Arrays;
+
 @Service
 public class PendingOtcEmailRecoveryService {
     private static final String REDACTED_BODY = "[Verification code email body redacted]";
@@ -22,7 +24,10 @@ public class PendingOtcEmailRecoveryService {
 
     @EventListener(ApplicationReadyEvent.class)
     @Transactional
-    public void recoverInterruptedEmails() {
+    public void recoverInterruptedEmails(ApplicationReadyEvent event) {
+        if (Arrays.asList(event.getArgs()).contains("--recover-super-admin")) {
+            return;
+        }
         emailLogRepository.redactBodiesByTemplateType(EmailTemplateType.OTC_VERIFICATION, REDACTED_BODY);
         emailLogRepository.failPendingEmailsByTemplateType(
                 EmailTemplateType.OTC_VERIFICATION,

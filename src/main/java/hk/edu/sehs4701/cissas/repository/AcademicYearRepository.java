@@ -10,4 +10,6 @@ import java.util.Optional;
 public interface AcademicYearRepository extends JpaRepository<AcademicYear, Long> {
     List<AcademicYear> findAllByOrderByApplicationStartDateDesc();
     Optional<AcademicYear> findFirstByStatusOrderByApplicationStartDateDesc(AcademicYearStatus status);
+    boolean existsByStatusAndIdNot(AcademicYearStatus status, Long id);
+    boolean existsByName(String name);
 }

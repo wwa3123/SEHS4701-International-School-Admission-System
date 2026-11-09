@@ -4,6 +4,7 @@ import hk.edu.sehs4701.cissas.entity.Admin;
 import hk.edu.sehs4701.cissas.entity.Application;
 import hk.edu.sehs4701.cissas.entity.ApplicantSnapshot;
 import hk.edu.sehs4701.cissas.entity.IdentityReview;
+import hk.edu.sehs4701.cissas.enums.ActorRole;
 import hk.edu.sehs4701.cissas.enums.IdentityDocumentType;
 import hk.edu.sehs4701.cissas.repository.AdminRepository;
 import hk.edu.sehs4701.cissas.repository.ApplicationRepository;
@@ -13,7 +14,6 @@ import org.springframework.http.HttpStatus;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Isolation;
-import org.springframework.transaction.annotation.Propagation;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.server.ResponseStatusException;
 
@@ -152,7 +152,7 @@ public class IdentityReviewService {
                 application.getStatus().name());
     }
 
-    @Transactional(propagation = Propagation.REQUIRES_NEW, isolation = Isolation.READ_COMMITTED)
+    @Transactional(isolation = Isolation.READ_COMMITTED)
     public void review(Long adminId, String flaggedNumber, String candidateNumber, boolean samePerson) {
         lock.acquire();
 
@@ -275,6 +275,8 @@ public class IdentityReviewService {
 
     private Admin activeAdmin(Long id) {
         return admins.findById(id).filter(Admin::isActive)
+                .filter(admin -> admin.getRole() == ActorRole.ROLE_ADMIN
+                        || admin.getRole() == ActorRole.ROLE_SUPER_ADMIN)
                 .orElseThrow(() -> new ResponseStatusException(HttpStatus.FORBIDDEN, "Active admin required"));
     }
 }

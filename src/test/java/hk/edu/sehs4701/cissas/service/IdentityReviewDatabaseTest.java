@@ -1,7 +1,9 @@
 package hk.edu.sehs4701.cissas.service;
 
 import hk.edu.sehs4701.cissas.dto.request.ApplicationSubmissionRequest;
-import hk.edu.sehs4701.cissas.controller.api.member.member.AdmissionsApplicationController;
+import hk.edu.sehs4701.cissas.controller.api.member.AdmissionsApplicationController;
+import hk.edu.sehs4701.cissas.controller.api.admin.IdentityReviewController;
+import hk.edu.sehs4701.cissas.controller.api.admin.SuperAdminAcademicYearController;
 import hk.edu.sehs4701.cissas.entity.*;
 import hk.edu.sehs4701.cissas.enums.*;
 import hk.edu.sehs4701.cissas.repository.*;
@@ -60,11 +62,19 @@ class IdentityReviewDatabaseTest {
     @EntityScan(basePackageClasses = Applicant.class)
     @EnableJpaRepositories(basePackageClasses = ApplicationRepository.class)
     @Import({AdmissionsApplicationService.class, IdentityReviewService.class, AcademicYearService.class,
+            ProgrammeLevelService.class, AdminAccountService.class, LoginService.class,
+            SuperAdminAcademicYearController.class, IdentityReviewController.class,
             IdentityDocumentService.class, HashService.class, AesEncryptionConverter.class})
     static class TestConfiguration {}
 
     @MockitoBean private NotificationService notifications;
     @Autowired private AdmissionsApplicationService admissions;
+    @Autowired private AcademicYearService academicYears;
+    @Autowired private ProgrammeLevelService programmeLevels;
+    @Autowired private AdminAccountService adminAccounts;
+    @Autowired private SuperAdminAcademicYearController yearController;
+    @Autowired private IdentityReviewController identityController;
+    @Autowired private LoginService loginService;
     @Autowired private IdentityReviewService reviewService;
     @Autowired private MemberRepository members;
     @Autowired private AdminRepository admins;
@@ -94,7 +104,7 @@ class IdentityReviewDatabaseTest {
         year.setName("test-year");
         year.setApplicationStartDate(today.minusDays(1));
         year.setApplicationEndDate(today.plusDays(2));
-        year.setStatus(AcademicYearStatus.OPEN_FOR_ADMISSION);
+        year.setStatus(AcademicYearStatus.ACTIVE);
         year = years.saveAndFlush(year);
         ProgrammeLevel level = new ProgrammeLevel();
         level.setLevelCode(LevelCode.S1);
@@ -197,8 +207,11 @@ class IdentityReviewDatabaseTest {
     @Test
     void databaseDoesNotPageThroughTwoThousandFiveHundredDifferentNamePairs() {
         Member owner = member("bulk-name-filter");
+        Long activeYearId = years.findFirstByStatusOrderByApplicationStartDateDesc(AcademicYearStatus.ACTIVE)
+                .orElseThrow().getId();
         ProgrammeLevel level = levels.findAll().stream()
-                .filter(p -> p.getLevelCode() == LevelCode.S1).findFirst().orElseThrow();
+                .filter(p -> p.getLevelCode() == LevelCode.S1 && p.getAcademicYear().getId().equals(activeYearId))
+                .findFirst().orElseThrow();
         List<Application> bulk = new java.util.ArrayList<>();
         for (int i = 0; i < 100; i++) {
             Applicant applicant = new Applicant();
@@ -268,11 +281,15 @@ class IdentityReviewDatabaseTest {
     }
 
     @Test
-    void programmeYearChangeDoesNotMoveExistingApplicationOrBlockNewYear() {
+    void newYearUsesSeparateProgrammeWithoutMovingExistingApplication() {
         Member member = member("year");
         ApplicationSubmissionRequest request = request("Year Applicant", IdentityDocumentType.PASSPORT, "YEAR1", "HK");
         assertEquals(201, submit(request, member.getId()));
-        ProgrammeLevel level = levels.findAll().stream().filter(p -> p.getLevelCode() == LevelCode.S1).findFirst().orElseThrow();
+        Long activeYearId = years.findFirstByStatusOrderByApplicationStartDateDesc(AcademicYearStatus.ACTIVE)
+                .orElseThrow().getId();
+        ProgrammeLevel level = levels.findAll().stream()
+                .filter(p -> p.getLevelCode() == LevelCode.S1 && p.getAcademicYear().getId().equals(activeYearId))
+                .findFirst().orElseThrow();
         AcademicYear original = years.findById(level.getAcademicYear().getId()).orElseThrow();
         Long originalId = original.getId();
         Application first = applications.findAll().stream()
@@ -282,24 +299,98 @@ class IdentityReviewDatabaseTest {
         next.setName("test-next-year");
         next.setApplicationStartDate(today.minusDays(1));
         next.setApplicationEndDate(today.plusDays(2));
-        next.setStatus(AcademicYearStatus.OPEN_FOR_ADMISSION);
+        next.setStatus(AcademicYearStatus.ACTIVE);
         try {
             original.setStatus(AcademicYearStatus.ARCHIVED);
             years.saveAndFlush(original);
             next = years.saveAndFlush(next);
-            level.setAcademicYear(next);
-            levels.saveAndFlush(level);
+            var nextLevel = programmeLevels.create(next.getId(), level.getLevelCode(), level.getProgrammeName(),
+                    level.getSeatQuota(), LocalDateTime.now(ZoneId.of("Asia/Hong_Kong")).plusDays(1));
             assertEquals(201, submit(request, member.getId()));
             assertEquals(originalId, applications.findById(first.getId()).orElseThrow().getAcademicYear().getId());
+            assertEquals(level.getId(), applications.findById(first.getId()).orElseThrow().getProgrammeLevel().getId());
+            assertNotEquals(level.getId(), nextLevel.id());
         } finally {
-            original.setStatus(AcademicYearStatus.OPEN_FOR_ADMISSION);
+            original.setStatus(AcademicYearStatus.ACTIVE);
             years.saveAndFlush(original);
-            level.setAcademicYear(original);
-            levels.saveAndFlush(level);
             if (next.getId() != null) {
                 next.setStatus(AcademicYearStatus.ARCHIVED);
                 years.saveAndFlush(next);
             }
+        }
+    }
+
+    @Test
+    void concurrentDuplicateYearCreationReturnsConflict() throws Exception {
+        var executor = Executors.newFixedThreadPool(2);
+        CountDownLatch start = new CountDownLatch(1);
+        LocalDate today = LocalDate.now(ZoneId.of("Asia/Hong_Kong"));
+        try {
+            var tasks = java.util.stream.IntStream.range(0, 2).mapToObj(index -> executor.submit(() -> {
+                start.await();
+                try {
+                    academicYears.create("concurrent-year", today, today.plusDays(2));
+                    return 201;
+                } catch (ResponseStatusException ex) {
+                    return ex.getStatusCode().value();
+                }
+            })).toList();
+            start.countDown();
+            List<Integer> results = List.of(tasks.get(0).get(10, TimeUnit.SECONDS),
+                    tasks.get(1).get(10, TimeUnit.SECONDS));
+            assertEquals(1, results.stream().filter(code -> code == 201).count());
+            assertEquals(1, results.stream().filter(code -> code == 409).count());
+        } finally {
+            executor.shutdownNow();
+            years.findAll().stream().filter(year -> year.getName().equals("concurrent-year"))
+                    .forEach(years::delete);
+        }
+    }
+
+    @Test
+    void concurrentActivationsAllowOnlyOneActiveYear() throws Exception {
+        AcademicYear original = years.findAll().stream()
+                .filter(year -> year.getStatus() == AcademicYearStatus.ACTIVE).findFirst().orElseThrow();
+        LocalDate today = LocalDate.now(ZoneId.of("Asia/Hong_Kong"));
+        AcademicYear first = new AcademicYear();
+        first.setName("activation-test-1");
+        first.setApplicationStartDate(today);
+        first.setApplicationEndDate(today.plusDays(1));
+        first.setStatus(AcademicYearStatus.PLANNING);
+        AcademicYear second = new AcademicYear();
+        second.setName("activation-test-2");
+        second.setApplicationStartDate(today);
+        second.setApplicationEndDate(today.plusDays(1));
+        second.setStatus(AcademicYearStatus.PLANNING);
+        original.setStatus(AcademicYearStatus.ARCHIVED);
+        years.saveAndFlush(original);
+        first = years.saveAndFlush(first);
+        second = years.saveAndFlush(second);
+        Long firstId = first.getId();
+        Long secondId = second.getId();
+        var executor = Executors.newFixedThreadPool(2);
+        CountDownLatch start = new CountDownLatch(1);
+        try {
+            var tasks = List.of(firstId, secondId).stream().map(id -> executor.submit(() -> {
+                start.await();
+                try {
+                    academicYears.updateLifecycle(id, AcademicYearStatus.ACTIVE);
+                    return 200;
+                } catch (ResponseStatusException ex) {
+                    return ex.getStatusCode().value();
+                }
+            })).toList();
+            start.countDown();
+            List<Integer> results = List.of(tasks.get(0).get(10, TimeUnit.SECONDS),
+                    tasks.get(1).get(10, TimeUnit.SECONDS));
+            assertEquals(1, results.stream().filter(code -> code == 200).count());
+            assertEquals(1, results.stream().filter(code -> code == 409).count());
+        } finally {
+            executor.shutdownNow();
+            years.deleteById(firstId);
+            years.deleteById(secondId);
+            original.setStatus(AcademicYearStatus.ACTIVE);
+            years.saveAndFlush(original);
         }
     }
 
@@ -567,6 +658,195 @@ class IdentityReviewDatabaseTest {
                 }
             });
             assertEquals(201, submission.get().get(10, TimeUnit.SECONDS));
+        } finally {
+            executor.shutdownNow();
+        }
+    }
+
+    @Test
+    void accountLockDoesNotBlockAdmissionsLock() throws Exception {
+        transactions.executeWithoutResult(status -> {
+            reviewLock.acquire();
+            reviewLock.acquireAccountLock();
+        });
+        var executor = Executors.newSingleThreadExecutor();
+        try {
+            transactions.executeWithoutResult(status -> {
+                reviewLock.acquireAccountLock();
+                Future<?> admission = executor.submit(() ->
+                        transactions.executeWithoutResult(ignored -> reviewLock.acquire()));
+                try {
+                    admission.get(5, TimeUnit.SECONDS);
+                } catch (Exception exception) {
+                    fail(exception);
+                }
+            });
+        } finally {
+            executor.shutdownNow();
+        }
+    }
+
+    @Test
+    void officerResetRevokesOldSessionsInDatabase() {
+        var officer = adminAccounts.createOfficer(new AdminAccountService.AccountRequest(
+                "recovery-officer@example.test", "Test", "Officer", "initial-password"));
+        var login = loginService.login(officer.email(), "initial-password", LoginAccountType.ADMIN);
+        MockHttpSession session = new MockHttpSession();
+        session.setAttribute("authenticatedUserId", login.response().id());
+        session.setAttribute("authenticatedUserRole", login.response().role().name());
+        session.setAttribute("adminCredentialVersion", login.credentialVersion());
+        org.springframework.mock.web.MockHttpServletRequest request = new org.springframework.mock.web.MockHttpServletRequest();
+        request.setSession(session);
+        adminAccounts.changePassword(request, new AdminAccountService.PasswordChangeRequest(
+                "initial-password", "private-password"));
+        assertThrows(ResponseStatusException.class, () -> adminAccounts.requireAdmin(request));
+        var freshLogin = loginService.login(officer.email(), "private-password", LoginAccountType.ADMIN);
+        session.setAttribute("adminCredentialVersion", freshLogin.credentialVersion());
+        assertEquals(login.response().id(), adminAccounts.requireAdmin(request));
+        adminAccounts.resetOfficerPassword(Long.valueOf(officer.id()),
+                new AdminAccountService.PasswordResetRequest("temporary-password"));
+        assertThrows(ResponseStatusException.class, () -> adminAccounts.requireAdmin(request));
+        assertThrows(ResponseStatusException.class,
+                () -> loginService.login(officer.email(), "private-password", LoginAccountType.ADMIN));
+        assertEquals(2L, loginService.login(officer.email(), "temporary-password",
+                LoginAccountType.ADMIN).credentialVersion());
+    }
+
+    @Test
+    void recoveryWaitsForConcurrentPasswordChangeAndRevokesItsSession() throws Exception {
+        Admin superAdmin = new Admin();
+        superAdmin.setEmail("concurrent-recovery@example.test");
+        superAdmin.setFirstName("Test");
+        superAdmin.setLastName("Super");
+        superAdmin.setRole(ActorRole.ROLE_SUPER_ADMIN);
+        superAdmin.setPasswordHash("unused");
+        Long id = admins.saveAndFlush(superAdmin).getId();
+        var executor = Executors.newSingleThreadExecutor();
+        CountDownLatch started = new CountDownLatch(1);
+        AtomicReference<Future<?>> recovery = new AtomicReference<>();
+        try {
+            transactions.executeWithoutResult(status -> {
+                Admin locked = admins.findLockedById(id).orElseThrow();
+                recovery.set(executor.submit(() -> {
+                    started.countDown();
+                    adminAccounts.recoverSuperAdmin("concurrent-recovery@example.test", "recovery-password");
+                }));
+                try {
+                    assertTrue(started.await(5, TimeUnit.SECONDS));
+                    assertThrows(TimeoutException.class, () -> recovery.get().get(300, TimeUnit.MILLISECONDS));
+                } catch (InterruptedException exception) {
+                    Thread.currentThread().interrupt();
+                    fail(exception);
+                }
+                locked.setCredentialVersion(1);
+                admins.saveAndFlush(locked);
+            });
+            recovery.get().get(10, TimeUnit.SECONDS);
+            assertEquals(2, admins.findById(id).orElseThrow().getCredentialVersion());
+            MockHttpSession session = new MockHttpSession();
+            session.setAttribute("authenticatedUserId", id);
+            session.setAttribute("authenticatedUserRole", "ROLE_SUPER_ADMIN");
+            session.setAttribute("adminCredentialVersion", 1L);
+            org.springframework.mock.web.MockHttpServletRequest request = new org.springframework.mock.web.MockHttpServletRequest();
+            request.setSession(session);
+            assertThrows(ResponseStatusException.class, () -> adminAccounts.requirePasswordSession(request));
+        } finally {
+            executor.shutdownNow();
+        }
+    }
+
+    @Test
+    void revokedSessionCannotCreateYearAfterWaitingForAccountLock() throws Exception {
+        Admin superAdmin = new Admin();
+        superAdmin.setEmail("year-revocation@example.test");
+        superAdmin.setFirstName("Test");
+        superAdmin.setLastName("Super");
+        superAdmin.setRole(ActorRole.ROLE_SUPER_ADMIN);
+        superAdmin.setPasswordHash("unused");
+        Long id = admins.saveAndFlush(superAdmin).getId();
+        MockHttpSession session = new MockHttpSession();
+        session.setAttribute("authenticatedUserId", id);
+        session.setAttribute("authenticatedUserRole", "ROLE_SUPER_ADMIN");
+        session.setAttribute("adminCredentialVersion", 0L);
+        var request = new org.springframework.mock.web.MockHttpServletRequest();
+        request.setSession(session);
+        LocalDate today = LocalDate.now(ZoneId.of("Asia/Hong_Kong"));
+        var create = new SuperAdminAcademicYearController.CreateRequest(
+                "revoked-year", today, today.plusDays(2));
+        var executor = Executors.newSingleThreadExecutor();
+        CountDownLatch started = new CountDownLatch(1);
+        AtomicReference<Future<?>> operation = new AtomicReference<>();
+        try {
+            transactions.executeWithoutResult(status -> {
+                Admin locked = admins.findLockedById(id).orElseThrow();
+                operation.set(executor.submit(() -> {
+                    started.countDown();
+                    assertEquals(org.springframework.http.HttpStatus.FORBIDDEN,
+                            assertThrows(ResponseStatusException.class,
+                                    () -> yearController.create(create, request)).getStatusCode());
+                }));
+                try {
+                    assertTrue(started.await(5, TimeUnit.SECONDS));
+                    assertThrows(TimeoutException.class, () -> operation.get().get(300, TimeUnit.MILLISECONDS));
+                } catch (InterruptedException exception) {
+                    Thread.currentThread().interrupt();
+                    fail(exception);
+                }
+                locked.setCredentialVersion(1);
+                admins.saveAndFlush(locked);
+            });
+            operation.get().get(10, TimeUnit.SECONDS);
+            assertFalse(years.existsByName("revoked-year"));
+        } finally {
+            executor.shutdownNow();
+        }
+    }
+
+    @Test
+    void revokedSessionCannotReadEvidenceAfterWaitingForAccountLock() throws Exception {
+        Member member = member("revoked-read");
+        assertEquals(201, submit(request("Revoked Read", IdentityDocumentType.PASSPORT,
+                "REVOKED-READ", "HK"), member.getId()));
+        String number = applications.findAll().stream()
+                .filter(application -> application.getMember().getId().equals(member.getId()))
+                .findFirst().orElseThrow().getApplicationNumber();
+        Admin admin = new Admin();
+        admin.setEmail("read-revocation@example.test");
+        admin.setFirstName("Test");
+        admin.setLastName("Officer");
+        admin.setPasswordHash("unused");
+        Long id = admins.saveAndFlush(admin).getId();
+        MockHttpSession session = new MockHttpSession();
+        session.setAttribute("authenticatedUserId", id);
+        session.setAttribute("authenticatedUserRole", "ROLE_ADMIN");
+        session.setAttribute("adminCredentialVersion", 0L);
+        var request = new org.springframework.mock.web.MockHttpServletRequest();
+        request.setSession(session);
+        assertEquals("REVOKED-READ", identityController.evidence(number, request).getBody().documentNumber());
+
+        var executor = Executors.newSingleThreadExecutor();
+        CountDownLatch started = new CountDownLatch(1);
+        AtomicReference<Future<?>> operation = new AtomicReference<>();
+        try {
+            transactions.executeWithoutResult(status -> {
+                Admin locked = admins.findLockedById(id).orElseThrow();
+                operation.set(executor.submit(() -> {
+                    started.countDown();
+                    assertEquals(org.springframework.http.HttpStatus.FORBIDDEN,
+                            assertThrows(ResponseStatusException.class,
+                                    () -> identityController.evidence(number, request)).getStatusCode());
+                }));
+                try {
+                    assertTrue(started.await(5, TimeUnit.SECONDS));
+                    assertThrows(TimeoutException.class, () -> operation.get().get(300, TimeUnit.MILLISECONDS));
+                } catch (InterruptedException exception) {
+                    Thread.currentThread().interrupt();
+                    fail(exception);
+                }
+                locked.setCredentialVersion(1);
+                admins.saveAndFlush(locked);
+            });
+            operation.get().get(10, TimeUnit.SECONDS);
         } finally {
             executor.shutdownNow();
         }

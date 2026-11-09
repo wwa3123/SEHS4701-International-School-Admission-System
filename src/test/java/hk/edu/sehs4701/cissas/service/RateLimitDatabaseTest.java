@@ -20,7 +20,12 @@ import java.util.concurrent.Future;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 
-@SpringBootTest
+@SpringBootTest(properties = {
+        "CISSAS_SUPER_ADMIN_EMAIL=test-super@example.com",
+        "CISSAS_SUPER_ADMIN_FIRST_NAME=Test",
+        "CISSAS_SUPER_ADMIN_LAST_NAME=Admin",
+        "CISSAS_SUPER_ADMIN_PASSWORD=test-password"
+})
 @EnabledIfEnvironmentVariable(named = "CISSAS_TEST_DATABASE_URL", matches = ".+")
 class RateLimitDatabaseTest extends DisposableDatabase {
     private static final String TEST_SOURCE = "rate-limit-database-test";
