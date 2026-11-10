@@ -41,7 +41,7 @@ public class EmailLog {
     @Column(name = "application_number", length = 30)
     private String applicationNumber;
 
-    @Column(name = "action_required", nullable = false, length = 255)
+    @Column(name = "action_required", nullable = false)
     private String actionRequired;
 
     @Column(nullable = false, length = 200)
@@ -62,6 +62,15 @@ public class EmailLog {
 
     @Column(name = "sent_at")
     private LocalDateTime sentAt;
+
+    @Column(name = "skipped_by_admin_id")
+    private Long skippedByAdminId;
+
+    @Column(name = "skipped_at")
+    private LocalDateTime skippedAt;
+
+    @Column(name = "skip_reason")
+    private String skipReason;
 
     @Column(name = "created_at", nullable = false, updatable = false)
     private LocalDateTime createdAt = LocalDateTime.now();

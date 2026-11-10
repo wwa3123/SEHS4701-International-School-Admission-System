@@ -14,10 +14,10 @@ import org.junit.jupiter.api.Test;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.MediaType;
 import org.springframework.test.web.servlet.setup.MockMvcBuilders;
+import org.springframework.mock.web.MockHttpSession;
 import org.springframework.web.server.ResponseStatusException;
 
-import static org.junit.jupiter.api.Assertions.assertThrows;
-import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.*;
 import static org.mockito.Mockito.*;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
@@ -84,6 +84,34 @@ class LoginControllerTest {
         new LoginController(loginService, rateLimitService).login(
                 new LoginRequest("admin@example.com", "password", LoginAccountType.ADMIN), request);
         verify(session).setAttribute("adminCredentialVersion", 4L);
+    }
+
+    @Test
+    void logoutInvalidatesExistingSessionAndDoesNotCreateOne() {
+        LoginController controller = new LoginController(mock(LoginService.class), mock(RateLimitService.class));
+        HttpServletRequest request = mock(HttpServletRequest.class);
+        HttpSession session = mock(HttpSession.class);
+        when(request.getSession(false)).thenReturn(session, null);
+
+        controller.logout(request);
+        controller.logout(request);
+
+        verify(session).invalidate();
+        verify(request, never()).getSession(true);
+    }
+
+    @Test
+    void logoutEndpointInvalidatesAuthenticatedAndPendingSessionData() throws Exception {
+        var mvc = MockMvcBuilders.standaloneSetup(
+                new LoginController(mock(LoginService.class), mock(RateLimitService.class))).build();
+        for (String role : new String[] {"ROLE_MEMBER", "ROLE_ADMIN", "ROLE_SUPER_ADMIN"}) {
+            MockHttpSession session = new MockHttpSession();
+            session.setAttribute("authenticatedUserRole", role);
+            session.setAttribute("pendingConfirmation", "value");
+            mvc.perform(post("/api/public/auth/logout").session(session)).andExpect(status().isNoContent());
+            assertTrue(session.isInvalid());
+        }
+        mvc.perform(post("/api/public/auth/logout")).andExpect(status().isNoContent());
     }
 
     @Test

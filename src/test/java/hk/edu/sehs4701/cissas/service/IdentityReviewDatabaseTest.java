@@ -5,11 +5,12 @@ import hk.edu.sehs4701.cissas.dto.request.AccountRequest;
 import hk.edu.sehs4701.cissas.dto.request.CreateAcademicYearRequest;
 import hk.edu.sehs4701.cissas.dto.request.PasswordChangeRequest;
 import hk.edu.sehs4701.cissas.dto.request.PasswordResetRequest;
+import hk.edu.sehs4701.cissas.dto.request.OfferDecisionRequest;
 import hk.edu.sehs4701.cissas.dto.response.Candidate;
 import hk.edu.sehs4701.cissas.dto.response.CandidatePage;
 import hk.edu.sehs4701.cissas.dto.response.Decision;
 import hk.edu.sehs4701.cissas.controller.api.member.AdmissionsApplicationController;
-import hk.edu.sehs4701.cissas.controller.api.admin.IdentityReviewController;
+import hk.edu.sehs4701.cissas.controller.api.admin.ApplicationResultController;
 import hk.edu.sehs4701.cissas.controller.api.admin.SuperAdminAcademicYearController;
 import hk.edu.sehs4701.cissas.entity.*;
 import hk.edu.sehs4701.cissas.enums.*;
@@ -69,8 +70,9 @@ class IdentityReviewDatabaseTest {
     @EntityScan(basePackageClasses = Applicant.class)
     @EnableJpaRepositories(basePackageClasses = ApplicationRepository.class)
     @Import({AdmissionsApplicationService.class, IdentityReviewService.class, AcademicYearService.class,
-            ProgrammeLevelService.class, AdminAccountService.class, LoginService.class,
-            SuperAdminAcademicYearController.class, IdentityReviewController.class,
+                ApplicationResultService.class, ApplicationResultController.class, EmailService.class,
+                ProgrammeLevelService.class, AdminAccountService.class, LoginService.class,
+                SuperAdminAcademicYearController.class,
             IdentityDocumentService.class, HashService.class, AesEncryptionConverter.class})
     static class TestConfiguration {}
 
@@ -80,9 +82,12 @@ class IdentityReviewDatabaseTest {
     @Autowired private ProgrammeLevelService programmeLevels;
     @Autowired private AdminAccountService adminAccounts;
     @Autowired private SuperAdminAcademicYearController yearController;
-    @Autowired private IdentityReviewController identityController;
+    @Autowired private ApplicationResultController applicationController;
     @Autowired private LoginService loginService;
     @Autowired private IdentityReviewService reviewService;
+    @Autowired private ApplicationResultService results;
+    @Autowired private EmailService emails;
+    @Autowired private EmailLogRepository emailLogs;
     @Autowired private MemberRepository members;
     @Autowired private AdminRepository admins;
     @Autowired private AcademicYearRepository years;
@@ -153,6 +158,398 @@ class IdentityReviewDatabaseTest {
         assertEquals(applicantId, applications.findByApplicationNumber(applicationNumberFor(owner))
                 .orElseThrow().getApplicant().getId());
         assertEquals(applicantId, documents.findById(documentId).orElseThrow().getApplicant().getId());
+    }
+
+    @Test
+    void cancelledApplicationsAreExcludedFromDuplicateDetectionAndReview() {
+        Member first = member("cancelled-match-first");
+        Member second = member("cancelled-match-second");
+        Member third = member("cancelled-match-third");
+        assertEquals(201, submit(request("Cancelled Match", IdentityDocumentType.PASSPORT,
+                "CANCELMATCH1", "HK"), first.getId()));
+        String firstNumber = applicationNumberFor(first);
+        assertEquals(201, submit(request("Cancelled Match", IdentityDocumentType.PASSPORT,
+                "CANCELMATCH2", "HK"), second.getId()));
+        String secondNumber = applicationNumberFor(second);
+        Application secondApplication = applications.findByApplicationNumber(secondNumber).orElseThrow();
+        assertTrue(secondApplication.isManualIdentityReviewRequired());
+        assertEquals(Boolean.TRUE, transactions.execute(status -> reviewService.hasPossibleDuplicate(
+                applications.findByApplicationNumber(secondNumber).orElseThrow())));
+
+        changeStatus(firstNumber, ApplicationStatus.Cancelled);
+        assertEquals(Boolean.FALSE, transactions.execute(status -> reviewService.hasPossibleDuplicate(
+                applications.findByApplicationNumber(secondNumber).orElseThrow())));
+        Admin admin = new Admin();
+        admin.setEmail("cancelled-match-admin@example.test");
+        admin.setFirstName("Admin");
+        admin.setLastName("Test");
+        admin.setPasswordHash("test");
+        admin = admins.saveAndFlush(admin);
+        assertTrue(pendingPair(admin.getId(), firstNumber, secondNumber).isEmpty());
+        Long adminId = admin.getId();
+        assertEquals(org.springframework.http.HttpStatus.CONFLICT, assertThrows(ResponseStatusException.class,
+                () -> reviewService.review(adminId, secondNumber, firstNumber, true)).getStatusCode());
+
+        changeStatus(secondNumber, ApplicationStatus.Cancelled);
+        assertEquals(201, submit(request("Cancelled Match", IdentityDocumentType.PASSPORT,
+                "CANCELMATCH3", "HK"), third.getId()));
+        assertFalse(applications.findByApplicationNumber(applicationNumberFor(third))
+                .orElseThrow().isManualIdentityReviewRequired());
+    }
+
+    @Test
+    void duplicateListUsesFlaggedPendingApplicationRegardlessOfIdOrder() {
+        Member first = member("direction-first");
+        Member second = member("direction-second");
+        assertEquals(201, submit(request("Direction Applicant", IdentityDocumentType.PASSPORT,
+                "DIRECTION1", "HK"), first.getId()));
+        assertEquals(201, submit(request("Direction Applicant", IdentityDocumentType.PASSPORT,
+                "DIRECTION2", "HK"), second.getId()));
+        Application a = applications.findByApplicationNumber(applicationNumberFor(first)).orElseThrow();
+        Application b = applications.findByApplicationNumber(applicationNumberFor(second)).orElseThrow();
+        Application flagged = a.getId() < b.getId() ? a : b;
+        Application candidate = flagged == a ? b : a;
+        flagged.setManualIdentityReviewRequired(true);
+        candidate.setManualIdentityReviewRequired(false);
+        applications.saveAllAndFlush(List.of(flagged, candidate));
+        Admin admin = new Admin();
+        admin.setEmail("direction-admin@example.test");
+        admin.setFirstName("Admin");
+        admin.setLastName("Test");
+        admin.setPasswordHash("test");
+        admin = admins.saveAndFlush(admin);
+
+        var matches = pendingPair(admin.getId(), flagged.getApplicationNumber(), candidate.getApplicationNumber());
+        assertEquals(1, matches.size());
+        assertEquals(flagged.getApplicationNumber(), matches.getFirst().flagged().applicationNumber());
+        changeStatus(flagged.getApplicationNumber(), ApplicationStatus.Success);
+        assertTrue(pendingPair(admin.getId(), flagged.getApplicationNumber(), candidate.getApplicationNumber()).isEmpty());
+    }
+
+    @Test
+    void concurrentOfferResponsesCannotOverwriteEachOther() throws Exception {
+        Member owner = member("concurrent-offer");
+        assertEquals(201, submit(request("Concurrent Offer", IdentityDocumentType.PASSPORT,
+                "CONCURRENTOFFER", "HK"), owner.getId()));
+        String number = applicationNumberFor(owner);
+        Application application = applications.findByApplicationNumber(number).orElseThrow();
+        application.setStatus(ApplicationStatus.Success);
+        application.setResultReleasedAt(LocalDateTime.now(ZoneId.of("Asia/Hong_Kong")));
+        application.setAcceptanceDeadline(application.getResultReleasedAt().plusHours(168));
+        applications.saveAndFlush(application);
+        var acceptConfirmation = results.offer(owner.getId(), number, OfferDecisionRequest.Decision.Accept);
+        var rejectConfirmation = results.offer(owner.getId(), number, OfferDecisionRequest.Decision.Reject);
+        var executor = Executors.newFixedThreadPool(2);
+        CountDownLatch start = new CountDownLatch(1);
+        try {
+            var tasks = List.of(OfferDecisionRequest.Decision.Accept, OfferDecisionRequest.Decision.Reject)
+                    .stream().map(decision -> executor.submit(() -> {
+                        start.await();
+                        try {
+                            return results.respondToOffer(owner.getId(), number, decision,
+                                    decision == OfferDecisionRequest.Decision.Accept ? acceptConfirmation : rejectConfirmation) ? 204 : 409;
+                        } catch (ResponseStatusException exception) {
+                            return exception.getStatusCode().value();
+                        }
+                    })).toList();
+            start.countDown();
+            var codes = List.of(tasks.get(0).get(10, TimeUnit.SECONDS), tasks.get(1).get(10, TimeUnit.SECONDS));
+            assertEquals(1, codes.stream().filter(code -> code == 204).count());
+            assertEquals(1, codes.stream().filter(code -> code == 409).count());
+            assertTrue(List.of(ApplicationStatus.Accepted, ApplicationStatus.Rejected).contains(
+                    applications.findByApplicationNumber(number).orElseThrow().getStatus()));
+        } finally {
+            executor.shutdownNow();
+        }
+    }
+
+    @Test
+    void concurrentResultAssignmentsCannotExceedLastSeat() throws Exception {
+        LocalDate today = LocalDate.now(ZoneId.of("Asia/Hong_Kong"));
+        AcademicYear year = new AcademicYear();
+        year.setName("last-seat-test-year");
+        year.setCreationDate(today);
+        year.setStatus(AcademicYearStatus.ARCHIVED);
+        year = years.saveAndFlush(year);
+        ProgrammeLevel level = new ProgrammeLevel();
+        level.setAcademicYear(year);
+        level.setLevelCode(LevelCode.S1);
+        level.setProgrammeName("Last Seat");
+        level.setSeatQuota(1);
+        level.setApplicationStartDate(today.minusDays(2));
+        level.setApplicationEndDate(today.minusDays(1));
+        level = levels.saveAndFlush(level);
+
+        List<String> numbers = List.of("LAST-SEAT-1", "LAST-SEAT-2");
+        List<Long> adminIds = new java.util.ArrayList<>();
+        for (int i = 0; i < numbers.size(); i++) {
+            Member owner = member("last-seat-" + i);
+            Applicant applicant = new Applicant();
+            applicant.setMember(owner);
+            applicant = applicants.saveAndFlush(applicant);
+            Application application = new Application();
+            application.setApplicationNumber(numbers.get(i));
+            application.setMember(owner);
+            application.setApplicant(applicant);
+            application.setAcademicYear(year);
+            application.setProgrammeLevel(level);
+            application.setApplicantSnapshot(new ApplicantSnapshot("Last Seat " + i,
+                    LocalDate.of(2018, 1, 1), "Unspecified", "12345678", "School",
+                    IdentityDocumentType.PASSPORT, "LASTSEAT" + i, "HK"));
+            applications.saveAndFlush(application);
+
+            Admin admin = new Admin();
+            admin.setEmail("last-seat-admin-" + i + "@example.test");
+            admin.setFirstName("Admin");
+            admin.setLastName("Test");
+            admin.setPasswordHash("test");
+            adminIds.add(admins.saveAndFlush(admin).getId());
+        }
+
+        var executor = Executors.newFixedThreadPool(2);
+        CountDownLatch firstAtNotification = new CountDownLatch(1);
+        CountDownLatch releaseFirst = new CountDownLatch(1);
+        CountDownLatch secondStarted = new CountDownLatch(1);
+        doAnswer(invocation -> {
+            firstAtNotification.countDown();
+            if (!releaseFirst.await(10, TimeUnit.SECONDS)) {
+                throw new IllegalStateException("Timed out waiting to release the first result");
+            }
+            return null;
+        }).when(notifications).notifyApplicationResult(
+                argThat(application -> numbers.get(0).equals(application.getApplicationNumber())),
+                eq(false), isNull(), eq(false));
+        try {
+            Future<Boolean> first = executor.submit(() ->
+                    results.setResult(adminIds.get(0), numbers.get(0), ApplicationStatus.Success, null));
+            assertTrue(firstAtNotification.await(5, TimeUnit.SECONDS));
+            Future<Boolean> second = executor.submit(() -> {
+                secondStarted.countDown();
+                return results.setResult(adminIds.get(1), numbers.get(1), ApplicationStatus.Success, null);
+            });
+            assertTrue(secondStarted.await(5, TimeUnit.SECONDS));
+            assertThrows(TimeoutException.class, () -> second.get(300, TimeUnit.MILLISECONDS));
+            releaseFirst.countDown();
+            assertTrue(first.get(10, TimeUnit.SECONDS));
+            assertFalse(second.get(10, TimeUnit.SECONDS));
+            assertEquals(1, applications.countByProgrammeLevel_IdAndStatusIn(level.getId(),
+                    List.of(ApplicationStatus.Success, ApplicationStatus.Accepted)));
+            assertEquals(1, numbers.stream()
+                    .map(number -> applications.findByApplicationNumber(number).orElseThrow().getStatus())
+                    .filter(status -> status == ApplicationStatus.Pending).count());
+        } finally {
+            releaseFirst.countDown();
+            executor.shutdownNow();
+        }
+    }
+
+    @Test
+    void applicationListsAreFilteredByRoleAndMember() {
+        Member first = member("listing-first");
+        Member second = member("listing-second");
+        assertEquals(201, submit(request("Listing First", IdentityDocumentType.PASSPORT,
+                "LISTINGFIRST", "HK"), first.getId()));
+        assertEquals(201, submit(request("Listing Second", IdentityDocumentType.PASSPORT,
+                "LISTINGSECOND", "HK"), second.getId()));
+        String firstNumber = applicationNumberFor(first);
+        String secondNumber = applicationNumberFor(second);
+        Application firstApplication = applications.findByApplicationNumber(firstNumber).orElseThrow();
+        Admin admin = new Admin();
+        admin.setEmail("listing-admin@example.test");
+        admin.setFirstName("Admin");
+        admin.setLastName("Test");
+        admin.setPasswordHash("test");
+        admin = admins.saveAndFlush(admin);
+
+        var memberPage = results.memberApplications(first.getId(), 0, 100);
+        assertTrue(memberPage.stream().anyMatch(item -> item.applicationNumber().equals(firstNumber)));
+        assertFalse(memberPage.stream().anyMatch(item -> item.applicationNumber().equals(secondNumber)));
+        var listedNumbers = new java.util.HashSet<String>();
+        org.springframework.data.domain.Slice<hk.edu.sehs4701.cissas.dto.response.AdminApplication> adminPage;
+        int page = 0;
+        do {
+            adminPage = results.listApplications(admin.getId(), firstApplication.getProgrammeLevel().getId(),
+                    ApplicationStatus.Pending, page++, 100);
+            adminPage.forEach(item -> listedNumbers.add(item.applicationNumber()));
+        } while (adminPage.hasNext());
+        assertTrue(listedNumbers.contains(firstNumber));
+        assertTrue(listedNumbers.contains(secondNumber));
+        assertTrue(results.listApplications(admin.getId(), firstApplication.getProgrammeLevel().getId(),
+                ApplicationStatus.Accepted, 0, 100).stream()
+                .noneMatch(item -> item.applicationNumber().equals(firstNumber)));
+
+        firstApplication.setStatus(ApplicationStatus.Success);
+        firstApplication.setAcceptanceDeadline(LocalDateTime.now(ZoneId.of("Asia/Hong_Kong")).minusMinutes(1));
+        applications.saveAndFlush(firstApplication);
+        Long levelId = firstApplication.getProgrammeLevel().getId();
+        LocalDateTime now = LocalDateTime.now(ZoneId.of("Asia/Hong_Kong"));
+        assertTrue(adminListContains(levelId, ApplicationStatus.Rejected, now, firstNumber));
+        assertFalse(adminListContains(levelId, ApplicationStatus.Success, now, firstNumber));
+        assertTrue(adminListContains(levelId, null, now, firstNumber));
+        firstApplication.setStatus(ApplicationStatus.Pending);
+        firstApplication.setAcceptanceDeadline(null);
+        applications.saveAndFlush(firstApplication);
+    }
+
+    private boolean adminListContains(Long levelId, ApplicationStatus status, LocalDateTime now, String number) {
+        int page = 0;
+        org.springframework.data.domain.Slice<Application> slice;
+        do {
+            slice = applications.findForAdministration(levelId, status, now,
+                    org.springframework.data.domain.PageRequest.of(page++, 100));
+            if (slice.stream().anyMatch(item -> item.getApplicationNumber().equals(number))) return true;
+        } while (slice.hasNext());
+        return false;
+    }
+
+    @Test
+    void expiredVerificationRecoveryDoesNotFailLiveOrAlreadySentEmails() throws Exception {
+        Member owner = member("verification-recovery");
+        EmailLog fresh = verificationLog(owner, LocalDateTime.now());
+        EmailLog interrupted = verificationLog(owner, LocalDateTime.now().minusMinutes(30));
+        EmailLog sending = verificationLog(owner, LocalDateTime.now().minusMinutes(30));
+        CountDownLatch locked = new CountDownLatch(1);
+        CountDownLatch finish = new CountDownLatch(1);
+        try (var pool = Executors.newFixedThreadPool(2)) {
+            Future<?> send = pool.submit(() -> transactions.executeWithoutResult(status -> {
+                EmailLog inFlight = emailLogs.findLockedById(sending.getId()).orElseThrow();
+                locked.countDown();
+                try {
+                    if (!finish.await(10, TimeUnit.SECONDS)) throw new IllegalStateException("Timed out");
+                } catch (InterruptedException ex) {
+                    Thread.currentThread().interrupt();
+                    throw new IllegalStateException(ex);
+                }
+                inFlight.setStatus(EmailDeliveryStatus.SENT);
+            }));
+            assertTrue(locked.await(10, TimeUnit.SECONDS));
+            Future<Integer> cleanup = pool.submit(() -> transactions.execute(status ->
+                    emailLogs.failExpiredPendingEmailsByTemplateType(EmailTemplateType.OTC_VERIFICATION,
+                            EmailDeliveryStatus.PENDING, EmailDeliveryStatus.FAILED,
+                            LocalDateTime.now().minusMinutes(15), "expired")));
+            try {
+                assertThrows(TimeoutException.class, () -> cleanup.get(300, TimeUnit.MILLISECONDS));
+            } finally {
+                finish.countDown();
+            }
+            send.get(10, TimeUnit.SECONDS);
+            assertTrue(cleanup.get(10, TimeUnit.SECONDS) >= 1);
+        }
+        assertEquals(EmailDeliveryStatus.PENDING, emailLogs.findById(fresh.getId()).orElseThrow().getStatus());
+        assertEquals(EmailDeliveryStatus.FAILED, emailLogs.findById(interrupted.getId()).orElseThrow().getStatus());
+        assertEquals(EmailDeliveryStatus.SENT, emailLogs.findById(sending.getId()).orElseThrow().getStatus());
+    }
+
+    private EmailLog verificationLog(Member owner, LocalDateTime createdAt) {
+        EmailLog email = new EmailLog();
+        email.setMember(owner);
+        email.setRecipientEmail(owner.getEmail());
+        email.setTemplateType(EmailTemplateType.OTC_VERIFICATION);
+        email.setActionRequired("Verify email");
+        email.setSubject("Verification");
+        email.setBody("[Verification code email body redacted]");
+        email.setCreatedAt(createdAt);
+        return emailLogs.saveAndFlush(email);
+    }
+
+    @Test
+    void failedDuplicateAlertsAreListedAndPagedIndependently() {
+        Member owner = member("alert-recovery");
+        EmailLog first = verificationLog(owner, LocalDateTime.now());
+        EmailLog second = verificationLog(owner, LocalDateTime.now());
+        transactions.executeWithoutResult(status -> {
+            for (Long id : List.of(first.getId(), second.getId())) {
+                EmailLog alert = emailLogs.findById(id).orElseThrow();
+                alert.setTemplateType(EmailTemplateType.APPLICATION_DUPLICATE_ALERT);
+                alert.setStatus(EmailDeliveryStatus.FAILED);
+            }
+        });
+        var page = emailLogs.findAllByStatusInAndTemplateTypeAndIdGreaterThanOrderByIdAsc(
+                EmailSendAttemptService.UNSENT, EmailTemplateType.APPLICATION_DUPLICATE_ALERT,
+                first.getId() - 1, org.springframework.data.domain.PageRequest.of(0, 1));
+        assertEquals(first.getId(), page.getContent().getFirst().getId());
+        assertTrue(page.hasNext());
+        var next = emailLogs.findAllByStatusInAndTemplateTypeAndIdGreaterThanOrderByIdAsc(
+                EmailSendAttemptService.UNSENT, EmailTemplateType.APPLICATION_DUPLICATE_ALERT,
+                first.getId(), org.springframework.data.domain.PageRequest.of(0, 1));
+        assertEquals(second.getId(), next.getContent().getFirst().getId());
+        assertTrue(emails.failedApplicationEmails(0).stream().anyMatch(alert -> alert.id().equals(first.getId())));
+    }
+
+    @Test
+    void skippingFailedEmailRollsBackWithoutLaterEmailAndRecordsAuditWhenLaterEmailExists() {
+        Member owner = member("skip-email");
+        assertEquals(201, submit(request("Skip Email", IdentityDocumentType.PASSPORT,
+                "SKIPEMAIL1", "HK"), owner.getId()));
+        Application application = applications.findByApplicationNumber(applicationNumberFor(owner)).orElseThrow();
+        EmailLog first = new EmailLog();
+        first.setMember(owner);
+        first.setApplication(application);
+        first.setApplicationNumber(application.getApplicationNumber());
+        first.setRecipientEmail(owner.getEmail());
+        first.setTemplateType(EmailTemplateType.RESULT_ANNOUNCEMENT);
+        first.setActionRequired("Review result");
+        first.setSubject("Result");
+        first.setBody("Result");
+        first.setStatus(EmailDeliveryStatus.FAILED);
+        first = emailLogs.saveAndFlush(first);
+        Long firstId = first.getId();
+
+        assertThrows(IllegalStateException.class, () -> emails.skipFailedApplicationEmail(firstId, 42L, "Unavailable"));
+        assertEquals(EmailDeliveryStatus.FAILED, emailLogs.findById(firstId).orElseThrow().getStatus());
+
+        EmailLog next = new EmailLog();
+        next.setMember(owner);
+        next.setApplication(application);
+        next.setApplicationNumber(application.getApplicationNumber());
+        next.setRecipientEmail(owner.getEmail());
+        next.setTemplateType(EmailTemplateType.CORRECTED_RESULT_ANNOUNCEMENT);
+        next.setActionRequired("Review result");
+        next.setSubject("Corrected result");
+        next.setBody("Corrected result");
+        next = emailLogs.saveAndFlush(next);
+        Long nextId = next.getId();
+        var queue = emailLogs.findUnsentApplicationEmailHeads(
+                EmailSendAttemptService.UNSENT, EmailSendAttemptService.APPLICATION_RESULTS,
+                firstId - 1, org.springframework.data.domain.PageRequest.of(0, 100));
+        assertTrue(queue.getContent().contains(firstId));
+        assertFalse(queue.getContent().contains(nextId));
+        emails.skipFailedApplicationEmail(firstId, 42L, "Unavailable");
+        EmailLog skipped = emailLogs.findById(firstId).orElseThrow();
+        assertEquals(EmailDeliveryStatus.SKIPPED, skipped.getStatus());
+        assertEquals(42L, skipped.getSkippedByAdminId());
+        assertEquals("Unavailable", skipped.getSkipReason());
+        assertNotNull(skipped.getSkippedAt());
+        assertThrows(IllegalStateException.class, () -> emails.manualResend(firstId));
+        var pendingQueue = emailLogs.findUnsentApplicationEmailHeads(
+                EmailSendAttemptService.UNSENT, EmailSendAttemptService.APPLICATION_RESULTS,
+                firstId - 1, org.springframework.data.domain.PageRequest.of(0, 100));
+        assertFalse(pendingQueue.getContent().contains(firstId));
+        assertTrue(pendingQueue.getContent().contains(nextId));
+    }
+
+    @Test
+    void expiredOfferIsCommittedWhenQuotaUpdateIsRejected() {
+        Member expiredOwner = member("quota-expired");
+        Member acceptedOwner = member("quota-accepted");
+        assertEquals(201, submit(request("Quota Expired", IdentityDocumentType.PASSPORT,
+                "QUOTAEXPIRED", "HK"), expiredOwner.getId()));
+        assertEquals(201, submit(request("Quota Accepted", IdentityDocumentType.PASSPORT,
+                "QUOTAACCEPTED", "HK"), acceptedOwner.getId()));
+        Application expired = applications.findByApplicationNumber(applicationNumberFor(expiredOwner)).orElseThrow();
+        Application accepted = applications.findByApplicationNumber(applicationNumberFor(acceptedOwner)).orElseThrow();
+        expired.setStatus(ApplicationStatus.Success);
+        expired.setAcceptanceDeadline(LocalDateTime.now(ZoneId.of("Asia/Hong_Kong")).minusMinutes(1));
+        accepted.setStatus(ApplicationStatus.Accepted);
+        applications.saveAllAndFlush(List.of(expired, accepted));
+        ProgrammeLevel level = levels.findById(expired.getProgrammeLevel().getId()).orElseThrow();
+
+        assertThrows(ResponseStatusException.class, () -> programmeLevels.update(
+                level.getAcademicYear().getId(), level.getId(), level.getProgrammeName(), 0,
+                level.getApplicationStartDate(), level.getApplicationEndDate()));
+
+        assertEquals(ApplicationStatus.Rejected, applications.findById(expired.getId()).orElseThrow().getStatus());
+        assertEquals(ApplicationStatus.Accepted, applications.findById(accepted.getId()).orElseThrow().getStatus());
     }
 
     @Test
@@ -268,7 +665,8 @@ class IdentityReviewDatabaseTest {
         MockHttpSession session = new MockHttpSession();
         session.setAttribute("authenticatedUserRole", "ROLE_MEMBER");
         session.setAttribute("authenticatedUserId", other.getId());
-        var mvc = MockMvcBuilders.standaloneSetup(new AdmissionsApplicationController(admissions)).build();
+        var mvc = MockMvcBuilders.standaloneSetup(new AdmissionsApplicationController(admissions,
+                mock(ApplicationResultService.class))).build();
         String body = """
                 {"levelCode":"S1","applicantFullName":"Privacy Applicant",
                 "applicantIdentityDocumentNumber":"PRIVACY1","applicantIdentityDocumentType":"PASSPORT",
@@ -399,11 +797,11 @@ class IdentityReviewDatabaseTest {
     }
 
     @Test
-    void adminCanReviewUnflaggedDifferentNamesAndAccessSubmittedEvidence() {
+    void adminCanConfirmDuplicateAndCancellationIsRecorded() {
         Member first = member("manual1");
         Member second = member("manual2");
         ApplicationSubmissionRequest one = request("Original Name", IdentityDocumentType.PASSPORT, " MANUAL1 ", "HK");
-        ApplicationSubmissionRequest two = request("Corrected Name", IdentityDocumentType.PASSPORT, "MANUAL2", "HK");
+        ApplicationSubmissionRequest two = request("Original Name", IdentityDocumentType.PASSPORT, "MANUAL2", "HK");
         assertEquals(201, submit(one, first.getId()));
         assertEquals(201, submit(two, second.getId()));
         String firstNumber = applications.findAll().stream()
@@ -416,9 +814,13 @@ class IdentityReviewDatabaseTest {
         admin.setLastName("Manual");
         admin.setPasswordHash("test");
         admin = admins.saveAndFlush(admin);
-        assertEquals(" MANUAL1 ", reviewService.evidence(admin.getId(), firstNumber).documentNumber());
-        reviewService.review(admin.getId(), firstNumber, secondNumber, true);
-        changeStatus(firstNumber, ApplicationStatus.Cancelled);
+        assertEquals("MANUAL2", reviewService.evidence(admin.getId(), secondNumber).documentNumber());
+        assertTrue(applications.findByApplicationNumber(secondNumber).orElseThrow().isManualIdentityReviewRequired());
+        reviewService.review(admin.getId(), secondNumber, firstNumber, true);
+        assertEquals(ApplicationStatus.Cancelled,
+                applications.findByApplicationNumber(secondNumber).orElseThrow().getStatus());
+        verify(notifications).notifyApplicationCancelled(argThat(application ->
+                application.getApplicationNumber().equals(secondNumber)));
         assertEquals(409, submit(one, first.getId()));
     }
 
@@ -511,7 +913,7 @@ class IdentityReviewDatabaseTest {
         assertEquals(201, submit(passport, passportMember.getId()));
         String resubmittedNumber = applicationNumberFor(passportMember);
         assertFalse(applications.findByApplicationNumber(resubmittedNumber).orElseThrow().isManualIdentityReviewRequired());
-        verify(notifications, never()).notifyAdminOfIdentityReview(any(), any(), anyString());
+        verify(notifications, never()).notifyAdminOfPossibleDuplicate(any(), any(), anyString());
 
         assertEquals(201, submit(request("Resolved Applicant", IdentityDocumentType.HKID, "H123456(2)", null),
                 otherMember.getId()));
@@ -520,11 +922,11 @@ class IdentityReviewDatabaseTest {
         assertEquals(201, submit(passport, passportMember.getId()));
         assertTrue(applications.findByApplicationNumber(applicationNumberFor(passportMember))
                 .orElseThrow().isManualIdentityReviewRequired());
-        verify(notifications).notifyAdminOfIdentityReview(any(), any(), anyString());
+        verify(notifications).notifyAdminOfPossibleDuplicate(any(), any(), anyString());
     }
 
     @Test
-    void groupDecisionSuppressesAlertsAndQueueButKeepsUnresolvedMatches() {
+    void duplicateDecisionCancelsOnlyTheFlaggedApplicationAndOtherMatchesRemainReviewable() {
         Member first = member("group-first");
         Member linked = member("group-linked");
         Member different = member("group-different");
@@ -542,15 +944,16 @@ class IdentityReviewDatabaseTest {
         admin.setLastName("Group");
         admin.setPasswordHash("test");
         admin = admins.saveAndFlush(admin);
-        reviewService.review(admin.getId(), firstNumber, linkedNumber, true);
-        reviewService.review(admin.getId(), linkedNumber, differentNumber, false);
+        reviewService.review(admin.getId(), linkedNumber, firstNumber, true);
+        assertEquals(ApplicationStatus.Cancelled,
+                applications.findByApplicationNumber(linkedNumber).orElseThrow().getStatus());
+        reviewService.review(admin.getId(), differentNumber, firstNumber, false);
         changeStatus(firstNumber, ApplicationStatus.Cancelled);
-        changeStatus(linkedNumber, ApplicationStatus.Cancelled);
         clearInvocations(notifications);
         assertEquals(201, submit(firstRequest, first.getId()));
         String secondNumber = applicationNumberFor(first);
         assertFalse(applications.findByApplicationNumber(secondNumber).orElseThrow().isManualIdentityReviewRequired());
-        verify(notifications, never()).notifyAdminOfIdentityReview(any(), any(), anyString());
+        verify(notifications, never()).notifyAdminOfPossibleDuplicate(any(), any(), anyString());
 
         assertEquals(201, submit(request("Group Applicant", IdentityDocumentType.HKID, "V123456(0)", null), unresolved.getId()));
         String unresolvedNumber = applicationNumberFor(unresolved);
@@ -559,7 +962,7 @@ class IdentityReviewDatabaseTest {
         assertEquals(201, submit(firstRequest, first.getId()));
         String thirdNumber = applicationNumberFor(first);
         assertTrue(applications.findByApplicationNumber(thirdNumber).orElseThrow().isManualIdentityReviewRequired());
-        verify(notifications).notifyAdminOfIdentityReview(any(), any(), anyString());
+        verify(notifications).notifyAdminOfPossibleDuplicate(any(), any(), anyString());
 
         List<Candidate> matches = new java.util.ArrayList<>();
         String cursor = null;
@@ -578,43 +981,31 @@ class IdentityReviewDatabaseTest {
     }
 
     @Test
-    void correctionReopensAnUnflaggedPairInTheQueue() {
+    void duplicateFlagRemainsUntilEveryPossibleMatchIsResolved() {
         Member first = member("reopen-first");
         Member linked = member("reopen-linked");
         Member different = member("reopen-different");
         var firstRequest = request("Reopen Applicant", IdentityDocumentType.PASSPORT, "REOPEN1", "HK");
         assertEquals(201, submit(firstRequest, first.getId()));
         assertEquals(201, submit(request("Reopen Applicant", IdentityDocumentType.PASSPORT, "REOPEN2", "HK"), linked.getId()));
+        assertEquals(201, submit(request("Reopen Applicant", IdentityDocumentType.PASSPORT, "REOPEN3", "HK"), different.getId()));
         String firstNumber = applicationNumberFor(first);
         String linkedNumber = applicationNumberFor(linked);
+        String differentNumber = applicationNumberFor(different);
         Admin admin = new Admin();
         admin.setEmail("reopen-admin@example.test");
         admin.setFirstName("Admin");
         admin.setLastName("Reopen");
         admin.setPasswordHash("test");
         admin = admins.saveAndFlush(admin);
-        reviewService.review(admin.getId(), firstNumber, linkedNumber, true);
-        changeStatus(firstNumber, ApplicationStatus.Cancelled);
-        changeStatus(linkedNumber, ApplicationStatus.Cancelled);
-        assertEquals(201, submit(request("Reopen Applicant", IdentityDocumentType.HKID, "W123456(3)", null), different.getId()));
-        String differentNumber = applicationNumberFor(different);
-        assertFalse(applications.findByApplicationNumber(differentNumber).orElseThrow().isManualIdentityReviewRequired());
-        reviewService.review(admin.getId(), linkedNumber, differentNumber, false);
-        assertEquals(201, submit(firstRequest, first.getId()));
-        String resubmittedNumber = applicationNumberFor(first);
-        assertFalse(applications.findByApplicationNumber(resubmittedNumber).orElseThrow().isManualIdentityReviewRequired());
 
-        assertTrue(pendingPair(admin.getId(), resubmittedNumber, differentNumber).isEmpty());
-        reviewService.review(admin.getId(), firstNumber, linkedNumber, false);
-        assertEquals(1, pendingPair(admin.getId(), resubmittedNumber, differentNumber).size());
-        changeStatus(resubmittedNumber, ApplicationStatus.Cancelled);
-        changeStatus(differentNumber, ApplicationStatus.Cancelled);
-        assertTrue(pendingPair(admin.getId(), resubmittedNumber, differentNumber).isEmpty());
-        changeStatus(resubmittedNumber, ApplicationStatus.Pending);
-        changeStatus(differentNumber, ApplicationStatus.Pending);
-        assertEquals(1, pendingPair(admin.getId(), resubmittedNumber, differentNumber).size());
-        reviewService.review(admin.getId(), resubmittedNumber, differentNumber, false);
-        assertTrue(pendingPair(admin.getId(), resubmittedNumber, differentNumber).isEmpty());
+        assertTrue(applications.findByApplicationNumber(differentNumber).orElseThrow().isManualIdentityReviewRequired());
+        reviewService.review(admin.getId(), differentNumber, firstNumber, false);
+        assertTrue(applications.findByApplicationNumber(differentNumber).orElseThrow().isManualIdentityReviewRequired());
+        reviewService.review(admin.getId(), differentNumber, linkedNumber, false);
+        assertFalse(applications.findByApplicationNumber(differentNumber).orElseThrow().isManualIdentityReviewRequired());
+        assertTrue(pendingPair(admin.getId(), differentNumber, firstNumber).isEmpty());
+        assertTrue(pendingPair(admin.getId(), differentNumber, linkedNumber).isEmpty());
     }
 
     private List<Candidate> pendingPair(Long adminId, String first, String second) {
@@ -825,7 +1216,7 @@ class IdentityReviewDatabaseTest {
         session.setAttribute("adminCredentialVersion", 0L);
         var request = new org.springframework.mock.web.MockHttpServletRequest();
         request.setSession(session);
-        assertEquals("REVOKED-READ", identityController.evidence(number, request).getBody().documentNumber());
+        assertEquals("REVOKED-READ", applicationController.duplicateEvidence(number, request).getBody().documentNumber());
 
         var executor = Executors.newSingleThreadExecutor();
         CountDownLatch started = new CountDownLatch(1);
@@ -837,7 +1228,7 @@ class IdentityReviewDatabaseTest {
                     started.countDown();
                     assertEquals(org.springframework.http.HttpStatus.FORBIDDEN,
                             assertThrows(ResponseStatusException.class,
-                                    () -> identityController.evidence(number, request)).getStatusCode());
+                                    () -> applicationController.duplicateEvidence(number, request)).getStatusCode());
                 }));
                 try {
                     assertTrue(started.await(5, TimeUnit.SECONDS));
@@ -888,25 +1279,17 @@ class IdentityReviewDatabaseTest {
         assertEquals(pair.flagged().applicationNumber(), decision.flaggedApplicationNumber());
         assertEquals(pair.possibleMatch().applicationNumber(), decision.candidateApplicationNumber());
 
-        String hkidNumber = pair.flagged().documentType() == IdentityDocumentType.HKID
-                ? pair.flagged().applicationNumber() : pair.possibleMatch().applicationNumber();
-        String passportNumber = pair.flagged().documentType() == IdentityDocumentType.PASSPORT
-                ? pair.flagged().applicationNumber() : pair.possibleMatch().applicationNumber();
-        changeStatus(hkidNumber, ApplicationStatus.Cancelled);
-        assertEquals(409, submit(hkid, first.getId()));
-        changeStatus(hkidNumber, ApplicationStatus.Pending);
-        changeStatus(passportNumber, ApplicationStatus.Cancelled);
-        assertEquals(409, submit(passport, second.getId()));
-
-        reviewService.review(admin.getId(), pair.flagged().applicationNumber(),
-                pair.possibleMatch().applicationNumber(), false);
-        var pairDecisions = reviewService.history(admin.getId(), null, 100).items().stream()
-                .filter(item -> item.flaggedApplicationNumber().equals(pair.flagged().applicationNumber())
-                        && item.candidateApplicationNumber().equals(pair.possibleMatch().applicationNumber()))
-                .toList();
-        assertEquals(2, pairDecisions.size());
-        assertFalse(pairDecisions.stream().filter(Decision::current).findFirst().orElseThrow().samePerson());
-        assertEquals(201, submit(passport, second.getId()));
+        boolean hkidWasCancelled = pair.flagged().documentType() == IdentityDocumentType.HKID;
+        Member cancelledOwner = hkidWasCancelled ? first : second;
+        Member originalOwner = hkidWasCancelled ? second : first;
+        ApplicationSubmissionRequest cancelledRequest = hkidWasCancelled ? hkid : passport;
+        ApplicationSubmissionRequest originalRequest = hkidWasCancelled ? passport : hkid;
+        assertEquals(ApplicationStatus.Cancelled,
+                applications.findByApplicationNumber(pair.flagged().applicationNumber()).orElseThrow().getStatus());
+        assertEquals(409, submit(originalRequest, originalOwner.getId()));
+        assertEquals(201, submit(cancelledRequest, cancelledOwner.getId()));
+        assertTrue(applications.findByApplicationNumber(applicationNumberFor(cancelledOwner))
+                .orElseThrow().isManualIdentityReviewRequired());
     }
 
     @Test
@@ -914,9 +1297,10 @@ class IdentityReviewDatabaseTest {
         Member first = member("history1");
         Member second = member("history2");
         Member third = member("history3");
-        assertEquals(201, submit(request("History One", IdentityDocumentType.PASSPORT, "HISTORY1", "HK"), first.getId()));
-        assertEquals(201, submit(request("History Two", IdentityDocumentType.PASSPORT, "HISTORY2", "HK"), second.getId()));
-        assertEquals(201, submit(request("History Three", IdentityDocumentType.PASSPORT, "HISTORY3", "HK"), third.getId()));
+        Member fourth = member("history4");
+        assertEquals(201, submit(request("History Applicant", IdentityDocumentType.PASSPORT, "HISTORY1", "HK"), first.getId()));
+        assertEquals(201, submit(request("History Applicant", IdentityDocumentType.PASSPORT, "HISTORY2", "HK"), second.getId()));
+        assertEquals(201, submit(request("History Applicant", IdentityDocumentType.PASSPORT, "HISTORY3", "HK"), third.getId()));
         Admin admin = new Admin();
         admin.setEmail("history-admin@example.test");
         admin.setFirstName("Admin");
@@ -927,18 +1311,22 @@ class IdentityReviewDatabaseTest {
         String one = applicationNumberFor(first);
         String two = applicationNumberFor(second);
         String three = applicationNumberFor(third);
-        reviewService.review(adminId, one, two, false);
-        reviewService.review(adminId, one, two, true);
+        reviewService.review(adminId, three, one, false);
+        reviewService.review(adminId, three, two, false);
         var firstPage = reviewService.history(adminId, null, 1);
-        assertEquals(one, firstPage.items().getFirst().flaggedApplicationNumber());
+        assertEquals(three, firstPage.items().getFirst().flaggedApplicationNumber());
+        assertEquals(two, firstPage.items().getFirst().candidateApplicationNumber());
         assertTrue(firstPage.items().getFirst().current());
         assertNotNull(firstPage.nextCursor());
-        reviewService.review(adminId, two, three, false);
+        assertEquals(201, submit(request("History Applicant", IdentityDocumentType.PASSPORT, "HISTORY4", "HK"), fourth.getId()));
+        String four = applicationNumberFor(fourth);
+        reviewService.review(adminId, four, one, false);
         var secondPage = reviewService.history(adminId, firstPage.nextCursor(), 1);
-        assertEquals(one, secondPage.items().getFirst().flaggedApplicationNumber());
-        assertFalse(secondPage.items().getFirst().current());
+        assertEquals(three, secondPage.items().getFirst().flaggedApplicationNumber());
+        assertEquals(one, secondPage.items().getFirst().candidateApplicationNumber());
+        assertTrue(secondPage.items().getFirst().current());
         assertNotEquals(firstPage.items().getFirst(), secondPage.items().getFirst());
-        assertEquals(two, reviewService.history(adminId, null, 1).items().getFirst().flaggedApplicationNumber());
+        assertEquals(four, reviewService.history(adminId, null, 1).items().getFirst().flaggedApplicationNumber());
     }
 
     private List<Integer> submitTogether(ApplicationSubmissionRequest first, Long firstMember,

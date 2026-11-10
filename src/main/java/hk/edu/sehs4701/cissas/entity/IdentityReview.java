@@ -44,7 +44,7 @@ public class IdentityReview {
     private Integer currentMarker = 1;
 
     @Column(name = "reviewed_at", nullable = false, updatable = false)
-    private LocalDateTime reviewedAt = LocalDateTime.now();
+    private final LocalDateTime reviewedAt = LocalDateTime.now();
 
     public IdentityReview(Application first, Application second, Admin admin, boolean samePerson) {
         this.firstApplication = first;

@@ -10,12 +10,16 @@ import hk.edu.sehs4701.cissas.entity.Admin;
 import hk.edu.sehs4701.cissas.entity.Application;
 import hk.edu.sehs4701.cissas.entity.ApplicantSnapshot;
 import hk.edu.sehs4701.cissas.entity.IdentityReview;
+import hk.edu.sehs4701.cissas.entity.StatusHistory;
 import hk.edu.sehs4701.cissas.enums.ActorRole;
-import hk.edu.sehs4701.cissas.enums.IdentityDocumentType;
+import hk.edu.sehs4701.cissas.enums.ApplicationStatus;
 import hk.edu.sehs4701.cissas.repository.AdminRepository;
 import hk.edu.sehs4701.cissas.repository.ApplicationRepository;
 import hk.edu.sehs4701.cissas.repository.IdentityReviewLockRepository;
 import hk.edu.sehs4701.cissas.repository.IdentityReviewRepository;
+import hk.edu.sehs4701.cissas.repository.ProgrammeLevelRepository;
+import hk.edu.sehs4701.cissas.repository.StatusHistoryRepository;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.HttpStatus;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.stereotype.Service;
@@ -29,6 +33,8 @@ import java.util.HashMap;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Set;
+import java.time.LocalDateTime;
+import java.time.ZoneId;
 
 @Service
 public class IdentityReviewService {
@@ -36,13 +42,22 @@ public class IdentityReviewService {
     private final IdentityReviewLockRepository lock;
     private final ApplicationRepository applications;
     private final AdminRepository admins;
+    private final ProgrammeLevelRepository programmeLevels;
+    private final StatusHistoryRepository statusHistory;
+    private final NotificationService notifications;
 
+    @Autowired
     public IdentityReviewService(IdentityReviewRepository reviews, IdentityReviewLockRepository lock,
-                                 ApplicationRepository applications, AdminRepository admins) {
+                                 ApplicationRepository applications, AdminRepository admins,
+                                 ProgrammeLevelRepository programmeLevels, StatusHistoryRepository statusHistory,
+                                 NotificationService notifications) {
         this.reviews = reviews;
         this.lock = lock;
         this.applications = applications;
         this.admins = admins;
+        this.programmeLevels = programmeLevels;
+        this.statusHistory = statusHistory;
+        this.notifications = notifications;
     }
 
     @Transactional(readOnly = true)
@@ -107,15 +122,17 @@ public class IdentityReviewService {
         var graph = confirmedGraph(roots, null);
         var groups = new HashMap<Long, Set<Long>>();
         List<Candidate> result = new ArrayList<>();
+        LocalDateTime now = LocalDateTime.now(ZoneId.of("Asia/Hong_Kong"));
         for (Object[] pair : pairs) {
             Application flagged = (Application) pair[0];
             Application candidate = (Application) pair[1];
             Long firstId = flagged.getApplicant().getId();
             Long secondId = candidate.getApplicant().getId();
             if (matches(flagged, candidate)
-                    && !hasResolvedMatch(groups.computeIfAbsent(firstId, id -> connected(graph, id)),
+                    && !reviews.hasDifferentDecision(
+                            groups.computeIfAbsent(firstId, id -> connected(graph, id)),
                             groups.computeIfAbsent(secondId, id -> connected(graph, id)))) {
-                result.add(new Candidate(summary(flagged), summary(candidate)));
+                result.add(new Candidate(summary(flagged, now), summary(candidate, now)));
             }
         }
 
@@ -133,38 +150,51 @@ public class IdentityReviewService {
         activeAdmin(adminId);
         Application application = application(applicationNumber);
         var snapshot = application.getApplicantSnapshot();
-        return new ApplicationEvidence(application.getApplicationNumber(), snapshot.getFullName(), snapshot.getDateOfBirth(),
+        return new ApplicationEvidence(application.getApplicationNumber(), application.getMember().getEmail(),
+                snapshot.getFullName(), snapshot.getDateOfBirth(),
                 snapshot.getGender(), snapshot.getPhone(), snapshot.getPreviousSchool(), snapshot.getDocumentType(),
                 snapshot.getDocumentNumber(), snapshot.getIssuingCountry(), application.getAcademicYear().getName(),
-                application.getStatus().name());
+                application.effectiveStatus(LocalDateTime.now(ZoneId.of("Asia/Hong_Kong"))).name());
     }
 
     @Transactional(isolation = Isolation.READ_COMMITTED)
     public void review(Long adminId, String flaggedNumber, String candidateNumber, boolean samePerson) {
         lock.acquire();
-
         Admin admin = activeAdmin(adminId);
-        Application flagged = application(flaggedNumber);
+        Application initial = application(flaggedNumber);
         Application candidate = application(candidateNumber);
+        programmeLevels.findLockedById(initial.getProgrammeLevel().getId())
+                .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Programme level not found"));
+        Application flagged = applications.findLockedByApplicationNumber(flaggedNumber)
+                .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Application not found"));
         Long firstId = flagged.getApplicant().getId();
         Long secondId = candidate.getApplicant().getId();
 
+        if (candidate.getStatus() == ApplicationStatus.Cancelled) {
+            throw new ResponseStatusException(HttpStatus.CONFLICT, "The matching application is cancelled");
+        }
         if (firstId.equals(secondId)) {
             throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Applications belong to the same applicant");
         }
+        if (!matches(flagged, candidate)) {
+            throw new ResponseStatusException(HttpStatus.CONFLICT, "The applications do not match on name and date of birth");
+        }
+        if (flagged.getStatus() != ApplicationStatus.Pending || !flagged.isManualIdentityReviewRequired()) {
+            throw new ResponseStatusException(HttpStatus.CONFLICT, "The duplicate application is no longer pending review");
+        }
 
         IdentityReview previous = reviews.currentPair(firstId, secondId).orElse(null);
-        if (previous != null && previous.isSamePerson() == samePerson) {
+        if (previous != null && previous.isSamePerson() == samePerson && !samePerson) {
             throw new ResponseStatusException(HttpStatus.CONFLICT, "This decision is already recorded");
         }
 
         Set<Long> firstGroup = confirmedApplicantIds(firstId, previous);
         Set<Long> secondGroup = confirmedApplicantIds(secondId, previous);
-        if (firstGroup.contains(secondId)) {
+        if (firstGroup.contains(secondId) && !samePerson) {
             throw new ResponseStatusException(HttpStatus.CONFLICT, "Applicants are already confirmed as the same person");
         }
 
-        if (previous != null) {
+        if (previous != null && previous.isSamePerson() != samePerson) {
             previous.supersede();
             reviews.saveAndFlush(previous);
         }
@@ -173,21 +203,44 @@ public class IdentityReviewService {
             throw new ResponseStatusException(HttpStatus.CONFLICT, "Confirmation contradicts a previous review");
         }
 
-        reviews.save(new IdentityReview(flagged, candidate, admin, samePerson));
+        if (previous == null || previous.isSamePerson() != samePerson) {
+            reviews.saveAndFlush(new IdentityReview(flagged, candidate, admin, samePerson));
+        }
+        if (samePerson) {
+            flagged.setStatus(ApplicationStatus.Cancelled);
+            flagged.setManualIdentityReviewRequired(false);
+            applications.save(flagged);
+            StatusHistory cancellation = new StatusHistory();
+            cancellation.setApplication(flagged);
+            cancellation.setFromStatus(ApplicationStatus.Pending);
+            cancellation.setToStatus(ApplicationStatus.Cancelled);
+            cancellation.setChangedByRole(admin.getRole());
+            cancellation.setChangedById(admin.getId());
+            cancellation.setRemarks("Duplicate application; administrator confirmed same applicant");
+            cancellation.setChangedAt(LocalDateTime.now(ZoneId.of("Asia/Hong_Kong")));
+            statusHistory.save(cancellation);
+            notifications.notifyApplicationCancelled(flagged);
+        } else {
+            flagged.setManualIdentityReviewRequired(hasPossibleDuplicate(flagged));
+            applications.save(flagged);
+        }
+    }
+
+    boolean hasPossibleDuplicate(Application application) {
+        var snapshot = application.getApplicantSnapshot();
+        return applications.findAllByStatusNotAndApplicantSnapshot_DateOfBirthAndApplicantSnapshot_NameHash(
+                        ApplicationStatus.Cancelled, snapshot.getDateOfBirth(), snapshot.getNameHash()).stream()
+                .anyMatch(candidate -> matches(application, candidate)
+                        && lacksDifferentDecision(application.getApplicant().getId(), candidate.getApplicant().getId()));
     }
 
     Set<Long> confirmedApplicantIds(Long applicantId) {
         return confirmedApplicantIds(applicantId, null);
     }
 
-    boolean hasResolvedMatch(Set<Long> firstGroup, Long secondApplicantId) {
-        return firstGroup.contains(secondApplicantId)
-                || hasResolvedMatch(firstGroup, confirmedApplicantIds(secondApplicantId));
-    }
-
-    private boolean hasResolvedMatch(Set<Long> firstGroup, Set<Long> secondGroup) {
-        return !java.util.Collections.disjoint(firstGroup, secondGroup)
-                || reviews.hasDifferentDecision(firstGroup, secondGroup);
+    boolean lacksDifferentDecision(Long firstApplicantId, Long secondApplicantId) {
+        return secondApplicantId == null || !reviews.hasDifferentDecision(
+                confirmedApplicantIds(firstApplicantId), confirmedApplicantIds(secondApplicantId));
     }
 
     private Set<Long> confirmedApplicantIds(Long id, IdentityReview excluded) {
@@ -235,24 +288,16 @@ public class IdentityReviewService {
     private boolean matches(Application first, Application second) {
         var a = first.getApplicantSnapshot();
         var b = second.getApplicantSnapshot();
-        return first.getProgrammeLevel().getId().equals(second.getProgrammeLevel().getId())
-                && first.getAcademicYear().getId().equals(second.getAcademicYear().getId())
+        return !first.getApplicant().getId().equals(second.getApplicant().getId())
                 && a.getDateOfBirth().equals(b.getDateOfBirth())
-                && opposite(a.getDocumentType()) == b.getDocumentType()
                 && ApplicantSnapshot.normalizeName(a.getFullName())
                         .equals(ApplicantSnapshot.normalizeName(b.getFullName()));
     }
 
-    private IdentityDocumentType opposite(IdentityDocumentType type) {
-        if (type == IdentityDocumentType.HKID) return IdentityDocumentType.PASSPORT;
-        if (type == IdentityDocumentType.PASSPORT) return IdentityDocumentType.HKID;
-        return null;
-    }
-
-    private ApplicationSummary summary(Application application) {
+    private ApplicationSummary summary(Application application, LocalDateTime now) {
         var snapshot = application.getApplicantSnapshot();
         return new ApplicationSummary(application.getApplicationNumber(), snapshot.getFullName(),
-                snapshot.getDateOfBirth(), snapshot.getDocumentType(), application.getStatus().name());
+                snapshot.getDateOfBirth(), snapshot.getDocumentType(), application.effectiveStatus(now).name());
     }
 
     private Application application(String number) {

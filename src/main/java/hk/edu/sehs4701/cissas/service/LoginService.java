@@ -10,6 +10,7 @@ import hk.edu.sehs4701.cissas.enums.LoginAccountType;
 import hk.edu.sehs4701.cissas.repository.AdminRepository;
 import hk.edu.sehs4701.cissas.repository.MemberRepository;
 import hk.edu.sehs4701.cissas.security.HashService;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -24,6 +25,7 @@ public class LoginService {
     private final AdminRepository adminRepository;
     private final HashService hashService;
 
+    @Autowired
     public LoginService(MemberRepository memberRepository, AdminRepository adminRepository, HashService hashService) {
         this.memberRepository = memberRepository;
         this.adminRepository = adminRepository;

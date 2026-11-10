@@ -13,20 +13,25 @@ import org.springframework.data.domain.SliceImpl;
 import org.springframework.web.server.ResponseStatusException;
 
 import java.time.LocalDate;
+import java.time.LocalDateTime;
+import java.time.ZoneId;
 import java.util.List;
 import java.util.Optional;
 import java.util.Set;
 
 import static org.junit.jupiter.api.Assertions.*;
 import static org.mockito.Mockito.*;
-import static org.mockito.ArgumentMatchers.*;
 
 class IdentityReviewServiceTest {
     private final IdentityReviewRepository reviews = mock(IdentityReviewRepository.class);
     private final IdentityReviewLockRepository lock = mock(IdentityReviewLockRepository.class);
     private final ApplicationRepository applications = mock(ApplicationRepository.class);
     private final AdminRepository admins = mock(AdminRepository.class);
-    private final IdentityReviewService service = new IdentityReviewService(reviews, lock, applications, admins);
+    private final ProgrammeLevelRepository programmeLevels = mock(ProgrammeLevelRepository.class);
+    private final StatusHistoryRepository statusHistory = mock(StatusHistoryRepository.class);
+    private final NotificationService notifications = mock(NotificationService.class);
+    private final IdentityReviewService service = new IdentityReviewService(
+            reviews, lock, applications, admins, programmeLevels, statusHistory, notifications);
     private final Admin admin = new Admin();
     private Application flagged;
     private Application candidate;
@@ -36,9 +41,12 @@ class IdentityReviewServiceTest {
         flagged = application(1L, "APP-1", IdentityDocumentType.HKID);
         flagged.setManualIdentityReviewRequired(true);
         candidate = application(2L, "APP-2", IdentityDocumentType.PASSPORT);
+        flagged.getProgrammeLevel().setApplicationEndDate(LocalDate.of(2020, 9, 30));
+        when(programmeLevels.findLockedById(7L)).thenReturn(Optional.of(flagged.getProgrammeLevel()));
         when(admins.findById(9L)).thenReturn(Optional.of(admin));
         when(applications.findByApplicationNumber("APP-1")).thenReturn(Optional.of(flagged));
         when(applications.findByApplicationNumber("APP-2")).thenReturn(Optional.of(candidate));
+        when(applications.findLockedByApplicationNumber("APP-1")).thenReturn(Optional.of(flagged));
     }
 
     @Test
@@ -46,12 +54,36 @@ class IdentityReviewServiceTest {
         service.review(9L, "APP-1", "APP-2", false);
 
         ArgumentCaptor<IdentityReview> saved = ArgumentCaptor.forClass(IdentityReview.class);
-        verify(reviews).save(saved.capture());
+        verify(reviews).saveAndFlush(saved.capture());
         assertFalse(saved.getValue().isSamePerson());
         assertSame(flagged.getApplicant(), saved.getValue().getFirstApplicant());
         assertSame(candidate.getApplicant(), saved.getValue().getSecondApplicant());
         assertSame(admin, saved.getValue().getReviewedBy());
-        verify(lock).acquire();
+        var locks = inOrder(lock, programmeLevels, applications);
+        locks.verify(lock).acquire();
+        locks.verify(programmeLevels).findLockedById(7L);
+        locks.verify(applications).findLockedByApplicationNumber("APP-1");
+    }
+
+    @Test
+    void clearsDuplicateFlagWhenApplicationsAreDifferentPeople() {
+        service.review(9L, "APP-1", "APP-2", false);
+
+        assertEquals(ApplicationStatus.Pending, flagged.getStatus());
+        assertFalse(flagged.isManualIdentityReviewRequired());
+        verify(applications).save(flagged);
+        verify(notifications, never()).notifyApplicationCancelled(any());
+    }
+
+    @Test
+    void cannotReviewAgainstCancelledApplication() {
+        candidate.setStatus(ApplicationStatus.Cancelled);
+
+        assertEquals(HttpStatus.CONFLICT, assertThrows(ResponseStatusException.class,
+                () -> service.review(9L, "APP-1", "APP-2", true)).getStatusCode());
+        assertEquals(ApplicationStatus.Pending, flagged.getStatus());
+        verify(reviews, never()).saveAndFlush(any());
+        verify(notifications, never()).notifyApplicationCancelled(any());
     }
 
     @Test
@@ -90,15 +122,39 @@ class IdentityReviewServiceTest {
     }
 
     @Test
-    void rejectsRedundantConfirmationToKeepFutureCorrectionsPossible() {
+    void confirmsAndCancelsFlaggedApplicationAlreadyLinkedToSamePerson() {
         Application third = application(3L, "APP-3", IdentityDocumentType.HKID);
         existing(List.of(
                 new IdentityReview(flagged, third, admin, true),
                 new IdentityReview(candidate, third, admin, true)));
-        ResponseStatusException error = assertThrows(ResponseStatusException.class,
-                () -> service.review(9L, "APP-1", "APP-2", true));
-        assertEquals(HttpStatus.CONFLICT, error.getStatusCode());
-        verify(reviews, never()).save(any());
+
+        service.review(9L, "APP-1", "APP-2", true);
+
+        assertEquals(ApplicationStatus.Cancelled, flagged.getStatus());
+        verify(notifications).notifyApplicationCancelled(flagged);
+    }
+
+    @Test
+    void repeatedConfirmationKeepsExistingCurrentDecision() {
+        IdentityReview previous = new IdentityReview(flagged, candidate, admin, true);
+        existing(List.of(previous));
+
+        service.review(9L, "APP-1", "APP-2", true);
+
+        assertEquals(1, previous.getCurrentMarker());
+        verify(reviews, never()).saveAndFlush(any());
+        assertEquals(ApplicationStatus.Cancelled, flagged.getStatus());
+    }
+
+    @Test
+    void linkedDifferentPersonIsNotAnUnresolvedDuplicate() {
+        Application third = application(3L, "APP-3", IdentityDocumentType.HKID);
+        existing(List.of(new IdentityReview(flagged, third, admin, true),
+                new IdentityReview(third, candidate, admin, false)));
+        when(applications.findAllByStatusNotAndApplicantSnapshot_DateOfBirthAndApplicantSnapshot_NameHash(
+                eq(ApplicationStatus.Cancelled), any(), any())).thenReturn(List.of(candidate));
+
+        assertFalse(service.hasPossibleDuplicate(flagged));
     }
 
     @Test
@@ -110,10 +166,26 @@ class IdentityReviewServiceTest {
     }
 
     @Test
+    void duplicateReviewShowsExpiredSuccessAsRejected() {
+        candidate.setStatus(ApplicationStatus.Success);
+        candidate.setAcceptanceDeadline(LocalDateTime.now(ZoneId.of("Asia/Hong_Kong")).minusSeconds(1));
+        when(applications.findPotentialReviewPairs(isNull(), isNull(), any()))
+                .thenReturn(new SliceImpl<>(java.util.Collections.singletonList(new Object[]{flagged, candidate})));
+
+        assertEquals("Rejected", service.pending(9L, null, 25).items().getFirst().possibleMatch().status());
+        assertEquals("Rejected", service.evidence(9L, "APP-2").status());
+        assertEquals(ApplicationStatus.Success, candidate.getStatus());
+
+        candidate.setAcceptanceDeadline(LocalDateTime.now(ZoneId.of("Asia/Hong_Kong")).plusHours(1));
+        assertEquals("Success", service.pending(9L, null, 25).items().getFirst().possibleMatch().status());
+        assertEquals("Success", service.evidence(9L, "APP-2").status());
+    }
+
+    @Test
     void cursorAdvancesAcrossAFilteredEmptyPage() {
         Application third = application(3L, "APP-3", IdentityDocumentType.HKID);
         existing(List.of(new IdentityReview(flagged, third, admin, true),
-                new IdentityReview(third, candidate, admin, true)));
+                new IdentityReview(third, candidate, admin, false)));
         when(applications.findPotentialReviewPairs(isNull(), isNull(), any()))
                 .thenReturn(new SliceImpl<>(java.util.Collections.singletonList(new Object[]{flagged, candidate}),
                         PageRequest.of(0, 1), true));
@@ -133,7 +205,6 @@ class IdentityReviewServiceTest {
                 new IdentityReview(fourth, third, admin, false)));
         when(applications.findPotentialReviewPairs(isNull(), isNull(), any()))
                 .thenReturn(new SliceImpl<>(java.util.Collections.singletonList(new Object[]{flagged, candidate})));
-        assertTrue(service.hasResolvedMatch(Set.of(1L, 4L), 2L));
         assertTrue(service.pending(9L, null, 25).items().isEmpty());
     }
 
@@ -145,7 +216,6 @@ class IdentityReviewServiceTest {
         existing(List.of(new IdentityReview(flagged, third, admin, true), different));
         when(applications.findPotentialReviewPairs(isNull(), isNull(), any()))
                 .thenReturn(new SliceImpl<>(java.util.Collections.singletonList(new Object[]{flagged, candidate})));
-        assertFalse(service.hasResolvedMatch(Set.of(1L, 3L), 2L));
         assertEquals(1, service.pending(9L, null, 25).items().size());
     }
 
@@ -156,7 +226,10 @@ class IdentityReviewServiceTest {
         service.review(9L, "APP-1", "APP-2", true);
         assertNull(previous.getCurrentMarker());
         verify(reviews).saveAndFlush(previous);
-        verify(reviews).save(argThat(review -> review.isSamePerson() && review.getCurrentMarker() == 1));
+        verify(reviews).saveAndFlush(argThat(review -> review.isSamePerson() && review.getCurrentMarker() == 1));
+        assertEquals(ApplicationStatus.Cancelled, flagged.getStatus());
+        verify(notifications).notifyApplicationCancelled(flagged);
+        verify(statusHistory).save(argThat(entry -> entry.getToStatus() == ApplicationStatus.Cancelled));
     }
 
     @Test
@@ -182,14 +255,14 @@ class IdentityReviewServiceTest {
     }
 
     @Test
-    void refusesInactiveAdminsAndAllowsUnmatchedApplications() {
+    void refusesInactiveAdminsAndAllowsMatchesAcrossProgrammeLevels() {
         admin.setActive(false);
         assertEquals(HttpStatus.FORBIDDEN, assertThrows(ResponseStatusException.class,
                 () -> service.review(9L, "APP-1", "APP-2", true)).getStatusCode());
         admin.setActive(true);
         candidate.getProgrammeLevel().setId(8L);
         service.review(9L, "APP-1", "APP-2", true);
-        verify(reviews).save(any(IdentityReview.class));
+        verify(reviews).saveAndFlush(any(IdentityReview.class));
     }
 
     @Test
@@ -221,11 +294,15 @@ class IdentityReviewServiceTest {
         year.setId(8L);
         Application application = new Application();
         application.setId(applicantId);
+        Member member = new Member();
+        member.setEmail("member@example.com");
+        application.setMember(member);
         application.setApplicant(applicant);
         application.setApplicationNumber(number);
         application.setProgrammeLevel(level);
         application.setAcademicYear(year);
         application.setStatus(ApplicationStatus.Pending);
+        application.setManualIdentityReviewRequired(true);
         application.setApplicantSnapshot(new ApplicantSnapshot("Example Name", LocalDate.of(2018, 1, 1),
                 "Unspecified", "12345678", "School", type, "123456", null));
         return application;

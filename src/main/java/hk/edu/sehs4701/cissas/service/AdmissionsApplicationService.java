@@ -10,7 +10,6 @@ import hk.edu.sehs4701.cissas.entity.Member;
 import hk.edu.sehs4701.cissas.entity.ProgrammeLevel;
 import hk.edu.sehs4701.cissas.enums.AccountStatus;
 import hk.edu.sehs4701.cissas.enums.ApplicationStatus;
-import hk.edu.sehs4701.cissas.enums.IdentityDocumentType;
 import hk.edu.sehs4701.cissas.repository.ApplicantRepository;
 import hk.edu.sehs4701.cissas.repository.ApplicationRepository;
 import hk.edu.sehs4701.cissas.repository.MemberRepository;
@@ -27,10 +26,7 @@ import org.springframework.web.server.ResponseStatusException;
 
 import java.time.LocalDate;
 import java.time.ZoneId;
-import java.util.HashSet;
 import java.util.Objects;
-import java.util.Set;
-
 
 @Service
 public class AdmissionsApplicationService {
@@ -95,8 +91,6 @@ public class AdmissionsApplicationService {
         Applicant applicant = applicantRepository.findByIdentityDocumentHashForUpdate(documentNumberHash)
                 .orElse(null);
 
-        Set<Long> confirmedApplicantIds = Set.of();
-
         if (applicant != null) {
             if (!Objects.equals(applicant.getMember().getId(), member.getId())) {
                 throw new ResponseStatusException(HttpStatus.CONFLICT, "Identity document is already linked");
@@ -116,24 +110,9 @@ public class AdmissionsApplicationService {
                         );
                     });
 
-            Long applicantId = Objects.requireNonNull(applicant.getId(), "Existing applicant must have an ID");
-            confirmedApplicantIds = identityReviewService.confirmedApplicantIds(applicantId);
-
-            var relatedIds = new HashSet<>(confirmedApplicantIds);
-            relatedIds.remove(applicantId);
-            if (!relatedIds.isEmpty()) {
-                applicationRepository
-                        .findFirstByApplicant_IdInAndProgrammeLevel_IdAndAcademicYear_IdAndStatusNotOrderBySubmittedAtDesc(
-                                relatedIds, level.getId(), openAcademicYear.id(), ApplicationStatus.Cancelled)
-                        .ifPresent(existing -> {
-                            throw new ResponseStatusException(HttpStatus.CONFLICT,
-                                    "An application already exists for a confirmed applicant.");
-                        });
-            }
         }
 
-        boolean manualIdentityReviewRequired = hasCrossDocumentMatch(
-                applicationSubmissionRequest, level, openAcademicYear.id(), applicant, confirmedApplicantIds);
+        boolean manualIdentityReviewRequired = hasPossibleDuplicate(applicationSubmissionRequest, applicant);
 
         if (applicant == null) {
             IdentityDocument identityDocument = identityDocumentService.findByHashForUpdate(documentNumberHash)
@@ -179,40 +158,27 @@ public class AdmissionsApplicationService {
         application.setManualIdentityReviewRequired(manualIdentityReviewRequired);
         Application savedApplication = applicationRepository.save(application);
         if (manualIdentityReviewRequired) {
-            notificationService.notifyAdminOfIdentityReview(
+            notificationService.notifyAdminOfPossibleDuplicate(
                     member, savedApplication, openAcademicYear.name());
         }
     }
 
-    private boolean hasCrossDocumentMatch(
+    private boolean hasPossibleDuplicate(
             ApplicationSubmissionRequest request,
-            ProgrammeLevel level,
-            Long academicYearId,
-            Applicant applicant,
-            Set<Long> confirmedApplicantIds) {
-        IdentityDocumentType submittedType = request.applicantIdentityDocumentType();
-        IdentityDocumentType oppositeType;
-        if (submittedType == IdentityDocumentType.HKID) {
-            oppositeType = IdentityDocumentType.PASSPORT;
-        } else if (submittedType == IdentityDocumentType.PASSPORT) {
-            oppositeType = IdentityDocumentType.HKID;
-        } else {
-            return false;
-        }
-
+            Applicant applicant) {
         String normalizedName = ApplicantSnapshot.normalizeName(request.applicantFullName());
         return applicationRepository
-                .findAllByProgrammeLevel_IdAndAcademicYear_IdAndStatusNotAndApplicantSnapshot_DateOfBirthAndApplicantSnapshot_DocumentTypeAndApplicantSnapshot_NameHash(
-                        level.getId(), academicYearId, ApplicationStatus.Cancelled, request.dateOfBirth(), oppositeType,
+                .findAllByStatusNotAndApplicantSnapshot_DateOfBirthAndApplicantSnapshot_NameHash(
+                        ApplicationStatus.Cancelled, request.dateOfBirth(),
                         ApplicantSnapshot.hashName(request.applicantFullName()))
                 .stream()
                 .filter(application -> ApplicantSnapshot.normalizeName(application.getApplicantSnapshot().getFullName())
                         .equals(normalizedName))
                 .anyMatch(application -> {
                     if (applicant == null) return true;
-                    Long candidateId = application.getApplicant().getId();
-                    return !confirmedApplicantIds.contains(candidateId)
-                            && !identityReviewService.hasResolvedMatch(confirmedApplicantIds, candidateId);
+                    return !Objects.equals(applicant.getId(), application.getApplicant().getId())
+                            && identityReviewService.lacksDifferentDecision(
+                                    application.getApplicant().getId(), applicant.getId());
                 });
     }
 }

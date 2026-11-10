@@ -6,6 +6,7 @@ import hk.edu.sehs4701.cissas.enums.AcademicYearStatus;
 import hk.edu.sehs4701.cissas.repository.AcademicYearRepository;
 import hk.edu.sehs4701.cissas.repository.IdentityReviewLockRepository;
 import hk.edu.sehs4701.cissas.repository.ProgrammeLevelRepository;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -21,6 +22,7 @@ public class AcademicYearService {
     private final IdentityReviewLockRepository lock;
     private final ProgrammeLevelRepository programmeLevels;
 
+    @Autowired
     public AcademicYearService(AcademicYearRepository academicYearRepository, IdentityReviewLockRepository lock,
                                ProgrammeLevelRepository programmeLevels) {
         this.academicYearRepository = academicYearRepository;

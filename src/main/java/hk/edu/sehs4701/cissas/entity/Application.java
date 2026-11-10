@@ -19,8 +19,12 @@ import java.util.Objects;
 @Table(
         name = "application",
         uniqueConstraints = @UniqueConstraint(name = "uk_application_number", columnNames = "application_number"),
-        indexes = @Index(name = "idx_application_identity_review",
-                columnList = "programme_level_id, academic_year_id, submitted_date_of_birth, submitted_document_type, submitted_name_hash")
+        indexes = {
+                @Index(name = "idx_application_identity_review",
+                columnList = "programme_level_id, academic_year_id, submitted_date_of_birth, submitted_document_type, submitted_name_hash"),
+                @Index(name = "idx_application_duplicate_match",
+                        columnList = "submitted_date_of_birth, submitted_name_hash")
+        }
 )
 public class Application {
     @Id
@@ -79,5 +83,10 @@ public class Application {
             throw new IllegalStateException("Application snapshot cannot be replaced");
         }
         this.applicantSnapshot = Objects.requireNonNull(applicantSnapshot, "Applicant snapshot is required");
+    }
+
+    public ApplicationStatus effectiveStatus(LocalDateTime now) {
+        return status == ApplicationStatus.Success && acceptanceDeadline != null
+                && !now.isBefore(acceptanceDeadline) ? ApplicationStatus.Rejected : status;
     }
 }

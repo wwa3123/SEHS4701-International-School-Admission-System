@@ -13,6 +13,9 @@ import java.time.LocalDate;
 public interface ProgrammeLevelRepository extends JpaRepository<ProgrammeLevel, Long> {
     @Lock(LockModeType.PESSIMISTIC_WRITE)
     Optional<ProgrammeLevel> findByLevelCodeAndAcademicYear_Id(LevelCode code, Long academicYearId);
+    @Lock(LockModeType.PESSIMISTIC_WRITE)
+    Optional<ProgrammeLevel> findLockedById(Long id);
+    @Lock(LockModeType.PESSIMISTIC_WRITE)
     Optional<ProgrammeLevel> findByIdAndAcademicYear_Id(Long id, Long academicYearId);
     List<ProgrammeLevel> findAllByAcademicYear_IdOrderByLevelCodeAsc(Long academicYearId);
     boolean existsByLevelCodeAndAcademicYear_Id(LevelCode code, Long academicYearId);

@@ -6,6 +6,7 @@ import hk.edu.sehs4701.cissas.dto.request.ProgrammeLevelRequest;
 import hk.edu.sehs4701.cissas.dto.request.ProgrammeLevelUpdateRequest;
 import hk.edu.sehs4701.cissas.dto.response.AcademicYearResponse;
 import hk.edu.sehs4701.cissas.dto.response.ProgrammeLevelResponse;
+import hk.edu.sehs4701.cissas.exception.SeatQuotaExceededException;
 import hk.edu.sehs4701.cissas.service.AcademicYearService;
 import hk.edu.sehs4701.cissas.service.AdminAccountService;
 import hk.edu.sehs4701.cissas.service.ProgrammeLevelService;
@@ -73,7 +74,7 @@ public class SuperAdminAcademicYearController {
     }
 
     @PutMapping("/{yearId}/programme-levels/{levelId}")
-    @Transactional(isolation = Isolation.READ_COMMITTED)
+    @Transactional(isolation = Isolation.READ_COMMITTED, noRollbackFor = SeatQuotaExceededException.class)
     public ProgrammeLevelResponse updateProgramme(
             @PathVariable Long yearId, @PathVariable Long levelId,
             @Valid @RequestBody ProgrammeLevelUpdateRequest request, HttpServletRequest servletRequest) {

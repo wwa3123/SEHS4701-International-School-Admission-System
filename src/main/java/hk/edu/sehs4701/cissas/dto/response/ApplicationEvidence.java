@@ -6,6 +6,7 @@ import java.time.LocalDate;
 
 public record ApplicationEvidence(
         String applicationNumber,
+        String memberEmail,
         String fullName,
         LocalDate dateOfBirth,
         String gender,
