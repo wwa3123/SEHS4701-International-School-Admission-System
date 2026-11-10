@@ -1,6 +1,7 @@
 package hk.edu.sehs4701.cissas.controller.admin;
 
 import hk.edu.sehs4701.cissas.controller.api.admin.AdminPasswordController;
+import hk.edu.sehs4701.cissas.dto.internal.PasswordSession;
 import hk.edu.sehs4701.cissas.service.AdminAccountService;
 import hk.edu.sehs4701.cissas.service.RateLimitService;
 import org.junit.jupiter.api.Test;
@@ -21,7 +22,7 @@ class AdminPasswordControllerTest {
     void signsOutOnlyAfterSuccessfulPasswordChange() throws Exception {
         AdminAccountService accounts = mock(AdminAccountService.class);
         RateLimitService rateLimits = mock(RateLimitService.class);
-        when(accounts.requirePasswordSession(any())).thenReturn(new AdminAccountService.PasswordSession(1L, 0));
+        when(accounts.requirePasswordSession(any())).thenReturn(new PasswordSession(1L, 0));
         var mvc = MockMvcBuilders.standaloneSetup(new AdminPasswordController(accounts, rateLimits)).build();
         String body = """
                 {"currentPassword":"old-password","newPassword":"new-password"}
@@ -35,7 +36,7 @@ class AdminPasswordControllerTest {
         org.junit.jupiter.api.Assertions.assertFalse(failed.isInvalid());
 
         reset(accounts);
-        when(accounts.requirePasswordSession(any())).thenReturn(new AdminAccountService.PasswordSession(1L, 0));
+        when(accounts.requirePasswordSession(any())).thenReturn(new PasswordSession(1L, 0));
         MockHttpSession success = new MockHttpSession();
         success.setAttribute("authenticatedUserId", 1L);
         success.setAttribute("authenticatedUserRole", "ROLE_ADMIN");
@@ -50,7 +51,7 @@ class AdminPasswordControllerTest {
     void rateLimitStopsPasswordVerification() throws Exception {
         AdminAccountService accounts = mock(AdminAccountService.class);
         RateLimitService rateLimits = mock(RateLimitService.class);
-        when(accounts.requirePasswordSession(any())).thenReturn(new AdminAccountService.PasswordSession(1L, 0));
+        when(accounts.requirePasswordSession(any())).thenReturn(new PasswordSession(1L, 0));
         doThrow(new ResponseStatusException(HttpStatus.TOO_MANY_REQUESTS))
                 .when(rateLimits).checkAllowed("admin-password-account:1:0", "Too many password attempts");
         MockHttpSession session = new MockHttpSession();
@@ -88,7 +89,7 @@ class AdminPasswordControllerTest {
     void accountLimitUsesValidatedCredentialVersion() throws Exception {
         AdminAccountService accounts = mock(AdminAccountService.class);
         RateLimitService rateLimits = mock(RateLimitService.class);
-        when(accounts.requirePasswordSession(any())).thenReturn(new AdminAccountService.PasswordSession(1L, 3));
+        when(accounts.requirePasswordSession(any())).thenReturn(new PasswordSession(1L, 3));
         MockHttpSession session = new MockHttpSession();
         session.setAttribute("authenticatedUserId", 1L);
         session.setAttribute("authenticatedUserRole", "ROLE_ADMIN");
@@ -107,8 +108,8 @@ class AdminPasswordControllerTest {
         AdminAccountService accounts = mock(AdminAccountService.class);
         RateLimitService rateLimits = mock(RateLimitService.class);
         when(accounts.requirePasswordSession(any())).thenReturn(
-                new AdminAccountService.PasswordSession(1L, 0),
-                new AdminAccountService.PasswordSession(2L, 0));
+                new PasswordSession(1L, 0),
+                new PasswordSession(2L, 0));
         doThrow(new ResponseStatusException(HttpStatus.TOO_MANY_REQUESTS))
                 .when(rateLimits).checkAllowed("admin-password-account:1:0", "Too many password attempts");
         var mvc = MockMvcBuilders.standaloneSetup(new AdminPasswordController(accounts, rateLimits)).build();

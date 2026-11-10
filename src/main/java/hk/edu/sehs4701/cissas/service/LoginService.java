@@ -1,5 +1,6 @@
 package hk.edu.sehs4701.cissas.service;
 
+import hk.edu.sehs4701.cissas.dto.internal.LoginResult;
 import hk.edu.sehs4701.cissas.dto.response.LoginResponse;
 import hk.edu.sehs4701.cissas.entity.Admin;
 import hk.edu.sehs4701.cissas.entity.Member;
@@ -9,6 +10,7 @@ import hk.edu.sehs4701.cissas.enums.LoginAccountType;
 import hk.edu.sehs4701.cissas.repository.AdminRepository;
 import hk.edu.sehs4701.cissas.repository.MemberRepository;
 import hk.edu.sehs4701.cissas.security.HashService;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -19,12 +21,11 @@ import java.util.Locale;
 
 @Service
 public class LoginService {
-    public record LoginResult(LoginResponse response, Long credentialVersion) {}
-
     private final MemberRepository memberRepository;
     private final AdminRepository adminRepository;
     private final HashService hashService;
 
+    @Autowired
     public LoginService(MemberRepository memberRepository, AdminRepository adminRepository, HashService hashService) {
         this.memberRepository = memberRepository;
         this.adminRepository = adminRepository;

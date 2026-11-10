@@ -7,8 +7,8 @@ import java.time.LocalDate;
 public record AcademicYearResponse(
         Long id,
         String name,
-        LocalDate applicationStartDate,
-        LocalDate applicationEndDate,
+        LocalDate creationDate,
+        LocalDate archiveDate,
         AcademicYearStatus status
 ) {
 }

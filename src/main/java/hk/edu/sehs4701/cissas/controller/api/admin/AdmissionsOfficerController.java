@@ -1,5 +1,8 @@
 package hk.edu.sehs4701.cissas.controller.api.admin;
 
+import hk.edu.sehs4701.cissas.dto.request.AccountRequest;
+import hk.edu.sehs4701.cissas.dto.request.PasswordResetRequest;
+import hk.edu.sehs4701.cissas.dto.response.AccountResponse;
 import hk.edu.sehs4701.cissas.service.AdminAccountService;
 import jakarta.servlet.http.HttpServletRequest;
 import org.springframework.http.CacheControl;
@@ -22,22 +25,21 @@ public class AdmissionsOfficerController {
     @PostMapping
     @ResponseStatus(HttpStatus.CREATED)
     @Transactional(isolation = Isolation.READ_COMMITTED)
-    public AdminAccountService.AccountResponse create(
-            @RequestBody AdminAccountService.AccountRequest account, HttpServletRequest request) {
+    public AccountResponse create(@RequestBody AccountRequest account, HttpServletRequest request) {
         accounts.requireSuperAdminForUpdate(request);
         return accounts.createOfficer(account);
     }
 
     @GetMapping
     @Transactional(isolation = Isolation.READ_COMMITTED)
-    public ResponseEntity<List<AdminAccountService.AccountResponse>> list(HttpServletRequest request) {
+    public ResponseEntity<List<AccountResponse>> list(HttpServletRequest request) {
         accounts.requireSuperAdminForUpdate(request);
         return ResponseEntity.ok().cacheControl(CacheControl.noStore()).body(accounts.listOfficers());
     }
 
     @DeleteMapping("/{id}")
     @Transactional(isolation = Isolation.READ_COMMITTED)
-    public AdminAccountService.AccountResponse deactivate(@PathVariable Long id, HttpServletRequest request) {
+    public AccountResponse deactivate(@PathVariable Long id, HttpServletRequest request) {
         accounts.requireSuperAdminForUpdate(request);
         return accounts.deactivateOfficer(id);
     }
@@ -45,7 +47,7 @@ public class AdmissionsOfficerController {
     @PutMapping("/{id}/password")
     @ResponseStatus(HttpStatus.NO_CONTENT)
     @Transactional(isolation = Isolation.READ_COMMITTED)
-    public void resetPassword(@PathVariable Long id, @RequestBody AdminAccountService.PasswordResetRequest reset,
+    public void resetPassword(@PathVariable Long id, @RequestBody PasswordResetRequest reset,
                               HttpServletRequest request) {
         accounts.requireSuperAdminForUpdate(request);
         accounts.resetOfficerPassword(id, reset);

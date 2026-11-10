@@ -41,16 +41,16 @@
                     <thead>
                     <tr>
                         <th scope="col">Year</th>
-                        <th scope="col">Application opens</th>
-                        <th scope="col">Application closes</th>
+                        <th scope="col">Created</th>
+                        <th scope="col">Archived</th>
                         <th scope="col">Status</th>
                     </tr>
                     </thead>
                     <tbody>
                     <tr th:each="year : ${academicYears}">
                         <td th:text="${year.name}"></td>
-                        <td th:text="${year.applicationStartDate}"></td>
-                        <td th:text="${year.applicationEndDate}"></td>
+                        <td th:text="${year.creationDate}"></td>
+                        <td th:text="${year.archiveDate}"></td>
                         <td th:text="${year.status}"></td>
                     </tr>
                     </tbody>

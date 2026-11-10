@@ -1,17 +1,17 @@
 package hk.edu.sehs4701.cissas.controller.api.admin;
 
+import hk.edu.sehs4701.cissas.dto.request.AcademicYearLifecycleRequest;
+import hk.edu.sehs4701.cissas.dto.request.CreateAcademicYearRequest;
+import hk.edu.sehs4701.cissas.dto.request.ProgrammeLevelRequest;
+import hk.edu.sehs4701.cissas.dto.request.ProgrammeLevelUpdateRequest;
 import hk.edu.sehs4701.cissas.dto.response.AcademicYearResponse;
-import hk.edu.sehs4701.cissas.enums.AcademicYearStatus;
-import hk.edu.sehs4701.cissas.enums.LevelCode;
+import hk.edu.sehs4701.cissas.dto.response.ProgrammeLevelResponse;
+import hk.edu.sehs4701.cissas.exception.SeatQuotaExceededException;
 import hk.edu.sehs4701.cissas.service.AcademicYearService;
 import hk.edu.sehs4701.cissas.service.AdminAccountService;
 import hk.edu.sehs4701.cissas.service.ProgrammeLevelService;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.validation.Valid;
-import jakarta.validation.constraints.NotBlank;
-import jakarta.validation.constraints.NotNull;
-import jakarta.validation.constraints.Size;
-import jakarta.validation.constraints.Min;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.CacheControl;
 import org.springframework.http.ResponseEntity;
@@ -19,8 +19,6 @@ import org.springframework.transaction.annotation.Isolation;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.bind.annotation.*;
 
-import java.time.LocalDate;
-import java.time.LocalDateTime;
 import java.util.List;
 
 @RestController
@@ -38,39 +36,20 @@ public class SuperAdminAcademicYearController {
         this.programmeLevelService = programmeLevelService;
     }
 
-    public record CreateRequest(
-            @NotBlank @Size(max = 20) String name,
-            @NotNull LocalDate applicationStartDate,
-            @NotNull LocalDate applicationEndDate) {
-    }
-
-    public record LifecycleRequest(@NotNull AcademicYearStatus status) {
-    }
-
-    public record ProgrammeRequest(@NotNull LevelCode levelCode,
-                                   @NotBlank @Size(max = 120) String programmeName,
-                                   @NotNull @Min(0) Integer seatQuota,
-                                   @NotNull LocalDateTime applicationDeadline) {
-    }
-
-    public record ProgrammeUpdateRequest(@NotBlank @Size(max = 120) String programmeName,
-                                         @NotNull @Min(0) Integer seatQuota,
-                                         @NotNull LocalDateTime applicationDeadline) {
-    }
-
     @PostMapping
     @ResponseStatus(HttpStatus.CREATED)
     @Transactional(isolation = Isolation.READ_COMMITTED)
-    public AcademicYearResponse create(@Valid @RequestBody CreateRequest request, HttpServletRequest servletRequest) {
+    public AcademicYearResponse create(
+            @Valid @RequestBody CreateAcademicYearRequest request, HttpServletRequest servletRequest) {
         adminAccountService.requireSuperAdminForUpdate(servletRequest);
-        return academicYearService.create(request.name(), request.applicationStartDate(), request.applicationEndDate());
+        return academicYearService.create(request.name());
     }
 
     @PutMapping("/{id}/status")
     @Transactional(isolation = Isolation.READ_COMMITTED)
     public AcademicYearResponse updateStatus(
             @PathVariable Long id,
-            @Valid @RequestBody LifecycleRequest request,
+            @Valid @RequestBody AcademicYearLifecycleRequest request,
             HttpServletRequest servletRequest) {
         adminAccountService.requireSuperAdminForUpdate(servletRequest);
         return academicYearService.updateLifecycle(id, request.status());
@@ -79,28 +58,28 @@ public class SuperAdminAcademicYearController {
     @PostMapping("/{id}/programme-levels")
     @ResponseStatus(HttpStatus.CREATED)
     @Transactional(isolation = Isolation.READ_COMMITTED)
-    public ProgrammeLevelService.Response createProgramme(
-            @PathVariable Long id, @Valid @RequestBody ProgrammeRequest request, HttpServletRequest servletRequest) {
+    public ProgrammeLevelResponse createProgramme(
+            @PathVariable Long id, @Valid @RequestBody ProgrammeLevelRequest request, HttpServletRequest servletRequest) {
         adminAccountService.requireSuperAdminForUpdate(servletRequest);
         return programmeLevelService.create(id, request.levelCode(), request.programmeName(),
-                request.seatQuota(), request.applicationDeadline());
+                request.seatQuota(), request.applicationStartDate(), request.applicationEndDate());
     }
 
     @GetMapping("/{id}/programme-levels")
     @Transactional(isolation = Isolation.READ_COMMITTED)
-    public ResponseEntity<List<ProgrammeLevelService.Response>> listProgrammes(
+    public ResponseEntity<List<ProgrammeLevelResponse>> listProgrammes(
             @PathVariable Long id, HttpServletRequest request) {
         adminAccountService.requireSuperAdminForUpdate(request);
         return ResponseEntity.ok().cacheControl(CacheControl.noStore()).body(programmeLevelService.list(id));
     }
 
     @PutMapping("/{yearId}/programme-levels/{levelId}")
-    @Transactional(isolation = Isolation.READ_COMMITTED)
-    public ProgrammeLevelService.Response updateProgramme(
+    @Transactional(isolation = Isolation.READ_COMMITTED, noRollbackFor = SeatQuotaExceededException.class)
+    public ProgrammeLevelResponse updateProgramme(
             @PathVariable Long yearId, @PathVariable Long levelId,
-            @Valid @RequestBody ProgrammeUpdateRequest request, HttpServletRequest servletRequest) {
+            @Valid @RequestBody ProgrammeLevelUpdateRequest request, HttpServletRequest servletRequest) {
         adminAccountService.requireSuperAdminForUpdate(servletRequest);
         return programmeLevelService.update(yearId, levelId, request.programmeName(),
-                request.seatQuota(), request.applicationDeadline());
+                request.seatQuota(), request.applicationStartDate(), request.applicationEndDate());
     }
 }

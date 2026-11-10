@@ -1,5 +1,6 @@
 package hk.edu.sehs4701.cissas.controller.api.pub;
 
+import hk.edu.sehs4701.cissas.dto.internal.LoginResult;
 import hk.edu.sehs4701.cissas.dto.request.LoginRequest;
 import hk.edu.sehs4701.cissas.dto.response.LoginResponse;
 import hk.edu.sehs4701.cissas.service.LoginService;
@@ -12,6 +13,8 @@ import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
+import org.springframework.web.bind.annotation.ResponseStatus;
+import org.springframework.http.HttpStatus;
 
 @RestController
 @RequestMapping("/api/public/auth")
@@ -32,7 +35,7 @@ public class LoginController {
         String clientAddress = rateLimitService.resolveClientAddress(servletRequest);
         rateLimitService.checkLoginAllowed("login-ip:" + clientAddress, LOGIN_RATE_LIMIT_MESSAGE);
 
-        LoginService.LoginResult result = loginService.login(request.email(), request.password(), request.accountType());
+        LoginResult result = loginService.login(request.email(), request.password(), request.accountType());
         LoginResponse response = result.response();
         HttpSession session = servletRequest.getSession(true);
         servletRequest.changeSessionId();
@@ -40,5 +43,14 @@ public class LoginController {
         session.setAttribute("authenticatedUserRole", response.role().name());
         session.setAttribute("adminCredentialVersion", result.credentialVersion());
         return response;
+    }
+
+    @PostMapping("/logout")
+    @ResponseStatus(HttpStatus.NO_CONTENT)
+    public void logout(HttpServletRequest request) {
+        HttpSession session = request.getSession(false);
+        if (session != null) {
+            session.invalidate();
+        }
     }
 }

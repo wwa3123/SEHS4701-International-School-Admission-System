@@ -1,9 +1,11 @@
 package hk.edu.sehs4701.cissas.service;
 
+import hk.edu.sehs4701.cissas.dto.response.ProgrammeLevelResponse;
 import hk.edu.sehs4701.cissas.entity.AcademicYear;
 import hk.edu.sehs4701.cissas.entity.ProgrammeLevel;
 import hk.edu.sehs4701.cissas.enums.LevelCode;
 import hk.edu.sehs4701.cissas.repository.AcademicYearRepository;
+import hk.edu.sehs4701.cissas.repository.ApplicationRepository;
 import hk.edu.sehs4701.cissas.repository.IdentityReviewLockRepository;
 import hk.edu.sehs4701.cissas.repository.ProgrammeLevelRepository;
 import org.junit.jupiter.api.Test;
@@ -11,7 +13,6 @@ import org.springframework.http.HttpStatus;
 import org.springframework.web.server.ResponseStatusException;
 
 import java.time.LocalDate;
-import java.time.LocalDateTime;
 import java.util.Optional;
 import java.util.List;
 
@@ -22,14 +23,15 @@ class ProgrammeLevelServiceTest {
     private final ProgrammeLevelRepository levels = mock(ProgrammeLevelRepository.class);
     private final AcademicYearRepository years = mock(AcademicYearRepository.class);
     private final IdentityReviewLockRepository lock = mock(IdentityReviewLockRepository.class);
-    private final ProgrammeLevelService service = new ProgrammeLevelService(levels, years, lock);
-    private final LocalDateTime deadline = LocalDateTime.of(2028, 9, 15, 17, 0);
+    private final ApplicationRepository applications = mock(ApplicationRepository.class);
+    private final ApplicationResultService results = mock(ApplicationResultService.class);
+    private final ProgrammeLevelService service = new ProgrammeLevelService(levels, years, lock, applications, results);
+    private final LocalDate applicationStartDate = LocalDate.of(2028, 9, 1);
+    private final LocalDate applicationEndDate = LocalDate.of(2028, 9, 30);
 
     private AcademicYear year() {
         AcademicYear year = new AcademicYear();
         year.setId(1L);
-        year.setApplicationStartDate(LocalDate.of(2028, 9, 1));
-        year.setApplicationEndDate(LocalDate.of(2028, 9, 30));
         return year;
     }
 
@@ -42,38 +44,71 @@ class ProgrammeLevelServiceTest {
             level.setId(10L);
             return level;
         });
-        assertEquals(new ProgrammeLevelService.Response(10L, 1L, LevelCode.S1, "Secondary", 150, deadline),
-                service.create(1L, LevelCode.S1, " Secondary ", 150, deadline));
+        assertEquals(new ProgrammeLevelResponse(10L, 1L, LevelCode.S1, "Secondary", 150,
+                        applicationStartDate, applicationEndDate),
+                service.create(1L, LevelCode.S1, " Secondary ", 150,
+                        applicationStartDate, applicationEndDate));
         verify(lock).acquire();
         verify(levels).save(argThat(level -> level.getAcademicYear() == year));
     }
 
     @Test
-    void rejectsDuplicateAndDeadlineOutsideYear() {
+    void rejectsDuplicateAndInvalidProgrammeApplicationPeriod() {
         when(years.findById(1L)).thenReturn(Optional.of(year()));
         when(levels.existsByLevelCodeAndAcademicYear_Id(LevelCode.S1, 1L)).thenReturn(true);
         assertEquals(HttpStatus.CONFLICT, assertThrows(ResponseStatusException.class,
-                () -> service.create(1L, LevelCode.S1, "Secondary", 150, deadline)).getStatusCode());
+                () -> service.create(1L, LevelCode.S1, "Secondary", 150,
+                        applicationStartDate, applicationEndDate)).getStatusCode());
         assertEquals(HttpStatus.BAD_REQUEST, assertThrows(ResponseStatusException.class,
-                () -> service.create(1L, LevelCode.S1, "Secondary", 150, deadline.plusMonths(1))).getStatusCode());
+                () -> service.create(1L, LevelCode.S1, "Secondary", 150,
+                        applicationEndDate, applicationStartDate)).getStatusCode());
         verify(levels, never()).save(any());
     }
 
     @Test
-    void updatesOnlyTheRequestedYearsProgrammeAndValidatesDeadline() {
+    void updatesOnlyTheRequestedYearsProgrammeAndValidatesDates() {
         ProgrammeLevel level = new ProgrammeLevel();
         level.setId(10L);
         level.setAcademicYear(year());
         level.setLevelCode(LevelCode.S1);
+        level.setApplicationStartDate(applicationStartDate);
+        level.setApplicationEndDate(applicationEndDate);
         when(levels.findByIdAndAcademicYear_Id(10L, 1L)).thenReturn(Optional.of(level));
         when(levels.save(level)).thenReturn(level);
         assertEquals(HttpStatus.NOT_FOUND, assertThrows(ResponseStatusException.class,
-                () -> service.update(2L, 10L, "Corrected", 100, deadline)).getStatusCode());
+                () -> service.update(2L, 10L, "Corrected", 100,
+                        applicationStartDate, applicationEndDate)).getStatusCode());
         assertEquals(HttpStatus.BAD_REQUEST, assertThrows(ResponseStatusException.class,
-                () -> service.update(1L, 10L, "Corrected", 100, deadline.plusMonths(1))).getStatusCode());
-        assertEquals(new ProgrammeLevelService.Response(10L, 1L, LevelCode.S1, "Corrected", 100, deadline),
-                service.update(1L, 10L, " Corrected ", 100, deadline));
+                () -> service.update(1L, 10L, "Corrected", 100,
+                        applicationEndDate, applicationStartDate)).getStatusCode());
+        assertEquals(new ProgrammeLevelResponse(10L, 1L, LevelCode.S1, "Corrected", 100,
+                        applicationStartDate, applicationEndDate),
+                service.update(1L, 10L, " Corrected ", 100,
+                        applicationStartDate, applicationEndDate));
         verify(levels, times(1)).save(level);
+    }
+
+    @Test
+    void refusesQuotaBelowExistingSuccessAndAcceptedOffersAndReportsCount() {
+        ProgrammeLevel level = new ProgrammeLevel();
+        level.setId(10L);
+        level.setAcademicYear(year());
+        when(levels.findByIdAndAcademicYear_Id(10L, 1L)).thenReturn(Optional.of(level));
+        when(applications.countByProgrammeLevel_IdAndStatusIn(10L,
+                List.of(hk.edu.sehs4701.cissas.enums.ApplicationStatus.Success,
+                        hk.edu.sehs4701.cissas.enums.ApplicationStatus.Accepted))).thenReturn(3L);
+
+        ResponseStatusException exception = assertThrows(ResponseStatusException.class,
+                () -> service.update(1L, 10L, "Secondary", 2, applicationStartDate, applicationEndDate));
+
+        assertEquals(HttpStatus.CONFLICT, exception.getStatusCode());
+        assertTrue(exception.getReason().contains("3"));
+        var locks = inOrder(lock, levels, results, applications);
+        locks.verify(lock).acquire();
+        locks.verify(levels).findByIdAndAcademicYear_Id(10L, 1L);
+        locks.verify(results).expireOffersForLevel(eq(10L), any());
+        locks.verify(applications).countByProgrammeLevel_IdAndStatusIn(eq(10L), anyList());
+        verify(levels, never()).save(any());
     }
 
     @Test
@@ -83,10 +118,12 @@ class ProgrammeLevelServiceTest {
         level.setAcademicYear(year());
         level.setLevelCode(LevelCode.S1);
         level.setProgrammeName("Secondary");
-        level.setApplicationDeadline(deadline);
+        level.setApplicationStartDate(applicationStartDate);
+        level.setApplicationEndDate(applicationEndDate);
         when(years.existsById(1L)).thenReturn(true);
         when(levels.findAllByAcademicYear_IdOrderByLevelCodeAsc(1L)).thenReturn(List.of(level));
-        assertEquals(List.of(new ProgrammeLevelService.Response(10L, 1L, LevelCode.S1, "Secondary", 150, deadline)),
+        assertEquals(List.of(new ProgrammeLevelResponse(10L, 1L, LevelCode.S1, "Secondary", 150,
+                        applicationStartDate, applicationEndDate)),
                 service.list(1L));
         assertEquals(HttpStatus.NOT_FOUND, assertThrows(ResponseStatusException.class,
                 () -> service.list(2L)).getStatusCode());

@@ -1,5 +1,10 @@
 package hk.edu.sehs4701.cissas.service;
 
+import hk.edu.sehs4701.cissas.dto.internal.PasswordSession;
+import hk.edu.sehs4701.cissas.dto.request.AccountRequest;
+import hk.edu.sehs4701.cissas.dto.request.PasswordChangeRequest;
+import hk.edu.sehs4701.cissas.dto.request.PasswordResetRequest;
+import hk.edu.sehs4701.cissas.dto.response.AccountResponse;
 import hk.edu.sehs4701.cissas.entity.Admin;
 import hk.edu.sehs4701.cissas.enums.ActorRole;
 import hk.edu.sehs4701.cissas.repository.AdminRepository;
@@ -8,9 +13,7 @@ import hk.edu.sehs4701.cissas.security.HashService;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpSession;
 import jakarta.validation.Validator;
-import jakarta.validation.constraints.Email;
-import jakarta.validation.constraints.NotBlank;
-import jakarta.validation.constraints.Size;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -24,44 +27,18 @@ import java.util.Objects;
 
 @Service
 public class AdminAccountService {
-    public record AccountRequest(
-            @NotBlank @Email @Size(max = 150) String email,
-            @NotBlank @Size(max = 120) String firstName,
-            @NotBlank @Size(max = 120) String lastName,
-            @NotBlank @Size(min = 8, max = 256) String password) {
-    }
-
-    public record AccountResponse(String id, String email, String firstName, String lastName, boolean active) {
-    }
-
-    public record PasswordChangeRequest(String currentPassword, String newPassword) {
-    }
-
-    public record PasswordResetRequest(String newPassword) {
-    }
-
-    public record PasswordSession(Long id, long credentialVersion) {
-    }
-
     private final AdminRepository admins;
     private final IdentityReviewLockRepository lock;
     private final HashService hashService;
     private final Validator validator;
 
+    @Autowired
     public AdminAccountService(AdminRepository admins, IdentityReviewLockRepository lock,
                                HashService hashService, Validator validator) {
         this.admins = admins;
         this.lock = lock;
         this.hashService = hashService;
         this.validator = validator;
-    }
-
-    @Transactional(readOnly = true)
-    public void requireSuperAdmin(HttpServletRequest request) {
-        requireAdmin(request);
-        if (!ActorRole.ROLE_SUPER_ADMIN.name().equals(request.getSession(false).getAttribute("authenticatedUserRole"))) {
-            throw new ResponseStatusException(HttpStatus.FORBIDDEN, "Super admin access required");
-        }
     }
 
     @Transactional(readOnly = true)
@@ -169,7 +146,7 @@ public class AdminAccountService {
         validateSession(admin, session);
         if (change == null || change.currentPassword() == null || change.currentPassword().isBlank()
                 || change.currentPassword().getBytes(StandardCharsets.UTF_8).length > 72
-                || !validPassword(change.newPassword())
+                || validPassword(change.newPassword())
                 || change.currentPassword().equals(change.newPassword())) {
             throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Invalid password");
         }
@@ -196,7 +173,7 @@ public class AdminAccountService {
     }
 
     private void resetPassword(Admin admin, String password, boolean changeRequired) {
-        if (!validPassword(password)) {
+        if (validPassword(password)) {
             throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Invalid password");
         }
         admin.setPasswordHash(hashService.hashPassword(password));
@@ -206,13 +183,13 @@ public class AdminAccountService {
     }
 
     private boolean validPassword(String password) {
-        return password != null && !password.isBlank() && password.length() >= 8
-                && password.getBytes(StandardCharsets.UTF_8).length <= 72;
+        return password == null || password.isBlank() || password.length() < 8
+                || password.getBytes(StandardCharsets.UTF_8).length > 72;
     }
 
     private Admin createAccount(AccountRequest request, ActorRole role) {
         if (request == null || !validator.validate(request).isEmpty()
-                || !validPassword(request.password())) {
+                || validPassword(request.password())) {
             throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Invalid account details or password");
         }
         String email = request.email().trim().toLowerCase(Locale.ROOT);

@@ -14,7 +14,7 @@ import java.util.Arrays;
 @EnableRetry
 @EnableScheduling
 public class CissasApplication {
-    public static void main(String[] args) {
+    static void main(String[] args) {
         TimeZone.setDefault(TimeZone.getTimeZone("Asia/Hong_Kong"));
         if (Arrays.asList(args).contains("--recover-super-admin")) {
             SpringApplication application = new SpringApplication(CissasApplication.class);

@@ -4,6 +4,7 @@ import hk.edu.sehs4701.cissas.entity.IdentityDocument;
 import hk.edu.sehs4701.cissas.enums.IdentityDocumentType;
 import hk.edu.sehs4701.cissas.repository.IdentityDocumentRepository;
 import hk.edu.sehs4701.cissas.security.HashService;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Service;
 import org.springframework.web.server.ResponseStatusException;
@@ -16,6 +17,7 @@ public class IdentityDocumentService {
     private final IdentityDocumentRepository identityDocumentRepository;
     private final HashService hashService;
 
+    @Autowired
     public IdentityDocumentService(
             IdentityDocumentRepository identityDocumentRepository,
             HashService hashService) {
@@ -38,7 +40,6 @@ public class IdentityDocumentService {
             if (!validateHKIDChecksum(documentNumber)) {
                 throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Invalid HKID format");
             }
-            issuingCountry = "HK";
         } else if (issuingCountry == null || !issuingCountry.matches("^[A-Z]{2}$")) {
             throw new ResponseStatusException(
                     HttpStatus.BAD_REQUEST,

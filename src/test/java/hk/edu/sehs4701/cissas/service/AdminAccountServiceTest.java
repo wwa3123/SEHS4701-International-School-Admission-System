@@ -1,5 +1,9 @@
 package hk.edu.sehs4701.cissas.service;
 
+import hk.edu.sehs4701.cissas.dto.internal.PasswordSession;
+import hk.edu.sehs4701.cissas.dto.request.AccountRequest;
+import hk.edu.sehs4701.cissas.dto.request.PasswordChangeRequest;
+import hk.edu.sehs4701.cissas.dto.request.PasswordResetRequest;
 import hk.edu.sehs4701.cissas.entity.Admin;
 import hk.edu.sehs4701.cissas.enums.ActorRole;
 import hk.edu.sehs4701.cissas.repository.AdminRepository;
@@ -23,8 +27,8 @@ class AdminAccountServiceTest {
     private final HashService hash = mock(HashService.class);
     private final AdminAccountService accounts = new AdminAccountService(
             admins, lock, hash, Validation.buildDefaultValidatorFactory().getValidator());
-    private final AdminAccountService.AccountRequest request =
-            new AdminAccountService.AccountRequest("officer@example.com", "First", "Last", "password123");
+    private final AccountRequest request =
+            new AccountRequest("officer@example.com", "First", "Last", "password123");
 
     @Test
     void provisionsOnlyWhenNoSuperAdminExists() {
@@ -35,7 +39,7 @@ class AdminAccountServiceTest {
                 && "hash".equals(admin.getPasswordHash())));
 
         when(admins.existsByRole(ActorRole.ROLE_SUPER_ADMIN)).thenReturn(true);
-        accounts.provisionSuperAdmin(new AdminAccountService.AccountRequest("", "", "", ""));
+        accounts.provisionSuperAdmin(new AccountRequest("", "", "", ""));
         verify(admins, times(1)).save(any());
         verify(lock, times(2)).acquireAccountLock();
         verify(lock, never()).acquire();
@@ -44,7 +48,7 @@ class AdminAccountServiceTest {
     @Test
     void rejectsInvalidBootstrapDetails() {
         assertEquals(HttpStatus.BAD_REQUEST, assertThrows(ResponseStatusException.class,
-                () -> accounts.provisionSuperAdmin(new AdminAccountService.AccountRequest("", "", "", "")))
+                () -> accounts.provisionSuperAdmin(new AccountRequest("", "", "", "")))
                 .getStatusCode());
         verify(admins, never()).save(any());
     }
@@ -70,7 +74,7 @@ class AdminAccountServiceTest {
         assertEquals(HttpStatus.CONFLICT, assertThrows(ResponseStatusException.class,
                 () -> accounts.createOfficer(request)).getStatusCode());
         assertEquals(HttpStatus.BAD_REQUEST, assertThrows(ResponseStatusException.class,
-                () -> accounts.createOfficer(new AdminAccountService.AccountRequest(
+                () -> accounts.createOfficer(new AccountRequest(
                         "another@example.com", "First", "Last", "a".repeat(73)))).getStatusCode());
         verify(admins, never()).save(any());
     }
@@ -104,17 +108,17 @@ class AdminAccountServiceTest {
 
         assertEquals(HttpStatus.UNAUTHORIZED, assertThrows(ResponseStatusException.class,
                 () -> accounts.changePassword(servletRequest,
-                        new AdminAccountService.PasswordChangeRequest("wrong", "new-password"))).getStatusCode());
+                        new PasswordChangeRequest("wrong", "new-password"))).getStatusCode());
         assertEquals(HttpStatus.BAD_REQUEST, assertThrows(ResponseStatusException.class,
                 () -> accounts.changePassword(servletRequest,
-                        new AdminAccountService.PasswordChangeRequest("old-password", "é".repeat(37)))).getStatusCode());
+                        new PasswordChangeRequest("old-password", "é".repeat(37)))).getStatusCode());
         assertEquals(HttpStatus.BAD_REQUEST, assertThrows(ResponseStatusException.class,
                 () -> accounts.changePassword(servletRequest,
-                        new AdminAccountService.PasswordChangeRequest("old-password", "old-password"))).getStatusCode());
+                        new PasswordChangeRequest("old-password", "old-password"))).getStatusCode());
         verify(admins, never()).save(any());
 
         accounts.changePassword(servletRequest,
-                new AdminAccountService.PasswordChangeRequest("old-password", "new-password"));
+                new PasswordChangeRequest("old-password", "new-password"));
         assertEquals("new-hash", admin.getPasswordHash());
         assertEquals(1, admin.getCredentialVersion());
         verify(admins).save(admin);
@@ -122,12 +126,12 @@ class AdminAccountServiceTest {
         admin.setActive(false);
         assertEquals(HttpStatus.FORBIDDEN, assertThrows(ResponseStatusException.class,
                 () -> accounts.changePassword(servletRequest,
-                        new AdminAccountService.PasswordChangeRequest("old-password", "new-password"))).getStatusCode());
+                        new PasswordChangeRequest("old-password", "new-password"))).getStatusCode());
         session.setAttribute("authenticatedUserRole", "ROLE_MEMBER");
         admin.setActive(true);
         assertEquals(HttpStatus.FORBIDDEN, assertThrows(ResponseStatusException.class,
                 () -> accounts.changePassword(servletRequest,
-                        new AdminAccountService.PasswordChangeRequest("old-password", "new-password"))).getStatusCode());
+                        new PasswordChangeRequest("old-password", "new-password"))).getStatusCode());
     }
 
     @Test
@@ -144,17 +148,17 @@ class AdminAccountServiceTest {
         oldSession.setAttribute("adminCredentialVersion", 0L);
         request.setSession(oldSession);
         assertEquals(42L, accounts.requireAdmin(request));
-        accounts.resetOfficerPassword(42L, new AdminAccountService.PasswordResetRequest("temporary-password"));
+        accounts.resetOfficerPassword(42L, new PasswordResetRequest("temporary-password"));
         assertEquals(1, admin.getCredentialVersion());
         assertTrue(admin.isPasswordChangeRequired());
         assertEquals(HttpStatus.FORBIDDEN, assertThrows(ResponseStatusException.class,
                 () -> accounts.requireAdmin(request)).getStatusCode());
         oldSession.setAttribute("adminCredentialVersion", 1L);
-        assertEquals(new AdminAccountService.PasswordSession(42L, 1), accounts.requirePasswordSession(request));
+        assertEquals(new PasswordSession(42L, 1), accounts.requirePasswordSession(request));
         assertEquals(HttpStatus.FORBIDDEN, assertThrows(ResponseStatusException.class,
                 () -> accounts.requireAdmin(request)).getStatusCode());
         when(hash.verifyPassword("temporary-password", "new-hash")).thenReturn(true);
-        accounts.changePassword(request, new AdminAccountService.PasswordChangeRequest(
+        accounts.changePassword(request, new PasswordChangeRequest(
                 "temporary-password", "private-password"));
         assertFalse(admin.isPasswordChangeRequired());
         assertEquals(2, admin.getCredentialVersion());

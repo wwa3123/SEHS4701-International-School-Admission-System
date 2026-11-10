@@ -8,8 +8,8 @@ import java.util.List;
 import java.util.Optional;
 
 public interface AcademicYearRepository extends JpaRepository<AcademicYear, Long> {
-    List<AcademicYear> findAllByOrderByApplicationStartDateDesc();
-    Optional<AcademicYear> findFirstByStatusOrderByApplicationStartDateDesc(AcademicYearStatus status);
+    List<AcademicYear> findAllByOrderByCreationDateDesc();
+    Optional<AcademicYear> findFirstByStatusOrderByCreationDateDesc(AcademicYearStatus status);
     boolean existsByStatusAndIdNot(AcademicYearStatus status, Long id);
     boolean existsByName(String name);
 }

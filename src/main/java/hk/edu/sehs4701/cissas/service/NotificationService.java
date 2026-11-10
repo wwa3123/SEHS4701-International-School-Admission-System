@@ -4,19 +4,19 @@ import hk.edu.sehs4701.cissas.dto.request.EmailDispatchRequest;
 import hk.edu.sehs4701.cissas.entity.Application;
 import hk.edu.sehs4701.cissas.entity.Member;
 import hk.edu.sehs4701.cissas.entity.ApplicantSnapshot;
+import hk.edu.sehs4701.cissas.enums.ApplicationStatus;
 import hk.edu.sehs4701.cissas.enums.EmailTemplateType;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.util.Locale;
 
+@Slf4j
 @Service
 public class NotificationService {
-    private static final Logger log = LoggerFactory.getLogger(NotificationService.class);
     private final EmailService emailService;
 
     @Value("${cissas.admin.notification-email:}")
@@ -56,43 +56,100 @@ public class NotificationService {
     }
 
     @Transactional
-    public void notifyAdminOfIdentityReview(
+    public void notifyAdminOfPossibleDuplicate(
             Member member,
             Application application,
             String academicYearName) {
         if (adminNotificationEmail == null || adminNotificationEmail.isBlank()) {
-            log.error("Cannot notify admin about application {}: cissas.admin.notification-email is not configured",
+            log.error("Cannot notify admin about possible duplicate {}: cissas.admin.notification-email is not configured",
                     application.getApplicationNumber());
             return;
         }
 
         String recipient = adminNotificationEmail.trim().toLowerCase(Locale.ROOT);
-        String actionRequired = "Review the possible cross-document applicant match.";
+        String actionRequired = "Contact the member to establish whether the records are the same person.";
         ApplicantSnapshot applicant = application.getApplicantSnapshot();
         String body = formatStandardBody(
                 "Admissions Team",
                 applicant.getFullName(),
                 application.getApplicationNumber(),
                 actionRequired,
-                "A new application has been flagged for manual identity review because another "
-                        + "non-cancelled application has the same applicant name and date of birth, "
-                        + "but uses an HKID and passport combination."
+                "A possible duplicate was flagged because another non-cancelled application has the "
+                        + "same applicant name and date of birth."
                         + "\nAcademic Year: " + academicYearName
                         + "\nProgramme Level: " + application.getProgrammeLevel().getLevelCode()
                         + "\nApplicant Date of Birth: " + applicant.getDateOfBirth()
+                        + "\nMember Email: " + member.getEmail()
+                        + "\nApplicant Phone: " + applicant.getPhone()
         );
 
         emailService.sendAndLogEmail(new EmailDispatchRequest(
                 member,
                 application,
-                EmailTemplateType.IDENTITY_REVIEW_ALERT,
+                EmailTemplateType.APPLICATION_DUPLICATE_ALERT,
                 applicant.getFullName(),
                 application.getApplicationNumber(),
                 actionRequired,
-                "[CIS SAS] Application Requires Identity Review",
+                "[CIS SAS] Possible Duplicate Application",
                 body,
                 recipient
         ));
+    }
+
+    @Transactional
+    public void notifyApplicationResult(Application application, boolean corrected, String reason,
+                                        boolean promotedFromWait) {
+        ApplicantSnapshot applicant = application.getApplicantSnapshot();
+        ApplicationStatus result = application.getStatus();
+        String actionRequired = "Log in to SAS to check your current application status and any action required.";
+        String message = "Result released: " + result
+                + "\nProgramme Level: " + application.getProgrammeLevel().getProgrammeName()
+                + "\nApplication Number: " + application.getApplicationNumber()
+                + (result == ApplicationStatus.Success
+                ? "\nSuccess means an offer. If it is still awaiting your response, accept or reject it in SAS before the current deadline."
+                : "")
+                + (application.getAcceptanceDeadline() == null ? "" :
+                "\nAcceptance Deadline at release: " + application.getAcceptanceDeadline()
+                        + "\nThe deadline or result may have changed since this notice was issued.")
+                + (corrected ? "\nThis is a corrected result. Reason: " + reason : "");
+        String body = formatStandardBody(application.getMember().getFirstName(), applicant.getFullName(),
+                application.getApplicationNumber(), actionRequired, message);
+        EmailTemplateType template = corrected ? EmailTemplateType.CORRECTED_RESULT_ANNOUNCEMENT
+                : promotedFromWait ? EmailTemplateType.WAIT_TO_SUCCESS : EmailTemplateType.RESULT_ANNOUNCEMENT;
+        emailService.sendAndLogEmail(new EmailDispatchRequest(
+                application.getMember(), application, template, applicant.getFullName(),
+                application.getApplicationNumber(), actionRequired,
+                corrected ? "[CIS SAS] Corrected Application Result" : "[CIS SAS] Application Result",
+                body));
+    }
+
+    @Transactional
+    public void notifyOfferDeadlineExtended(Application application) {
+        ApplicantSnapshot applicant = application.getApplicantSnapshot();
+        String actionRequired = "Log in to SAS to check your current application status and any action required.";
+        String body = formatStandardBody(application.getMember().getFirstName(), applicant.getFullName(),
+                application.getApplicationNumber(), actionRequired,
+                "The acceptance deadline for your offer was extended."
+                        + "\nProgramme Level: " + application.getProgrammeLevel().getProgrammeName()
+                        + "\nExtended Acceptance Deadline: " + application.getAcceptanceDeadline()
+                        + "\nThe deadline or result may have changed since this notice was issued.");
+        emailService.sendAndLogEmail(new EmailDispatchRequest(
+                application.getMember(), application, EmailTemplateType.OFFER_DEADLINE_EXTENSION,
+                applicant.getFullName(), application.getApplicationNumber(), actionRequired,
+                "[CIS SAS] Offer Acceptance Deadline Extended", body));
+    }
+
+    @Transactional
+    public void notifyApplicationCancelled(Application application) {
+        ApplicantSnapshot applicant = application.getApplicantSnapshot();
+        String actionRequired = "No further action is required.";
+        String body = formatStandardBody(application.getMember().getFirstName(), applicant.getFullName(),
+                application.getApplicationNumber(), actionRequired,
+                "Your application has been cancelled after an administrator confirmed that it is a duplicate.");
+        emailService.sendAndLogEmail(new EmailDispatchRequest(
+                application.getMember(), application, EmailTemplateType.APPLICATION_CANCELLATION,
+                applicant.getFullName(), application.getApplicationNumber(), actionRequired,
+                "[CIS SAS] Application Cancellation Confirmation", body));
     }
 
     private String formatStandardBody(
