@@ -1,0 +1,101 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>My Applications - CIS</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css" rel="stylesheet">
+</head>
+<body class="bg-light">
+
+<nav class="navbar navbar-expand-lg navbar-dark bg-dark">
+    <div class="container">
+        <a class="navbar-brand" href="/">CIS Admission System</a>
+        <div class="navbar-nav ms-auto">
+            <a class="nav-link" href="/dashboard">Dashboard</a>
+            <a class="nav-link active" href="/my-applications">My Applications</a>
+            <a class="nav-link" href="/apply">New Application</a>
+        </div>
+    </div>
+</nav>
+
+<div class="container my-5">
+    <div class="d-flex justify-content-between align-items-center mb-4">
+        <h2>My Applications</h2>
+        <a href="/apply" class="btn btn-primary">+ New Application</a>
+    </div>
+
+    <div id="loading" class="text-center py-5">Loading applications...</div>
+    <div id="error" class="alert alert-danger d-none"></div>
+    <div id="empty" class="alert alert-info d-none">You have no applications yet.</div>
+
+    <div class="table-responsive d-none" id="tableContainer">
+        <table class="table table-striped bg-white shadow-sm">
+            <thead class="table-dark">
+            <tr>
+                <th>Application No.</th>
+                <th>Applicant</th>
+                <th>Programme</th>
+                <th>Status</th>
+                <th>Submitted</th>
+                <th>Action</th>
+            </tr>
+            </thead>
+            <tbody id="appTableBody">
+            </tbody>
+        </table>
+    </div>
+</div>
+
+<script>
+    async function loadApplications() {
+        try {
+            const res = await fetch('/api/member/applications?page=0&size=50', {
+                credentials: 'include'
+            });
+
+            if (res.status === 401) {
+                window.location.href = '/login';
+                return;
+            }
+
+            if (!res.ok) throw new Error('Failed to load applications');
+
+            const data = await res.json();
+            const apps = data.content || data;
+
+            document.getElementById('loading').classList.add('d-none');
+
+            if (!apps || apps.length === 0) {
+                document.getElementById('empty').classList.remove('d-none');
+                return;
+            }
+
+            const tbody = document.getElementById('appTableBody');
+            tbody.innerHTML = apps.map(app => `
+                <tr>
+                    <td>${app.applicationNumber || '-'}</td>
+                    <td>${app.applicantName || '-'}</td>
+                    <td>${app.programmeLevel || '-'}</td>
+                    <td><span class="badge bg-secondary">${app.status || '-'}</span></td>
+                    <td>${app.submittedAt || '-'}</td>
+                    <td>
+                        <a href="/applications/${app.applicationNumber}" class="btn btn-sm btn-outline-primary">
+                            View
+                        </a>
+                    </td>
+                </tr>
+            `).join('');
+
+            document.getElementById('tableContainer').classList.remove('d-none');
+        } catch (err) {
+            document.getElementById('loading').classList.add('d-none');
+            document.getElementById('error').textContent = err.message;
+            document.getElementById('error').classList.remove('d-none');
+        }
+    }
+
+    loadApplications();
+</script>
+</body>
+</html>
