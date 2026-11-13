@@ -1,0 +1,12 @@
+<!DOCTYPE html>
+<html lang="en" xmlns:th="http://www.thymeleaf.org">
+<head><meta charset="UTF-8"><title>Create academic year</title></head>
+<body><main><h1>Create academic year</h1>
+<p role="alert" th:if="${error}" th:text="${error}"></p>
+<form method="post" th:action="@{/super-admin/academic-years}" th:object="${yearForm}">
+<p role="alert" th:if="${#fields.hasAnyErrors()}">Enter an academic year name, at most 20 characters.</p>
+<label for="name">Name</label><input id="name" th:field="*{name}" maxlength="20" required>
+<button type="submit">Create academic year</button>
+</form>
+<a th:href="@{/super-admin/academic-years}">Cancel</a>
+</main></body></html>

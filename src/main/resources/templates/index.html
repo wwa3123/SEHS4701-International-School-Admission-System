@@ -21,6 +21,18 @@
 
 <!-- Main Content Container -->
 <div class="container my-5">
+    <nav aria-label="Admissions navigation" class="mb-4">
+        <a th:href="@{/login}">Sign in</a>
+        <a th:href="@{/membership/register}">Register as a member</a>
+        <a th:href="@{/academic-years}">Academic years and programme levels</a>
+        <a th:if="${session.authenticatedUserRole == 'ROLE_MEMBER'}" th:href="@{/member/applications}">My applications</a>
+        <a th:if="${session.authenticatedUserRole == 'ROLE_ADMIN' or session.authenticatedUserRole == 'ROLE_SUPER_ADMIN'}"
+           th:href="@{/admin/applications}">Manage applications</a>
+        <a th:if="${session.authenticatedUserRole == 'ROLE_SUPER_ADMIN'}"
+           th:href="@{/super-admin/admissions-officers}">Admissions officers</a>
+        <a th:if="${session.authenticatedUserRole == 'ROLE_SUPER_ADMIN'}"
+           th:href="@{/super-admin/academic-years}">Manage academic years</a>
+    </nav>
     <div class="p-5 mb-4 bg-white rounded-3 shadow-sm border">
         <div class="container-fluid py-3">
             <h1 class="display-5 fw-bold text-primary">Hello, Spring Boot!</h1>

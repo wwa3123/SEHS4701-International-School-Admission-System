@@ -1,0 +1,22 @@
+<!DOCTYPE html>
+<html lang="en" xmlns:th="http://www.thymeleaf.org">
+<head><meta charset="UTF-8"><title>Programme level</title></head>
+<body><main>
+<h1 th:text="${levelId == null ? 'Create programme level' : 'Edit programme level'}"></h1>
+<p th:text="${year.name}"></p>
+<p role="alert" th:if="${error}" th:text="${error}"></p>
+<form method="post" th:action="${levelId == null} ? @{/super-admin/academic-years/{id}/programme-levels(id=${year.id})} : @{/super-admin/academic-years/{yearId}/programme-levels/{levelId}(yearId=${year.id},levelId=${levelId})}" th:object="${programmeForm}">
+<div role="alert" th:if="${#fields.hasAnyErrors()}"><p>Correct the programme details:</p><ul><li th:each="error : ${#fields.allErrors()}" th:text="${error}"></li></ul></div>
+<div th:if="${levelId == null}">
+<label for="levelCode">Level</label><select id="levelCode" th:field="*{levelCode}" required>
+<option value="">Choose a level</option><option th:each="code : ${levelCodes}" th:value="${code}" th:text="${code}"></option>
+</select></div>
+<label for="programmeName">Programme name</label><input id="programmeName" th:field="*{programmeName}" maxlength="120" required>
+<label for="seatQuota">Seat quota</label><input id="seatQuota" type="number" th:field="*{seatQuota}" min="0" required>
+<label for="applicationStartDate">Application start date</label><input id="applicationStartDate" type="date" th:field="*{applicationStartDate}" required>
+<label for="applicationEndDate">Application end date</label><input id="applicationEndDate" type="date" th:field="*{applicationEndDate}" required>
+<p>The end date must be after the start date. Quota cannot be below the current Success and Accepted count.</p>
+<button type="submit">Save programme level</button>
+</form>
+<a th:href="@{/super-admin/academic-years/{id}(id=${year.id})}">Cancel</a>
+</main></body></html>

@@ -1,0 +1,18 @@
+<!DOCTYPE html>
+<html lang="en" xmlns:th="http://www.thymeleaf.org">
+<head><meta charset="UTF-8"><title>Register membership</title></head>
+<body><main>
+    <h1>Register membership</h1>
+    <p>Verify your email before entering your membership details.</p>
+    <p role="alert" th:if="${error}" th:text="${error}"></p>
+    <form th:action="@{/membership/register}" th:object="${emailForm}" method="post">
+        <ul th:if="${#fields.hasAnyErrors()}" role="alert">
+            <li th:each="error : ${#fields.allErrors()}" th:text="${error}"></li>
+        </ul>
+        <p><label for="email">Email</label>
+            <input id="email" type="email" th:field="*{email}" autocomplete="email" required maxlength="150"></p>
+        <button type="submit">Send verification code</button>
+    </form>
+    <a th:href="@{/login}">Sign in</a>
+</main></body>
+</html>

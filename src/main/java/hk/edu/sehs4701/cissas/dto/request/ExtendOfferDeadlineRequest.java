@@ -5,8 +5,9 @@ import jakarta.validation.constraints.NotNull;
 import jakarta.validation.constraints.Size;
 
 import java.time.LocalDateTime;
+import org.springframework.format.annotation.DateTimeFormat;
 
 public record ExtendOfferDeadlineRequest(
-        @NotNull LocalDateTime acceptanceDeadline,
+        @NotNull @DateTimeFormat(iso = DateTimeFormat.ISO.DATE_TIME) LocalDateTime acceptanceDeadline,
         @NotBlank @Size(max = 255) String reason) {
 }

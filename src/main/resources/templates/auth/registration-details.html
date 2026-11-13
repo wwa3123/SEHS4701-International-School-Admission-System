@@ -1,0 +1,35 @@
+<!DOCTYPE html>
+<html lang="en" xmlns:th="http://www.thymeleaf.org">
+<head><meta charset="UTF-8"><title>Complete membership registration</title></head>
+<body><main>
+    <h1>Complete membership registration</h1>
+    <p>Email verification is valid for 15 minutes. Complete your details before it expires.</p>
+    <p role="alert" th:if="${error}" th:text="${error}"></p>
+    <form th:action="@{/membership/complete-registration}" th:object="${registrationForm}" method="post">
+        <ul th:if="${#fields.hasAnyErrors()}" role="alert">
+            <li th:each="error : ${#fields.allErrors()}" th:text="${error}"></li>
+        </ul>
+        <p><label for="email">Verified email</label>
+            <input id="email" type="email" th:field="*{email}" readonly required maxlength="150"></p>
+        <p><label for="firstName">First name</label>
+            <input id="firstName" th:field="*{firstName}" autocomplete="given-name" required maxlength="120"></p>
+        <p><label for="lastName">Last name</label>
+            <input id="lastName" th:field="*{lastName}" autocomplete="family-name" required maxlength="120"></p>
+        <p><label for="phoneNumber">Phone number</label>
+            <input id="phoneNumber" type="tel" th:field="*{phoneNumber}" autocomplete="tel" required maxlength="25"></p>
+        <p><label for="documentType">Identity document type</label>
+            <select id="documentType" th:field="*{documentType}" required>
+                <option value="">Select a document type</option>
+                <option th:each="type : ${documentTypes}" th:value="${type}" th:text="${type}"></option>
+            </select></p>
+        <p><label for="documentNumber">Identity document number</label>
+            <input id="documentNumber" th:field="*{documentNumber}" required maxlength="512"></p>
+        <p><label for="issuingCountry">Issuing country (two-letter code, required for passports)</label>
+            <input id="issuingCountry" th:field="*{issuingCountry}" maxlength="2"></p>
+        <p><label for="password">Password (at least 8 characters, at most 72 UTF-8 bytes)</label>
+            <input id="password" name="password" type="password" autocomplete="new-password" required minlength="8" maxlength="256"></p>
+        <button type="submit">Complete registration</button>
+    </form>
+    <a th:href="@{/membership/verify-email}">Verify email again</a>
+</main></body>
+</html>

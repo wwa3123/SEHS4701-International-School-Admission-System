@@ -1,0 +1,15 @@
+<!DOCTYPE html>
+<html lang="en" xmlns:th="http://www.thymeleaf.org">
+<head><meta charset="UTF-8"><title>Extend acceptance deadline</title></head>
+<body><main>
+<h1>Extend acceptance deadline</h1><p>Application: <span th:text="${number}"></span></p>
+<p>Only an unexpired offer can be extended when a system fault prevented a response.</p>
+<p role="alert" th:if="${error}" th:text="${error}"></p>
+<form th:action="@{/admin/applications/{number}/acceptance-deadline(number=${number})}" th:object="${deadlineForm}" method="post">
+    <ul role="alert" th:if="${#fields.hasAnyErrors()}"><li th:each="error : ${#fields.allErrors()}" th:text="${error}"></li></ul>
+    <label for="acceptanceDeadline">New acceptance deadline (Hong Kong time)</label>
+    <input id="acceptanceDeadline" type="datetime-local" th:field="*{acceptanceDeadline}" required>
+    <label for="reason">System fault reason</label><textarea id="reason" th:field="*{reason}" maxlength="255" required></textarea>
+    <button type="submit">Extend deadline</button>
+</form><a th:href="@{/admin/applications}">Back to applications</a>
+</main></body></html>

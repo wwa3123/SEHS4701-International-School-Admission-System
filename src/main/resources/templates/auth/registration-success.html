@@ -1,0 +1,9 @@
+<!DOCTYPE html>
+<html lang="en" xmlns:th="http://www.thymeleaf.org">
+<head><meta charset="UTF-8"><title>Membership registration</title></head>
+<body><main>
+    <h1>Membership registration</h1>
+    <p role="status" th:if="${message}" th:text="${message}"></p>
+    <a th:href="@{/login}">Sign in</a>
+</main></body>
+</html>

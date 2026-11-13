@@ -1,0 +1,27 @@
+<!DOCTYPE html>
+<html lang="en" xmlns:th="http://www.thymeleaf.org">
+<head><meta charset="UTF-8"><title>Sign in</title></head>
+<body>
+<main>
+    <h1>Sign in</h1>
+    <p th:if="${param.logout}">You have signed out.</p>
+    <p th:if="${param.passwordChanged}">Your password was changed. Sign in again.</p>
+    <p role="alert" th:if="${error}" th:text="${error}"></p>
+    <form th:action="@{/login}" th:object="${login}" method="post">
+        <ul th:if="${#fields.hasAnyErrors()}" role="alert">
+            <li th:each="error : ${#fields.allErrors()}" th:text="${error}"></li>
+        </ul>
+        <p><label for="email">Email</label>
+            <input id="email" type="email" th:field="*{email}" autocomplete="username" required maxlength="150"></p>
+        <p><label for="password">Password</label>
+            <input id="password" name="password" type="password" autocomplete="current-password" required maxlength="256"></p>
+        <p><label for="accountType">Account type</label>
+            <select id="accountType" th:field="*{accountType}">
+                <option value="MEMBER">Member</option><option value="ADMIN">Administrator</option>
+            </select></p>
+        <button type="submit">Sign in</button>
+    </form>
+    <a th:href="@{/membership/register}">Register as a member</a>
+</main>
+</body>
+</html>

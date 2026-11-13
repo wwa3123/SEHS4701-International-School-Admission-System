@@ -1,0 +1,23 @@
+<!DOCTYPE html>
+<html lang="en" xmlns:th="http://www.thymeleaf.org">
+<head><meta charset="UTF-8"><title>Verify membership email</title></head>
+<body><main>
+    <h1>Verify your email</h1>
+    <p role="status" th:if="${message}" th:text="${message}"></p>
+    <p role="alert" th:if="${error}" th:text="${error}"></p>
+    <form th:action="@{/membership/verify-email}" th:object="${verificationForm}" method="post">
+        <ul th:if="${#fields.hasAnyErrors()}" role="alert">
+            <li th:each="error : ${#fields.allErrors()}" th:text="${error}"></li>
+        </ul>
+        <p><label for="email">Email</label>
+            <input id="email" type="email" th:field="*{email}" autocomplete="email" required maxlength="150"></p>
+        <p><label for="code">Six-digit verification code</label>
+            <input id="code" name="code" inputmode="numeric" pattern="[0-9]{6}" maxlength="6"
+                   autocomplete="one-time-code" required></p>
+        <button type="submit">Verify email</button>
+        <button type="submit" th:formaction="@{/membership/resend-verification}" formnovalidate>Resend verification code</button>
+    </form>
+    <p>Resending is subject to a cooldown. Check your inbox before requesting another code.</p>
+    <a th:href="@{/membership/register}">Start again</a>
+</main></body>
+</html>

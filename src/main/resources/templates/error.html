@@ -1,0 +1,11 @@
+<!DOCTYPE html>
+<html lang="en" xmlns:th="http://www.thymeleaf.org">
+<head><meta charset="UTF-8"><title>Request not completed</title></head>
+<body><main>
+<h1>Request not completed</h1>
+<p>Status: <span th:text="${status}"></span></p>
+<p th:if="${status == 403}">Access is not allowed, or your form expired. Reload the page and check that you are signed in with the correct account.</p>
+<p th:if="${status == 404}">The requested page or record was not found.</p>
+<p th:if="${status != 403 and status != 404}">The request could not be completed. Check the latest record before trying again.</p>
+<a th:href="@{/}">Home</a> <a th:href="@{/login}">Sign in</a>
+</main></body></html>

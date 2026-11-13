@@ -1,0 +1,13 @@
+<!DOCTYPE html>
+<html lang="en" xmlns:th="http://www.thymeleaf.org">
+<head><meta charset="UTF-8"><title>Academic years</title></head>
+<body><nav><a th:href="@{/}">Home</a> <a th:href="@{/login}">Sign in</a></nav>
+<main><h1>Academic years</h1>
+<p role="status" th:if="${error}" th:text="${error}"></p>
+<a th:href="@{/academic-years/open-for-application}">Find the year open for applications</a>
+<p th:if="${#lists.isEmpty(years)}">No academic years are available.</p>
+<ul><li th:each="year : ${years}">
+<a th:href="@{/academic-years/{id}(id=${year.id})}" th:text="${year.name}"></a>
+<span th:text="${year.status}"></span>
+</li></ul>
+</main></body></html>

@@ -1,0 +1,22 @@
+<!DOCTYPE html>
+<html lang="en" xmlns:th="http://www.thymeleaf.org">
+<head><meta charset="UTF-8"><title>Confirm offer decision</title></head>
+<body>
+<main>
+    <h1>Confirm offer decision</h1>
+    <dl>
+        <dt>Programme level</dt><dd th:text="${offer.programmeLevel}"></dd>
+        <dt>Application number</dt><dd th:text="${offer.applicationNumber}"></dd>
+        <dt>Acceptance deadline (Hong Kong time)</dt><dd th:text="${offer.acceptanceDeadline}"></dd>
+        <dt>Your decision</dt><dd th:text="${offer.decision}"></dd>
+    </dl>
+    <p>Your decision cannot be changed after it is saved.</p>
+    <form th:action="@{/member/applications/{number}/offer-response(number=${offer.applicationNumber})}" method="post">
+        <input type="hidden" name="decision" th:value="${offer.decision}">
+        <input type="hidden" name="confirmationToken" th:value="${offer.confirmationToken}">
+        <button type="submit" th:text="|Confirm ${offer.decision}|"></button>
+    </form>
+    <a th:href="@{/member/applications/{number}(number=${offer.applicationNumber})}">Go back without saving</a>
+</main>
+</body>
+</html>

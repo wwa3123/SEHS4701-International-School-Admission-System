@@ -1,0 +1,10 @@
+<!DOCTYPE html>
+<html lang="en" xmlns:th="http://www.thymeleaf.org">
+<head><meta charset="UTF-8"><title>Waiting list</title></head>
+<body><main><h1>Waiting list</h1>
+<p>The list is not ranked. An administrator decides which application receives an offer when a seat is available.</p>
+<ul><li th:each="item : ${waitingList}"><span th:text="${item.applicationNumber}"></span>
+    <span th:text="${item.fullName}"></span> <span th:text="${item.dateOfBirth}"></span>
+    <a th:href="@{/admin/applications/{number}/result(number=${item.applicationNumber})}">Set result</a></li></ul>
+<a th:href="@{/admin/applications(programmeLevelId=${programmeLevelId})}">Back to applications</a>
+</main></body></html>

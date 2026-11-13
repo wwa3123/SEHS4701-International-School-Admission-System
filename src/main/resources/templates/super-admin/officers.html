@@ -1,0 +1,24 @@
+<!DOCTYPE html>
+<html lang="en" xmlns:th="http://www.thymeleaf.org">
+<head><meta charset="UTF-8"><title>Admissions officers</title></head>
+<body>
+<nav><a th:href="@{/}">Home</a> <a th:href="@{/super-admin/academic-years}">Academic years</a></nav>
+<main>
+<h1>Admissions officers</h1>
+<p role="status" th:if="${message}" th:text="${message}"></p>
+<a th:href="@{/super-admin/admissions-officers/new}">Create admissions officer</a>
+<table>
+<caption>Officer accounts</caption>
+<thead><tr><th scope="col">Email</th><th scope="col">Name</th><th scope="col">Status</th><th scope="col">Actions</th></tr></thead>
+<tbody><tr th:each="officer : ${officers}">
+<td th:text="${officer.email}"></td><td th:text="${officer.firstName + ' ' + officer.lastName}"></td>
+<td th:text="${officer.active ? 'Active' : 'Inactive'}"></td>
+<td th:if="${officer.active}">
+<a th:href="@{/super-admin/admissions-officers/{id}/password(id=${officer.id})}">Reset password</a>
+<form method="post" th:action="@{/super-admin/admissions-officers/{id}/deactivate(id=${officer.id})}">
+<button type="submit" th:attr="aria-label=${'Deactivate ' + officer.email}">Deactivate</button>
+</form></td><td th:unless="${officer.active}">No actions</td>
+</tr></tbody>
+</table>
+</main>
+</body></html>

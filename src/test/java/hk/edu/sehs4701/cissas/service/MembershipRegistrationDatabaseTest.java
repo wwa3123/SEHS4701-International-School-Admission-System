@@ -1,6 +1,6 @@
 package hk.edu.sehs4701.cissas.service;
 
-import hk.edu.sehs4701.cissas.controller.api.pub.MembershipRegistrationController;
+import hk.edu.sehs4701.cissas.controller.web.MembershipPageController;
 import hk.edu.sehs4701.cissas.dto.request.MembershipEmailRequest;
 import hk.edu.sehs4701.cissas.dto.request.MembershipRegistrationRequest;
 import hk.edu.sehs4701.cissas.dto.request.VerifyMembershipEmailRequest;
@@ -23,11 +23,14 @@ import org.springframework.context.annotation.Configuration;
 import org.springframework.context.annotation.Import;
 import org.springframework.data.jpa.repository.config.EnableJpaRepositories;
 import org.springframework.mock.web.MockHttpServletRequest;
+import org.springframework.mock.web.MockHttpServletResponse;
+import org.springframework.ui.ExtendedModelMap;
+import org.springframework.validation.BeanPropertyBindingResult;
+import org.springframework.web.servlet.mvc.support.RedirectAttributesModelMap;
 import org.springframework.test.context.DynamicPropertyRegistry;
 import org.springframework.test.context.DynamicPropertySource;
 import org.springframework.test.context.bean.override.mockito.MockitoBean;
 import org.springframework.transaction.support.TransactionTemplate;
-import org.springframework.web.server.ResponseStatusException;
 
 import static org.junit.jupiter.api.Assertions.*;
 import static org.mockito.ArgumentMatchers.*;
@@ -72,10 +75,13 @@ class MembershipRegistrationDatabaseTest {
 
     @Test
     void emailVerificationAndCompletionPersistOnlyOwnerDetails() {
-        var controller = new MembershipRegistrationController(registration, mock(RateLimitService.class));
+        var controller = new MembershipPageController(registration, mock(RateLimitService.class));
         var browser = new MockHttpServletRequest();
+        var response = new MockHttpServletResponse();
+        var model = new ExtendedModelMap();
+        var redirect = new RedirectAttributesModelMap();
         var email = new MembershipEmailRequest("owner@example.com");
-        controller.register(email, browser);
+        controller.register(email, new BeanPropertyBindingResult(email, "emailForm"), browser, response, model, redirect);
 
         Member pending = members.findFirstByEmailIgnoreCase(email.email()).orElseThrow();
         assertNull(pending.getPasswordHash());
@@ -84,19 +90,25 @@ class MembershipRegistrationDatabaseTest {
 
         ArgumentCaptor<String> code = ArgumentCaptor.forClass(String.class);
         verify(notifications).sendVerificationCode(any(Member.class), code.capture(), anyInt());
-        assertThrows(ResponseStatusException.class, () -> controller.verifyEmail(
-                new VerifyMembershipEmailRequest(email.email(), "000000"), browser));
+        var wrongCode = new VerifyMembershipEmailRequest(email.email(), "000000");
+        assertEquals("auth/registration-verify", controller.verify(wrongCode,
+                new BeanPropertyBindingResult(wrongCode, "verificationForm"), browser, response, model));
+        assertEquals(400, response.getStatus());
         Integer attempts = transactions.execute(status ->
                 codes.findFirstByMemberIdOrderByCreatedAtDesc(pending.getId()).orElseThrow().getAttemptCount());
         assertEquals(1, attempts);
-        assertEquals("EMAIL_VERIFIED", controller.verifyEmail(
-                new VerifyMembershipEmailRequest(email.email(), code.getValue()), browser).status());
+        var verification = new VerifyMembershipEmailRequest(email.email(), code.getValue());
+        assertEquals("redirect:/membership/complete-registration", controller.verify(verification,
+                new BeanPropertyBindingResult(verification, "verificationForm"), browser, response, model));
         assertEquals(AccountStatus.UNVERIFIED, members.findFirstByEmailIgnoreCase(email.email()).orElseThrow().getAccountStatus());
 
         var details = new MembershipRegistrationRequest("Owner", "Name", email.email(), "12345678",
                 IdentityDocumentType.HKID, "A123456(3)", null, "secure-password");
-        assertThrows(ResponseStatusException.class, () -> controller.completeRegistration(details, new MockHttpServletRequest()));
-        assertEquals("ACTIVE", controller.completeRegistration(details, browser).status());
+        var errors = new BeanPropertyBindingResult(details, "registrationForm");
+        assertEquals("auth/registration-verify", controller.complete(details, errors, new MockHttpServletRequest(),
+                response, model, redirect));
+        assertEquals(403, response.getStatus());
+        assertEquals("redirect:/membership/success", controller.complete(details, errors, browser, response, model, redirect));
         Member active = members.findFirstByEmailIgnoreCase(email.email()).orElseThrow();
         assertEquals(AccountStatus.ACTIVE, active.getAccountStatus());
         assertEquals("Owner", active.getFirstName());
@@ -108,8 +120,10 @@ class MembershipRegistrationDatabaseTest {
             assertEquals(active.getId(), document.getMember().getId());
             assertEquals("A123456(3)", document.getDocumentNumber());
         });
-        assertThrows(ResponseStatusException.class, () -> controller.completeRegistration(details, browser));
-        assertThrows(ResponseStatusException.class, () -> controller.verifyEmail(
-                new VerifyMembershipEmailRequest(email.email(), code.getValue()), new MockHttpServletRequest()));
+        assertEquals("auth/registration-verify", controller.complete(details, errors, browser, response, model, redirect));
+        assertEquals(403, response.getStatus());
+        assertEquals("auth/registration-verify", controller.verify(verification,
+                new BeanPropertyBindingResult(verification, "verificationForm"), new MockHttpServletRequest(), response, model));
+        assertEquals(400, response.getStatus());
     }
 }

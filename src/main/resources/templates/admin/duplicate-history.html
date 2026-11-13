@@ -1,0 +1,12 @@
+<!DOCTYPE html>
+<html lang="en" xmlns:th="http://www.thymeleaf.org">
+<head><meta charset="UTF-8"><title>Duplicate review history</title></head>
+<body><main><h1>Duplicate review history</h1>
+<table><thead><tr><th>First application</th><th>Second application</th><th>Same person</th><th>Reviewer</th><th>Reviewed at</th><th>Current</th></tr></thead>
+<tbody><tr th:each="item : ${history.items}">
+    <td th:text="${item.flaggedApplicationNumber}"></td><td th:text="${item.candidateApplicationNumber}"></td>
+    <td th:text="${item.samePerson}"></td><td th:text="${item.reviewedBy}"></td><td th:text="${item.reviewedAt}"></td><td th:text="${item.current}"></td>
+</tr></tbody></table>
+<a th:if="${history.nextCursor}" th:href="@{/admin/applications/possible-duplicates/history(cursor=${history.nextCursor})}">Next page</a>
+<a th:href="@{/admin/applications/possible-duplicates}">Back to possible duplicates</a>
+</main></body></html>

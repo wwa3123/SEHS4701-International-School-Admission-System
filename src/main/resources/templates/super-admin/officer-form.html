@@ -1,0 +1,18 @@
+<!DOCTYPE html>
+<html lang="en" xmlns:th="http://www.thymeleaf.org">
+<head><meta charset="UTF-8"><title>Create admissions officer</title></head>
+<body><main>
+<h1>Create admissions officer</h1>
+<p role="alert" th:if="${error}" th:text="${error}"></p>
+<form method="post" th:action="@{/super-admin/admissions-officers}" th:object="${accountForm}">
+<p role="alert" th:if="${#fields.hasAnyErrors()}">Check the account details. Passwords must contain at least eight characters and at most 72 UTF-8 bytes.</p>
+<label for="email">Email</label><input id="email" type="email" th:field="*{email}" required maxlength="150" autocomplete="off">
+<label for="firstName">First name</label><input id="firstName" th:field="*{firstName}" required maxlength="120">
+<label for="lastName">Last name</label><input id="lastName" th:field="*{lastName}" required maxlength="120">
+<label for="password">Temporary password (8 characters minimum, 72 UTF-8 bytes maximum)</label>
+<input id="password" name="password" type="password" required minlength="8" autocomplete="new-password">
+<p>The officer must change this password at next login.</p>
+<button type="submit">Create officer</button>
+</form>
+<a th:href="@{/super-admin/admissions-officers}">Cancel</a>
+</main></body></html>

@@ -5,6 +5,7 @@ import hk.edu.sehs4701.cissas.enums.LevelCode;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.NotNull;
 import jakarta.validation.constraints.Size;
+import org.springframework.format.annotation.DateTimeFormat;
 
 import java.time.LocalDate;
 
@@ -20,6 +21,7 @@ public record ApplicationSubmissionRequest(
         @Size(max = 2)
         String applicantIdentityDocumentIssuingCountry,
         @NotNull
+        @DateTimeFormat(iso = DateTimeFormat.ISO.DATE)
         LocalDate dateOfBirth,
         @NotBlank @Size(max = 20)
         String gender,
