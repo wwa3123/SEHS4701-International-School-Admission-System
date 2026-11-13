@@ -1,0 +1,134 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Complete Registration - CIS</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css" rel="stylesheet">
+</head>
+<body class="bg-light">
+
+<nav class="navbar navbar-expand-lg navbar-dark bg-dark">
+    <div class="container">
+        <a class="navbar-brand" href="/">CIS Admission System</a>
+    </div>
+</nav>
+
+<div class="container mt-5" style="max-width: 600px;">
+    <div class="card shadow-sm">
+        <div class="card-body p-4">
+            <h3 class="card-title mb-4 text-center">Complete Registration</h3>
+
+            <div id="errorAlert" class="alert alert-danger d-none"></div>
+            <div id="successAlert" class="alert alert-success d-none"></div>
+
+            <form id="completeForm">
+                <div class="mb-3">
+                    <label class="form-label">Email</label>
+                    <input type="email" class="form-control" id="email" readonly>
+                </div>
+
+                <div class="mb-3">
+                    <label class="form-label">Full Name <span class="text-danger">*</span></label>
+                    <input type="text" class="form-control" id="fullName" required>
+                </div>
+
+                <div class="mb-3">
+                    <label class="form-label">Phone Number <span class="text-danger">*</span></label>
+                    <input type="tel" class="form-control" id="phoneNumber" required>
+                </div>
+
+                <div class="mb-3">
+                    <label class="form-label">Password <span class="text-danger">*</span></label>
+                    <input type="password" class="form-control" id="password" minlength="8" required>
+                    <div class="form-text">At least 8 characters, must include letters and digits.</div>
+                </div>
+
+                <hr>
+                <h5 class="mb-3">Identity Document</h5>
+
+                <div class="mb-3">
+                    <label class="form-label">Document Type</label>
+                    <select class="form-select" id="docType">
+                        <option value="HKID">HKID</option>
+                        <option value="PASSPORT">Passport</option>
+                    </select>
+                </div>
+
+                <div class="mb-3">
+                    <label class="form-label">Document Number <span class="text-danger">*</span></label>
+                    <input type="text" class="form-control" id="docNumber" required>
+                </div>
+
+                <div class="mb-3" id="countryField" style="display: none;">
+                    <label class="form-label">Issuing Country</label>
+                    <input type="text" class="form-control" id="issuingCountry" placeholder="e.g. China, United Kingdom">
+                </div>
+
+                <button type="submit" class="btn btn-primary w-100" id="submitBtn">Complete Registration</button>
+            </form>
+        </div>
+    </div>
+</div>
+
+<script>
+    const urlParams = new URLSearchParams(window.location.search);
+    document.getElementById('email').value = urlParams.get('email') || '';
+
+    // Show/hide country field
+    document.getElementById('docType').addEventListener('change', function () {
+        document.getElementById('countryField').style.display =
+            this.value === 'PASSPORT' ? 'block' : 'none';
+    });
+
+    document.getElementById('completeForm').addEventListener('submit', async function (e) {
+        e.preventDefault();
+        const btn = document.getElementById('submitBtn');
+        const errorAlert = document.getElementById('errorAlert');
+        const successAlert = document.getElementById('successAlert');
+        btn.disabled = true;
+        errorAlert.classList.add('d-none');
+        successAlert.classList.add('d-none');
+
+        const docType = document.getElementById('docType').value;
+        const payload = {
+            email: document.getElementById('email').value,
+            fullName: document.getElementById('fullName').value,
+            phoneNumber: document.getElementById('phoneNumber').value,
+            password: document.getElementById('password').value,
+            identityDocuments: [{
+                type: docType,
+                number: document.getElementById('docNumber').value,
+                issuingCountry: docType === 'PASSPORT' ? document.getElementById('issuingCountry').value : null,
+                isPrimary: true
+            }]
+        };
+
+        try {
+            const res = await fetch('/api/public/membership/complete-registration', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                credentials: 'include',
+                body: JSON.stringify(payload)
+            });
+
+            if (!res.ok) {
+                const data = await res.json().catch(() => ({}));
+                throw new Error(data.message || 'Registration failed');
+            }
+
+            successAlert.textContent = 'Registration completed successfully! Redirecting to login...';
+            successAlert.classList.remove('d-none');
+
+            setTimeout(() => {
+                window.location.href = '/login';
+            }, 1500);
+        } catch (err) {
+            errorAlert.textContent = err.message;
+            errorAlert.classList.remove('d-none');
+            btn.disabled = false;
+        }
+    });
+</script>
+</body>
+</html>
