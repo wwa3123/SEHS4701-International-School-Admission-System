@@ -1,13 +1,19 @@
 package hk.edu.sehs4701.cissas.controller.web;
 
 import hk.edu.sehs4701.cissas.entity.Member;
+import hk.edu.sehs4701.cissas.dto.response.AcademicYearResponse;
+import hk.edu.sehs4701.cissas.dto.response.ProgrammeLevelResponse;
 import hk.edu.sehs4701.cissas.enums.AccountStatus;
+import hk.edu.sehs4701.cissas.enums.AcademicYearStatus;
+import hk.edu.sehs4701.cissas.enums.LevelCode;
 import hk.edu.sehs4701.cissas.repository.MemberRepository;
 import hk.edu.sehs4701.cissas.security.SecurityConfiguration;
 import hk.edu.sehs4701.cissas.service.AdminAccountService;
 import hk.edu.sehs4701.cissas.service.MembershipRegistrationService;
 import hk.edu.sehs4701.cissas.service.OtcService;
 import hk.edu.sehs4701.cissas.service.RateLimitService;
+import hk.edu.sehs4701.cissas.service.AcademicYearService;
+import hk.edu.sehs4701.cissas.service.ProgrammeLevelService;
 import jakarta.servlet.http.HttpServletRequest;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -36,6 +42,8 @@ import org.thymeleaf.spring6.view.ThymeleafViewResolver;
 
 import java.sql.SQLException;
 import java.time.Instant;
+import java.time.LocalDate;
+import java.util.List;
 import java.util.Optional;
 import java.util.regex.Pattern;
 
@@ -54,12 +62,15 @@ class MembershipPagesTest {
     @Configuration(proxyBeanMethods = false)
     @EnableWebMvc
     @EnableWebSecurity
-    @Import({MembershipPageController.class, SecurityConfiguration.class, MemberSecurityProbe.class})
+    @Import({MembershipPageController.class, AuthPageController.class, MemberPageController.class,
+            PublicPageController.class, SecurityConfiguration.class, MemberSecurityProbe.class})
     static class TestConfiguration {
         @Bean MembershipRegistrationService registrations() { return mock(MembershipRegistrationService.class); }
         @Bean RateLimitService limits() { return mock(RateLimitService.class); }
         @Bean MemberRepository members() { return mock(MemberRepository.class); }
         @Bean AdminAccountService accounts() { return mock(AdminAccountService.class); }
+        @Bean AcademicYearService years() { return mock(AcademicYearService.class); }
+        @Bean ProgrammeLevelService levels() { return mock(ProgrammeLevelService.class); }
         @Bean ThymeleafViewResolver views(ApplicationContext context) {
             SpringResourceTemplateResolver templates = new SpringResourceTemplateResolver();
             templates.setApplicationContext(context);
@@ -88,13 +99,50 @@ class MembershipPagesTest {
     @Autowired private RateLimitService limits;
     @Autowired private MemberRepository members;
     @Autowired private AdminAccountService accounts;
+    @Autowired private AcademicYearService years;
+    @Autowired private ProgrammeLevelService levels;
     private MockMvc mvc;
 
     @BeforeEach
     void setup() {
-        reset(registrations, limits, members, accounts);
+        reset(registrations, limits, members, accounts, years, levels);
         when(limits.resolveClientAddress(any())).thenReturn("127.0.0.1");
         mvc = MockMvcBuilders.webAppContextSetup(context).apply(springSecurity()).build();
+    }
+
+    @Test
+    void mergedFrontendRoutesDelegateToExistingSsrWorkflows() throws Exception {
+        mvc.perform(get("/register")).andExpect(redirectedUrl("/membership/register"));
+        mvc.perform(get("/verify-email").param("email", "member@example.com"))
+                .andExpect(redirectedUrl("/membership/verify-email?email=member%40example.com"));
+        mvc.perform(get("/complete-registration")).andExpect(redirectedUrl("/membership/complete-registration"));
+
+        mvc.perform(get("/apply")).andExpect(redirectedUrl("/login"));
+        MockHttpSession session = new MockHttpSession();
+        session.setAttribute("authenticatedUserId", 7L);
+        session.setAttribute("authenticatedUserRole", "ROLE_MEMBER");
+        Member member = new Member();
+        member.setAccountStatus(AccountStatus.ACTIVE);
+        when(members.findById(7L)).thenReturn(Optional.of(member));
+        mvc.perform(get("/dashboard").session(session)).andExpect(redirectedUrl("/member/applications"));
+        mvc.perform(get("/my-applications").session(session)).andExpect(redirectedUrl("/member/applications"));
+        mvc.perform(get("/apply").session(session)).andExpect(redirectedUrl("/member/applications/new"));
+        mvc.perform(get("/applications/APP-1").session(session))
+                .andExpect(redirectedUrl("/member/applications/APP-1"));
+
+        when(years.getCurrentOpenForApplicationAcademicYear()).thenThrow(
+                new ResponseStatusException(HttpStatus.NOT_FOUND, "No academic year open for applications found"));
+        mvc.perform(get("/about")).andExpect(status().isOk());
+        mvc.perform(get("/admission-info")).andExpect(status().isOk())
+                .andExpect(content().string(containsString("There is currently no open admission year.")));
+        var year = new AcademicYearResponse(1L, "2028/29", LocalDate.of(2028, 1, 1), null,
+                AcademicYearStatus.ACTIVE);
+        doReturn(year).when(years).getCurrentOpenForApplicationAcademicYear();
+        when(levels.list(1L)).thenReturn(List.of(new ProgrammeLevelResponse(10L, 1L, LevelCode.S1,
+                "Secondary 1", 20, LocalDate.of(2028, 9, 1), LocalDate.of(2028, 9, 30))));
+        mvc.perform(get("/admission-info")).andExpect(status().isOk())
+                .andExpect(content().string(containsString("2028/29")))
+                .andExpect(content().string(containsString("Secondary 1")));
     }
 
     @Test

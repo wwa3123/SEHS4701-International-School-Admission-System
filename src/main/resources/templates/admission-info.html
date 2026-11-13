@@ -44,7 +44,7 @@
                 </tr>
                 </thead>
                 <tbody>
-                <tr th:each="level : ${openYear.programmeLevels}">
+                <tr th:each="level : ${levels}">
                     <td th:text="${level.levelCode}">S1</td>
                     <td th:text="${level.programmeName}">IB MYP</td>
                     <td th:text="${level.seatQuota}">150</td>

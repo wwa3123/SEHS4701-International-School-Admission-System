@@ -24,6 +24,8 @@
     <nav aria-label="Admissions navigation" class="mb-4">
         <a th:href="@{/login}">Sign in</a>
         <a th:href="@{/membership/register}">Register as a member</a>
+        <a th:href="@{/about}">About the school</a>
+        <a th:href="@{/admission-info}">Admission information</a>
         <a th:href="@{/academic-years}">Academic years and programme levels</a>
         <a th:if="${session.authenticatedUserRole == 'ROLE_MEMBER'}" th:href="@{/member/applications}">My applications</a>
         <a th:if="${session.authenticatedUserRole == 'ROLE_ADMIN' or session.authenticatedUserRole == 'ROLE_SUPER_ADMIN'}"

@@ -9,21 +9,21 @@ public class MemberPageController {
 
     @GetMapping("/dashboard")
     public String dashboard() {
-        return "member/dashboard";
+        return "redirect:/member/applications";
     }
 
     @GetMapping("/my-applications")
     public String myApplications() {
-        return "member/my-applications";
+        return "redirect:/member/applications";
     }
 
     @GetMapping("/apply")
     public String apply() {
-        return "member/apply";
+        return "redirect:/member/applications/new";
     }
 
     @GetMapping("/applications/{applicationNumber}")
     public String applicationDetail(@PathVariable String applicationNumber) {
-        return "member/application-detail";
+        return "redirect:/member/applications/{applicationNumber}";
     }
 }

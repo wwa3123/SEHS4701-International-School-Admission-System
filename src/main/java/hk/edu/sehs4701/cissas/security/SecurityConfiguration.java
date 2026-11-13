@@ -40,7 +40,8 @@ public class SecurityConfiguration {
                 .addFilterAfter(new SessionAuthenticationFilter(members, accounts), SecurityContextHolderFilter.class)
                 .authorizeHttpRequests(authorize -> authorize
                         .dispatcherTypeMatchers(DispatcherType.ERROR).permitAll()
-                        .requestMatchers(HttpMethod.GET, "/", "/login",
+                        .requestMatchers(HttpMethod.GET, "/", "/login", "/register", "/verify-email",
+                                "/complete-registration", "/about", "/admission-info",
                                 "/membership/register", "/membership/verify-email",
                                 "/membership/complete-registration", "/membership/success",
                                 "/academic-years", "/academic-years/open-for-application",
@@ -50,6 +51,8 @@ public class SecurityConfiguration {
                                 "/membership/register", "/membership/verify-email",
                                 "/membership/complete-registration", "/membership/resend-verification").permitAll()
                         .requestMatchers("/member/**").hasRole("MEMBER")
+                        .requestMatchers("/dashboard", "/my-applications", "/apply", "/applications/**")
+                        .hasRole("MEMBER")
                         .requestMatchers("/admin/**").hasAnyRole("ADMIN", "SUPER_ADMIN")
                         .requestMatchers("/super-admin/**").hasRole("SUPER_ADMIN")
                         .anyRequest().denyAll())
