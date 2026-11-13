@@ -1,0 +1,17 @@
+<!DOCTYPE html>
+<html lang="en" xmlns:th="http://www.thymeleaf.org">
+<head><meta charset="UTF-8"><title>Possible duplicates</title></head>
+<body><main><h1>Possible duplicates</h1>
+<p role="status" th:if="${message}" th:text="${message}"></p>
+<p>Contact the member by email or phone before deciding whether the records are the same person.</p>
+<table><thead><tr><th>Flagged application</th><th>Possible match</th><th>Action</th></tr></thead>
+<tbody><tr th:each="pair : ${candidates.items}">
+    <td><a th:href="@{/admin/applications/possible-duplicates/applications/{number}(number=${pair.flagged.applicationNumber})}"
+           th:text="${pair.flagged.applicationNumber}"></a><span th:text="${pair.flagged.fullName}"></span></td>
+    <td><a th:href="@{/admin/applications/possible-duplicates/applications/{number}(number=${pair.possibleMatch.applicationNumber})}"
+           th:text="${pair.possibleMatch.applicationNumber}"></a><span th:text="${pair.possibleMatch.fullName}"></span></td>
+    <td><a th:href="@{/admin/applications/possible-duplicates/review(duplicateApplicationNumber=${pair.flagged.applicationNumber},matchingApplicationNumber=${pair.possibleMatch.applicationNumber})}">Review pair</a></td>
+</tr></tbody></table>
+<a th:if="${candidates.nextCursor}" th:href="@{/admin/applications/possible-duplicates(cursor=${candidates.nextCursor})}">Next page</a>
+<a th:href="@{/admin/applications/possible-duplicates/history}">Review history</a><a th:href="@{/admin/applications}">Back to applications</a>
+</main></body></html>

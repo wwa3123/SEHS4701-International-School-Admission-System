@@ -1,0 +1,7 @@
+<!DOCTYPE html>
+<html lang="en" xmlns:th="http://www.thymeleaf.org">
+<head><meta charset="UTF-8"><title>Action not completed</title></head>
+<body><main><h1>Action not completed</h1><p role="alert" th:text="${error}"></p>
+<p>Check the latest record before trying again.</p>
+<a th:href="@{/admin/applications}">Applications</a> <a th:href="@{/admin/emails/failed}">Failed emails</a>
+</main></body></html>

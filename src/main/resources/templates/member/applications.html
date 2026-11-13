@@ -1,0 +1,24 @@
+<!DOCTYPE html>
+<html lang="en" xmlns:th="http://www.thymeleaf.org">
+<head><meta charset="UTF-8"><title>My applications</title></head>
+<body>
+<main>
+    <h1>My applications</h1>
+    <p role="status" th:if="${message}" th:text="${message}"></p>
+    <a th:href="@{/member/applications/new}">New application</a>
+    <p th:if="${applications.empty}">No applications on this page.</p>
+    <ul>
+        <li th:each="item : ${applications.content}">
+            <a th:href="@{/member/applications/{number}(number=${item.applicationNumber})}"
+               th:text="${item.applicationNumber}"></a>
+            <span th:text="${item.programmeLevel}"></span>
+        </li>
+    </ul>
+    <nav aria-label="Application pages">
+        <a th:if="${applications.hasPrevious()}" th:href="@{/member/applications(page=${applications.number - 1})}">Previous</a>
+        <a th:if="${applications.hasNext()}" th:href="@{/member/applications(page=${applications.number + 1})}">Next</a>
+    </nav>
+    <form th:action="@{/logout}" method="post"><button type="submit">Sign out</button></form>
+</main>
+</body>
+</html>

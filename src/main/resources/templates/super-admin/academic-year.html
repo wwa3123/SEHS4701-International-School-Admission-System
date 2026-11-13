@@ -1,0 +1,29 @@
+<!DOCTYPE html>
+<html lang="en" xmlns:th="http://www.thymeleaf.org">
+<head><meta charset="UTF-8"><title>Manage academic year</title></head>
+<body><main>
+<h1 th:text="${year.name}"></h1>
+<p role="status" th:if="${message}" th:text="${message}"></p>
+<p role="alert" th:if="${error}" th:text="${error}"></p>
+<p>Created: <span th:text="${year.creationDate}"></span></p>
+<p th:if="${year.archiveDate}">Archived: <span th:text="${year.archiveDate}"></span></p>
+<form method="post" th:action="@{/super-admin/academic-years/{id}/status(id=${year.id})}" th:object="${lifecycleForm}">
+<p role="alert" th:if="${#fields.hasAnyErrors()}">Choose a valid lifecycle status.</p>
+<label for="status">Lifecycle status</label>
+<select id="status" th:field="*{status}" required>
+<option th:each="status : ${statuses}" th:value="${status}" th:text="${status}"></option>
+</select><button type="submit">Update status</button>
+</form>
+<h2>Programme levels</h2>
+<a th:href="@{/super-admin/academic-years/{id}/programme-levels/new(id=${year.id})}">Create programme level</a>
+<table>
+<caption>Programmes and admission periods</caption>
+<thead><tr><th scope="col">Level</th><th scope="col">Programme</th><th scope="col">Quota</th><th scope="col">Start</th><th scope="col">End</th><th scope="col">Actions</th></tr></thead>
+<tbody><tr th:each="level : ${levels}">
+<td th:text="${level.levelCode}"></td><td th:text="${level.programmeName}"></td><td th:text="${level.seatQuota}"></td>
+<td th:text="${level.applicationStartDate}"></td><td th:text="${level.applicationEndDate}"></td>
+<td><a th:href="@{/super-admin/academic-years/{yearId}/programme-levels/{levelId}/edit(yearId=${year.id},levelId=${level.id})}" th:attr="aria-label=${'Edit ' + level.programmeName}">Edit</a></td>
+</tr></tbody></table>
+<a th:href="@{/super-admin/academic-years}">All academic years</a>
+<a th:href="@{/academic-years/{id}(id=${year.id})}">Public academic year page</a>
+</main></body></html>

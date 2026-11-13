@@ -1,0 +1,27 @@
+<!DOCTYPE html>
+<html lang="en" xmlns:th="http://www.thymeleaf.org">
+<head><meta charset="UTF-8"><title>Application result</title></head>
+<body>
+<main>
+    <h1>Application result</h1>
+    <p role="status" th:if="${message}" th:text="${message}"></p>
+    <p role="alert" th:if="${error}" th:text="${error}"></p>
+    <dl>
+        <dt>Application number</dt><dd th:text="${result.applicationNumber}"></dd>
+        <dt>Programme level</dt><dd th:text="${result.programmeLevel}"></dd>
+        <dt>Status</dt><dd th:text="${result.status}"></dd>
+        <dt th:if="${result.resultReleasedAt}">Result released (Hong Kong time)</dt>
+        <dd th:if="${result.resultReleasedAt}" th:text="${result.resultReleasedAt}"></dd>
+        <dt th:if="${result.acceptanceDeadline}">Acceptance deadline (Hong Kong time)</dt>
+        <dd th:if="${result.acceptanceDeadline}" th:text="${result.acceptanceDeadline}"></dd>
+    </dl>
+    <section th:if="${result.status.name() == 'Success'}">
+        <h2>Offer decision</h2>
+        <p>You will review and confirm your decision before it is saved.</p>
+        <a th:href="@{/member/applications/{number}/offer(number=${result.applicationNumber},decision='Accept')}">Accept offer</a>
+        <a th:href="@{/member/applications/{number}/offer(number=${result.applicationNumber},decision='Reject')}">Reject offer</a>
+    </section>
+    <a th:href="@{/member/applications}">Back to applications</a>
+</main>
+</body>
+</html>

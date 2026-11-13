@@ -9,9 +9,8 @@ import hk.edu.sehs4701.cissas.dto.request.OfferDecisionRequest;
 import hk.edu.sehs4701.cissas.dto.response.Candidate;
 import hk.edu.sehs4701.cissas.dto.response.CandidatePage;
 import hk.edu.sehs4701.cissas.dto.response.Decision;
-import hk.edu.sehs4701.cissas.controller.api.member.AdmissionsApplicationController;
-import hk.edu.sehs4701.cissas.controller.api.admin.ApplicationResultController;
-import hk.edu.sehs4701.cissas.controller.api.admin.SuperAdminAcademicYearController;
+import hk.edu.sehs4701.cissas.controller.web.AdminApplicationPageController;
+import hk.edu.sehs4701.cissas.controller.web.SuperAdminAcademicYearPageController;
 import hk.edu.sehs4701.cissas.entity.*;
 import hk.edu.sehs4701.cissas.enums.*;
 import hk.edu.sehs4701.cissas.repository.*;
@@ -35,6 +34,7 @@ import org.springframework.test.context.DynamicPropertySource;
 import org.springframework.mock.web.MockHttpSession;
 import org.springframework.test.web.servlet.setup.MockMvcBuilders;
 import org.springframework.http.MediaType;
+import org.springframework.http.HttpStatus;
 import org.springframework.transaction.support.TransactionTemplate;
 import org.springframework.web.server.ResponseStatusException;
 
@@ -70,9 +70,9 @@ class IdentityReviewDatabaseTest {
     @EntityScan(basePackageClasses = Applicant.class)
     @EnableJpaRepositories(basePackageClasses = ApplicationRepository.class)
     @Import({AdmissionsApplicationService.class, IdentityReviewService.class, AcademicYearService.class,
-                ApplicationResultService.class, ApplicationResultController.class, EmailService.class,
+                ApplicationResultService.class, AdminApplicationPageController.class, EmailService.class,
                 ProgrammeLevelService.class, AdminAccountService.class, LoginService.class,
-                SuperAdminAcademicYearController.class,
+                SuperAdminAcademicYearPageController.class,
             IdentityDocumentService.class, HashService.class, AesEncryptionConverter.class})
     static class TestConfiguration {}
 
@@ -81,8 +81,8 @@ class IdentityReviewDatabaseTest {
     @Autowired private AcademicYearService academicYears;
     @Autowired private ProgrammeLevelService programmeLevels;
     @Autowired private AdminAccountService adminAccounts;
-    @Autowired private SuperAdminAcademicYearController yearController;
-    @Autowired private ApplicationResultController applicationController;
+    @Autowired private SuperAdminAcademicYearPageController yearController;
+    @Autowired private AdminApplicationPageController applicationController;
     @Autowired private LoginService loginService;
     @Autowired private IdentityReviewService reviewService;
     @Autowired private ApplicationResultService results;
@@ -662,27 +662,15 @@ class IdentityReviewDatabaseTest {
         var application = request("Privacy Applicant", IdentityDocumentType.PASSPORT, "PRIVACY1", "HK");
         assertEquals(201, submit(application, owner.getId()));
         String number = applicationNumberFor(owner);
-        MockHttpSession session = new MockHttpSession();
-        session.setAttribute("authenticatedUserRole", "ROLE_MEMBER");
-        session.setAttribute("authenticatedUserId", other.getId());
-        var mvc = MockMvcBuilders.standaloneSetup(new AdmissionsApplicationController(admissions,
-                mock(ApplicationResultService.class))).build();
-        String body = """
-                {"levelCode":"S1","applicantFullName":"Privacy Applicant",
-                "applicantIdentityDocumentNumber":"PRIVACY1","applicantIdentityDocumentType":"PASSPORT",
-                "applicantIdentityDocumentIssuingCountry":"HK","dateOfBirth":"2018-01-01",
-                "gender":"Unspecified","phone":"12345678","previousSchool":"School"}
-                """;
-        var active = mvc.perform(post("/api/member/applications").session(session)
-                .contentType(MediaType.APPLICATION_JSON).content(body)).andReturn().getResponse();
+        var active = assertThrows(ResponseStatusException.class,
+                () -> admissions.submitApplication(application, other.getId()));
         changeStatus(number, ApplicationStatus.Cancelled);
-        var cancelled = mvc.perform(post("/api/member/applications").session(session)
-                .contentType(MediaType.APPLICATION_JSON).content(body)).andReturn().getResponse();
-        assertEquals(409, active.getStatus());
-        assertEquals(active.getStatus(), cancelled.getStatus());
-        assertEquals(active.getErrorMessage(), cancelled.getErrorMessage());
-        assertEquals(active.getContentAsString(), cancelled.getContentAsString());
-        assertFalse(active.getErrorMessage().contains(number));
+        var cancelled = assertThrows(ResponseStatusException.class,
+                () -> admissions.submitApplication(application, other.getId()));
+        assertEquals(HttpStatus.CONFLICT, active.getStatusCode());
+        assertEquals(active.getStatusCode(), cancelled.getStatusCode());
+        assertEquals(active.getReason(), cancelled.getReason());
+        assertFalse(active.getReason().contains(number));
     }
 
     @Test
@@ -1177,7 +1165,12 @@ class IdentityReviewDatabaseTest {
                     started.countDown();
                     assertEquals(org.springframework.http.HttpStatus.FORBIDDEN,
                             assertThrows(ResponseStatusException.class,
-                                    () -> yearController.create(create, request)).getStatusCode());
+                                    () -> yearController.create(create,
+                                            new org.springframework.validation.BeanPropertyBindingResult(create, "yearForm"),
+                                            request, new org.springframework.mock.web.MockHttpServletResponse(),
+                                            new org.springframework.ui.ExtendedModelMap(),
+                                            new org.springframework.web.servlet.mvc.support.RedirectAttributesModelMap()))
+                                    .getStatusCode());
                 }));
                 try {
                     assertTrue(started.await(5, TimeUnit.SECONDS));
@@ -1216,7 +1209,10 @@ class IdentityReviewDatabaseTest {
         session.setAttribute("adminCredentialVersion", 0L);
         var request = new org.springframework.mock.web.MockHttpServletRequest();
         request.setSession(session);
-        assertEquals("REVOKED-READ", applicationController.duplicateEvidence(number, request).getBody().documentNumber());
+        var evidenceModel = new org.springframework.ui.ExtendedModelMap();
+        applicationController.duplicateEvidence(number, request, evidenceModel);
+        assertEquals("REVOKED-READ", ((hk.edu.sehs4701.cissas.dto.response.ApplicationEvidence)
+                evidenceModel.get("evidence")).documentNumber());
 
         var executor = Executors.newSingleThreadExecutor();
         CountDownLatch started = new CountDownLatch(1);
@@ -1228,7 +1224,8 @@ class IdentityReviewDatabaseTest {
                     started.countDown();
                     assertEquals(org.springframework.http.HttpStatus.FORBIDDEN,
                             assertThrows(ResponseStatusException.class,
-                                    () -> applicationController.duplicateEvidence(number, request)).getStatusCode());
+                                    () -> applicationController.duplicateEvidence(number, request,
+                                            new org.springframework.ui.ExtendedModelMap())).getStatusCode());
                 }));
                 try {
                     assertTrue(started.await(5, TimeUnit.SECONDS));

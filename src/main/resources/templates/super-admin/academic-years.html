@@ -1,0 +1,12 @@
+<!DOCTYPE html>
+<html lang="en" xmlns:th="http://www.thymeleaf.org">
+<head><meta charset="UTF-8"><title>Manage academic years</title></head>
+<body><nav><a th:href="@{/}">Home</a> <a th:href="@{/super-admin/admissions-officers}">Admissions officers</a></nav>
+<main><h1>Manage academic years</h1>
+<p role="status" th:if="${message}" th:text="${message}"></p>
+<a th:href="@{/super-admin/academic-years/new}">Create academic year</a>
+<ul><li th:each="year : ${years}">
+<a th:href="@{/super-admin/academic-years/{id}(id=${year.id})}" th:text="${year.name}"></a>
+<span th:text="${year.status}"></span>
+</li></ul>
+</main></body></html>

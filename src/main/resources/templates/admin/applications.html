@@ -1,0 +1,28 @@
+<!DOCTYPE html>
+<html lang="en" xmlns:th="http://www.thymeleaf.org">
+<head><meta charset="UTF-8"><title>Manage applications</title></head>
+<body><main>
+<h1>Manage applications</h1>
+<nav><a th:href="@{/}">Home</a> <a th:href="@{/admin/applications/possible-duplicates}">Possible duplicates</a>
+    <a th:href="@{/admin/emails/failed}">Failed emails</a> <a th:href="@{/admin/password}">Change password</a></nav>
+<p role="status" th:if="${message}" th:text="${message}"></p>
+<form th:action="@{/admin/applications}" method="get">
+    <label for="programmeLevelId">Programme level ID</label><input id="programmeLevelId" name="programmeLevelId" type="number" min="1" th:value="${programmeLevelId}">
+    <label for="status">Status</label><select id="status" name="status"><option value="">All statuses</option>
+    <option th:each="option : ${statuses}" th:value="${option}" th:text="${option}" th:selected="${option == status}"></option></select>
+    <button type="submit">Filter</button>
+</form>
+<a th:if="${programmeLevelId}" th:href="@{/admin/applications/waiting-list(programmeLevelId=${programmeLevelId})}">Waiting list for this level</a>
+<table><thead><tr><th>Application</th><th>Applicant</th><th>Programme level</th><th>Status</th><th>Actions</th></tr></thead>
+<tbody><tr th:each="item : ${applications.content}">
+    <td th:text="${item.applicationNumber}"></td><td th:text="${item.applicantName}"></td><td th:text="${item.programmeLevel}"></td><td th:text="${item.status}"></td>
+    <td><a th:href="@{/admin/applications/{number}/result(number=${item.applicationNumber})}">Set or correct result</a>
+        <a th:href="@{/admin/applications/{number}/acceptance-deadline(number=${item.applicationNumber})}">Extend deadline</a></td>
+</tr></tbody></table>
+<p th:if="${applications.empty}">No applications on this page.</p>
+<nav aria-label="Application pages">
+    <a th:if="${applications.hasPrevious()}" th:href="@{/admin/applications(page=${applications.number - 1},programmeLevelId=${programmeLevelId},status=${status})}">Previous</a>
+    <a th:if="${applications.hasNext()}" th:href="@{/admin/applications(page=${applications.number + 1},programmeLevelId=${programmeLevelId},status=${status})}">Next</a>
+</nav>
+<form th:action="@{/logout}" method="post"><button type="submit">Sign out</button></form>
+</main></body></html>

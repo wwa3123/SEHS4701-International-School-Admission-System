@@ -1,0 +1,16 @@
+<!DOCTYPE html>
+<html lang="en" xmlns:th="http://www.thymeleaf.org">
+<head><meta charset="UTF-8"><title>Failed emails</title></head>
+<body><main><h1>Failed emails</h1>
+<p role="status" th:if="${message}" th:text="${message}"></p>
+<table><thead><tr><th>Application</th><th>Template</th><th>Error</th><th>Actions</th></tr></thead>
+<tbody><tr th:each="email : ${emails.content}">
+    <td th:text="${email.applicationNumber}"></td><td th:text="${email.templateType}"></td><td th:text="${email.errorMessage}"></td>
+    <td><form th:action="@{/admin/emails/{id}/resend(id=${email.id})}" method="post"><button type="submit">Retry delivery</button></form>
+        <a th:href="@{/admin/emails/{id}/skip(id=${email.id})}">Skip blocked result email</a></td>
+</tr></tbody></table>
+<nav aria-label="Failed email pages">
+    <a th:if="${emails.hasPrevious()}" th:href="@{/admin/emails/failed(page=${emails.number - 1})}">Previous</a>
+    <a th:if="${emails.hasNext()}" th:href="@{/admin/emails/failed(page=${emails.number + 1})}">Next</a>
+</nav><a th:href="@{/admin/applications}">Back to applications</a>
+</main></body></html>

@@ -1,0 +1,43 @@
+<!DOCTYPE html>
+<html lang="en" xmlns:th="http://www.thymeleaf.org">
+<head><meta charset="UTF-8"><title>New application</title></head>
+<body>
+<main>
+    <h1>New application</h1>
+    <p role="alert" th:if="${error}" th:text="${error}"></p>
+    <p th:if="${#lists.isEmpty(programmeLevels)}">No programme levels are currently open for applications.</p>
+    <form th:action="@{/member/applications}" th:object="${applicationForm}" method="post">
+        <ul th:if="${#fields.hasAnyErrors()}" role="alert">
+            <li th:each="error : ${#fields.allErrors()}" th:text="${error}"></li>
+        </ul>
+        <p><label for="levelCode">Programme level</label>
+            <select id="levelCode" th:field="*{levelCode}" required>
+                <option value="">Select a level</option>
+                <option th:each="level : ${programmeLevels}" th:value="${level.levelCode}"
+                        th:text="${level.programmeName}"></option>
+            </select></p>
+        <p><label for="applicantFullName">Applicant full name</label>
+            <input id="applicantFullName" th:field="*{applicantFullName}" required maxlength="120"></p>
+        <p><label for="dateOfBirth">Date of birth</label>
+            <input id="dateOfBirth" type="date" th:field="*{dateOfBirth}" required></p>
+        <p><label for="applicantIdentityDocumentType">Identity document type</label>
+            <select id="applicantIdentityDocumentType" th:field="*{applicantIdentityDocumentType}" required>
+                <option value="">Select a document type</option>
+                <option th:each="type : ${documentTypes}" th:value="${type}" th:text="${type}"></option>
+            </select></p>
+        <p><label for="applicantIdentityDocumentNumber">Identity document number</label>
+            <input id="applicantIdentityDocumentNumber" th:field="*{applicantIdentityDocumentNumber}" required maxlength="512"></p>
+        <p><label for="applicantIdentityDocumentIssuingCountry">Issuing country (two-letter code, when required)</label>
+            <input id="applicantIdentityDocumentIssuingCountry" th:field="*{applicantIdentityDocumentIssuingCountry}" maxlength="2"></p>
+        <p><label for="gender">Gender</label>
+            <input id="gender" th:field="*{gender}" required maxlength="20"></p>
+        <p><label for="phone">Phone</label>
+            <input id="phone" type="tel" th:field="*{phone}" required maxlength="25"></p>
+        <p><label for="previousSchool">Previous school</label>
+            <input id="previousSchool" th:field="*{previousSchool}" required maxlength="150"></p>
+        <button type="submit" th:disabled="${#lists.isEmpty(programmeLevels)}">Submit application</button>
+    </form>
+    <a th:href="@{/member/applications}">Back to applications</a>
+</main>
+</body>
+</html>

@@ -1,0 +1,19 @@
+<!DOCTYPE html>
+<html lang="en" xmlns:th="http://www.thymeleaf.org">
+<head><meta charset="UTF-8"><title>Review duplicate</title></head>
+<body><main><h1>Review duplicate</h1>
+<p>Contact the member before saving. Confirming the same person cancels the flagged application and sends a cancellation email.</p>
+<section th:if="${flagged}"><h2>Flagged application</h2><p th:text="${flagged.applicationNumber}"></p>
+    <p th:text="${flagged.fullName}"></p><p th:text="${flagged.dateOfBirth}"></p>
+    <p th:text="${flagged.memberEmail}"></p><p th:text="${flagged.phone}"></p></section>
+<section th:if="${match}"><h2>Possible match</h2><p th:text="${match.applicationNumber}"></p>
+    <p th:text="${match.fullName}"></p><p th:text="${match.dateOfBirth}"></p></section>
+<form th:action="@{/admin/applications/possible-duplicates}" th:object="${reviewForm}" method="post">
+    <ul role="alert" th:if="${#fields.hasAnyErrors()}"><li th:each="error : ${#fields.allErrors()}" th:text="${error}"></li></ul>
+    <input type="hidden" th:field="*{duplicateApplicationNumber}"><input type="hidden" th:field="*{matchingApplicationNumber}">
+    <label for="samePerson">Review decision</label><select id="samePerson" th:field="*{samePerson}" required>
+        <option value="">Select a decision</option><option value="true">Same person - cancel flagged application</option>
+        <option value="false">Different people - clear this match</option></select>
+    <button type="submit">Save review</button>
+</form><a th:href="@{/admin/applications/possible-duplicates}">Back to possible duplicates</a>
+</main></body></html>

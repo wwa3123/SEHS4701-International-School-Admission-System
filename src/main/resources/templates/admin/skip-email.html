@@ -1,0 +1,11 @@
+<!DOCTYPE html>
+<html lang="en" xmlns:th="http://www.thymeleaf.org">
+<head><meta charset="UTF-8"><title>Skip failed email</title></head>
+<body><main><h1>Skip failed email</h1>
+<p>Only the first failed result email with a later waiting email can be skipped. This action records your reason.</p>
+<form th:action="@{/admin/emails/{id}/skip(id=${id})}" th:object="${skipForm}" method="post">
+    <ul role="alert" th:if="${#fields.hasAnyErrors()}"><li th:each="error : ${#fields.allErrors()}" th:text="${error}"></li></ul>
+    <label for="reason">Reason</label><textarea id="reason" th:field="*{reason}" maxlength="255" required></textarea>
+    <button type="submit">Confirm skip</button>
+</form><a th:href="@{/admin/emails/failed}">Back to failed emails</a>
+</main></body></html>
