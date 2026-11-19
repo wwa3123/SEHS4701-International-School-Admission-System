@@ -65,7 +65,7 @@ public interface EmailLogRepository extends JpaRepository<EmailLog, Long> {
     @Modifying
     @Query("""
             update EmailLog e set e.status = :failedStatus, e.errorMessage = :message
-            where e.templateType = :templateType and e.status = :pendingStatus and e.createdAt < :before
+            where e.templateType = :templateType and e.status = :pendingStatus and e.createdAt <= :before
             """)
     int failExpiredPendingEmailsByTemplateType(
             @Param("templateType") EmailTemplateType templateType,

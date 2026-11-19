@@ -265,4 +265,20 @@ class EmailSendAttemptServiceTest {
         assertEquals(EmailDeliveryStatus.FAILED, verification.getStatus());
         verifyNoInteractions(sender);
     }
+
+    @Test
+    void expiredPasswordResetEventIsNotSent() {
+        EmailLogRepository emails = mock(EmailLogRepository.class);
+        JavaMailSender sender = mock(JavaMailSender.class);
+        EmailLog reset = new EmailLog();
+        reset.setTemplateType(EmailTemplateType.PASSWORD_RESET_CODE);
+        reset.setCreatedAt(LocalDateTime.now().minusMinutes(16));
+        when(emails.findLockedById(2L)).thenReturn(Optional.of(reset));
+        var service = new EmailSendAttemptService(emails, sender, mock(ApplicationEventPublisher.class));
+
+        service.attemptSmtpSend(new EmailSendRequestedEvent(2L, "code"));
+
+        assertEquals(EmailDeliveryStatus.FAILED, reset.getStatus());
+        verifyNoInteractions(sender);
+    }
 }

@@ -39,9 +39,43 @@ class EmailServiceTest {
         ));
 
         verify(repository).save(argThat(log ->
-                log.getBody().equals("[Verification code email body redacted]")
+                log.getBody().equals("[One-time code email body redacted]")
         ));
         verify(eventPublisher).publishEvent(new EmailSendRequestedEvent(7L, rawBody));
+    }
+
+    @Test
+    void storesPasswordResetCodeRedactedAndPublishesItOnlyForDelivery() {
+        EmailLogRepository repository = mock(EmailLogRepository.class);
+        ApplicationEventPublisher eventPublisher = mock(ApplicationEventPublisher.class);
+        when(repository.save(any(EmailLog.class))).thenAnswer(invocation -> {
+            EmailLog emailLog = invocation.getArgument(0);
+            emailLog.setId(8L);
+            return emailLog;
+        });
+        Member member = new Member();
+        member.setEmail("member@example.com");
+        String rawBody = "Your password reset code is 123456";
+
+        new EmailService(repository, eventPublisher).sendAndLogEmail(new EmailDispatchRequest(
+                member, null, EmailTemplateType.PASSWORD_RESET_CODE, "N/A", "Password Reset",
+                "Reset your password", "Password reset code", rawBody));
+
+        verify(repository).save(argThat(log -> log.getBody().equals("[One-time code email body redacted]")));
+        verify(eventPublisher).publishEvent(new EmailSendRequestedEvent(8L, rawBody));
+    }
+
+    @Test
+    void refusesToResendPasswordResetCode() {
+        EmailLogRepository repository = mock(EmailLogRepository.class);
+        EmailLog resetCode = new EmailLog();
+        resetCode.setTemplateType(EmailTemplateType.PASSWORD_RESET_CODE);
+        when(repository.findLockedById(8L)).thenReturn(java.util.Optional.of(resetCode));
+        ApplicationEventPublisher events = mock(ApplicationEventPublisher.class);
+
+        assertThrows(IllegalStateException.class, () -> new EmailService(repository, events).manualResend(8L));
+
+        verifyNoInteractions(events);
     }
 
     @Test

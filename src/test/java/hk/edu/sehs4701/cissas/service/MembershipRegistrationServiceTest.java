@@ -64,7 +64,7 @@ class MembershipRegistrationServiceTest {
         when(members.findByEmailIgnoreCase("member@example.com")).thenReturn(Optional.of(member));
         IdentityDocument document = new IdentityDocument(IdentityDocumentType.HKID, "A123456(3)", "HK", "hash");
         when(documents.createIdentityDocument(IdentityDocumentType.HKID, "A123456(3)", null)).thenReturn(document);
-        when(hashes.hashPassword("secure-password")).thenReturn("new-hash");
+        when(hashes.hashPassword("secure-password1")).thenReturn("new-hash");
 
         assertThrows(ResponseStatusException.class, () -> service.completeRegistration("other@example.com", request()));
         service.completeRegistration("member@example.com", request());
@@ -97,6 +97,18 @@ class MembershipRegistrationServiceTest {
         verify(members, never()).save(any());
     }
 
+    @Test
+    void registrationRejectsPasswordsWithoutLettersOrDigitsOrMatchingEmail() {
+        Member member = pendingMember();
+        when(members.findByEmailIgnoreCase("member@example.com")).thenReturn(Optional.of(member));
+        for (String password : new String[]{"passwordonly", "12345678", "member@example.com"}) {
+            var invalid = new MembershipRegistrationRequest("Test", "Member", "member@example.com", "12345678",
+                    IdentityDocumentType.HKID, "A123456(3)", null, password);
+            assertThrows(ResponseStatusException.class, () -> service.completeRegistration("member@example.com", invalid));
+        }
+        verifyNoInteractions(documents, hashes);
+    }
+
     private Member pendingMember() {
         Member member = new Member();
         member.setId(1L);
@@ -107,6 +119,6 @@ class MembershipRegistrationServiceTest {
 
     private MembershipRegistrationRequest request() {
         return new MembershipRegistrationRequest("Test", "Member", "member@example.com", "12345678",
-                IdentityDocumentType.HKID, "A123456(3)", null, "secure-password");
+                IdentityDocumentType.HKID, "A123456(3)", null, "secure-password1");
     }
 }

@@ -1,6 +1,7 @@
 package hk.edu.sehs4701.cissas.entity;
 
 import jakarta.persistence.*;
+import hk.edu.sehs4701.cissas.enums.OneTimeCodePurpose;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
 import lombok.Setter;
@@ -20,6 +21,10 @@ public class OneTimeCode {
     @ManyToOne(fetch = FetchType.LAZY, optional = false)
     @JoinColumn(name = "member_id", nullable = false)
     private Member member;
+
+    @Enumerated(EnumType.STRING)
+    @Column(name = "purpose", nullable = false, length = 32)
+    private OneTimeCodePurpose purpose = OneTimeCodePurpose.VERIFICATION;
 
     @Column(name = "code_hash", nullable = false, length = 255)
     private String codeHash;

@@ -56,6 +56,17 @@ public class NotificationService {
     }
 
     @Transactional
+    public void sendPasswordResetCode(Member member, String rawSixDigitCode, int expiryMinutes) {
+        String actionRequired = "Enter the one-time code within " + expiryMinutes
+                + " minutes to reset your SAS password.";
+        String body = formatStandardBody(member.getFirstName(), "N/A", "N/A (Password Reset)", actionRequired,
+                "Your one-time 6-digit password reset code is: " + rawSixDigitCode
+                        + "\nThis code expires in " + expiryMinutes + " minutes.");
+        emailService.sendAndLogEmail(new EmailDispatchRequest(member, null, EmailTemplateType.PASSWORD_RESET_CODE,
+                "N/A", "N/A (Password Reset)", actionRequired, "[CIS SAS] Password Reset Code", body));
+    }
+
+    @Transactional
     public void notifyAdminOfPossibleDuplicate(
             Member member,
             Application application,

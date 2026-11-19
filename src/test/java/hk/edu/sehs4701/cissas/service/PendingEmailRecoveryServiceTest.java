@@ -18,7 +18,7 @@ import static org.mockito.Mockito.*;
 
 class PendingEmailRecoveryServiceTest {
     @Test
-    void startupOnlyMarksExpiredVerificationEmailsFailed() {
+    void startupRedactsAndExpiresBothOneTimeCodeEmailTypes() {
         EmailLogRepository repository = mock(EmailLogRepository.class);
         PendingEmailRecoveryService service = new PendingEmailRecoveryService(repository, mock(ApplicationEventPublisher.class));
         ReflectionTestUtils.setField(service, "otcExpiryMinutes", 15);
@@ -30,13 +30,21 @@ class PendingEmailRecoveryServiceTest {
 
         verify(repository).redactBodiesByTemplateType(
                 EmailTemplateType.OTC_VERIFICATION,
-                "[Verification code email body redacted]"
+                "[One-time code email body redacted]"
         );
+        verify(repository).redactBodiesByTemplateType(
+                EmailTemplateType.PASSWORD_RESET_CODE, "[One-time code email body redacted]");
         verify(repository).failExpiredPendingEmailsByTemplateType(
                 eq(EmailTemplateType.OTC_VERIFICATION), eq(EmailDeliveryStatus.PENDING),
                 eq(EmailDeliveryStatus.FAILED),
                 argThat(cutoff -> !cutoff.isBefore(before) && !cutoff.isAfter(LocalDateTime.now().minusMinutes(15))),
                 eq("Verification code expired before delivery; request a new code."));
+        verify(repository).failExpiredPendingEmailsByTemplateType(
+                eq(EmailTemplateType.PASSWORD_RESET_CODE), eq(EmailDeliveryStatus.PENDING),
+                eq(EmailDeliveryStatus.FAILED),
+                argThat(cutoff -> !cutoff.isBefore(before)
+                        && !cutoff.isAfter(LocalDateTime.now().minusMinutes(15))),
+                eq("Password reset code expired before delivery; request a new code."));
     }
 
     @Test

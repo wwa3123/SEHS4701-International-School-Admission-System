@@ -35,6 +35,15 @@ public class Member {
     @Column(name = "password_hash")
     private String passwordHash;
 
+    @Column(name = "credential_version", nullable = false)
+    private long credentialVersion = 0;
+
+    @Column(name = "failed_login_attempts", nullable = false)
+    private int failedLoginAttempts = 0;
+
+    @Column(name = "login_locked_until")
+    private LocalDateTime loginLockedUntil;
+
     @Column(name = "first_name", length = 120)
     private String firstName;
 
@@ -77,6 +86,11 @@ public class Member {
         identityDocument.attachToMember(this);
         identityDocument.setPrimaryDocument(!hasPrimary);
         identityDocuments.add(identityDocument);
+    }
+
+    public void resetLoginFailures() {
+        failedLoginAttempts = 0;
+        loginLockedUntil = null;
     }
 
 }

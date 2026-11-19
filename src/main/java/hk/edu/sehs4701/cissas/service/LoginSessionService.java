@@ -28,7 +28,13 @@ public class LoginSessionService {
         session.removeAttribute("registrationVerifiedUntil");
         session.setAttribute("authenticatedUserId", response.id());
         session.setAttribute("authenticatedUserRole", response.role().name());
-        session.setAttribute("adminCredentialVersion", result.credentialVersion());
+        session.removeAttribute("memberCredentialVersion");
+        session.removeAttribute("adminCredentialVersion");
+        if (response.role() == hk.edu.sehs4701.cissas.enums.ActorRole.ROLE_MEMBER) {
+            session.setAttribute("memberCredentialVersion", result.credentialVersion());
+        } else {
+            session.setAttribute("adminCredentialVersion", result.credentialVersion());
+        }
         new HttpSessionCsrfTokenRepository().saveToken(null, request, null);
         return response;
     }

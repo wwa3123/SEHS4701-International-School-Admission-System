@@ -19,6 +19,7 @@ import java.time.ZoneId;
 
 @Service
 public class EmailService {
+    private static final String REDACTED_CODE_BODY = "[One-time code email body redacted]";
     private final EmailLogRepository emailLogRepository;
     private final ApplicationEventPublisher eventPublisher;
 
@@ -41,8 +42,9 @@ public class EmailService {
         emailLog.setApplicationNumber(request.applicationNumber());
         emailLog.setActionRequired(request.actionRequired());
         emailLog.setSubject(request.subject());
-        boolean containsVerificationCode = request.templateType() == EmailTemplateType.OTC_VERIFICATION;
-        emailLog.setBody(containsVerificationCode ? "[Verification code email body redacted]" : request.body());
+        boolean containsOneTimeCode = request.templateType() == EmailTemplateType.OTC_VERIFICATION
+                || request.templateType() == EmailTemplateType.PASSWORD_RESET_CODE;
+        emailLog.setBody(containsOneTimeCode ? REDACTED_CODE_BODY : request.body());
         emailLog.setStatus(EmailDeliveryStatus.PENDING);
         emailLog.setRetryCount(0);
         emailLog.setErrorMessage(null);
@@ -50,7 +52,7 @@ public class EmailService {
         EmailLog savedLog = emailLogRepository.save(emailLog);
         eventPublisher.publishEvent(new EmailSendRequestedEvent(
                 savedLog.getId(),
-                containsVerificationCode ? request.body() : null
+                containsOneTimeCode ? request.body() : null
         ));
     }
 
@@ -64,8 +66,9 @@ public class EmailService {
         }
         EmailLog emailLog = emailLogRepository.findLockedById(emailLogId)
                 .orElseThrow(() -> new IllegalArgumentException("Email log not found: " + emailLogId));
-        if (emailLog.getTemplateType() == EmailTemplateType.OTC_VERIFICATION) {
-            throw new IllegalStateException("Request a new verification code instead of resending an old code.");
+        if (emailLog.getTemplateType() == EmailTemplateType.OTC_VERIFICATION
+                || emailLog.getTemplateType() == EmailTemplateType.PASSWORD_RESET_CODE) {
+            throw new IllegalStateException("Request a new one-time code instead of resending an old code.");
         }
         if (emailLog.getTemplateType() == EmailTemplateType.APPLICATION_DUPLICATE_ALERT
                 && (emailLog.getStatus() == EmailDeliveryStatus.SENT

@@ -7,6 +7,7 @@ import hk.edu.sehs4701.cissas.dto.request.VerifyMembershipEmailRequest;
 import hk.edu.sehs4701.cissas.entity.Member;
 import hk.edu.sehs4701.cissas.enums.AccountStatus;
 import hk.edu.sehs4701.cissas.enums.IdentityDocumentType;
+import hk.edu.sehs4701.cissas.enums.OneTimeCodePurpose;
 import hk.edu.sehs4701.cissas.repository.IdentityDocumentRepository;
 import hk.edu.sehs4701.cissas.repository.MemberRepository;
 import hk.edu.sehs4701.cissas.repository.OneTimeCodeRepository;
@@ -95,7 +96,8 @@ class MembershipRegistrationDatabaseTest {
                 new BeanPropertyBindingResult(wrongCode, "verificationForm"), browser, response, model));
         assertEquals(400, response.getStatus());
         Integer attempts = transactions.execute(status ->
-                codes.findFirstByMemberIdOrderByCreatedAtDesc(pending.getId()).orElseThrow().getAttemptCount());
+                codes.findFirstByMemberIdAndPurposeOrderByCreatedAtDescIdDesc(
+                        pending.getId(), OneTimeCodePurpose.VERIFICATION).orElseThrow().getAttemptCount());
         assertEquals(1, attempts);
         var verification = new VerifyMembershipEmailRequest(email.email(), code.getValue());
         assertEquals("redirect:/membership/complete-registration", controller.verify(verification,
@@ -103,7 +105,7 @@ class MembershipRegistrationDatabaseTest {
         assertEquals(AccountStatus.UNVERIFIED, members.findFirstByEmailIgnoreCase(email.email()).orElseThrow().getAccountStatus());
 
         var details = new MembershipRegistrationRequest("Owner", "Name", email.email(), "12345678",
-                IdentityDocumentType.HKID, "A123456(3)", null, "secure-password");
+                IdentityDocumentType.HKID, "A123456(3)", null, "secure-password1");
         var errors = new BeanPropertyBindingResult(details, "registrationForm");
         assertEquals("auth/registration-verify", controller.complete(details, errors, new MockHttpServletRequest(),
                 response, model, redirect));
@@ -112,7 +114,7 @@ class MembershipRegistrationDatabaseTest {
         Member active = members.findFirstByEmailIgnoreCase(email.email()).orElseThrow();
         assertEquals(AccountStatus.ACTIVE, active.getAccountStatus());
         assertEquals("Owner", active.getFirstName());
-        assertTrue(hashes.verifyPassword("secure-password", active.getPasswordHash()));
+        assertTrue(hashes.verifyPassword("secure-password1", active.getPasswordHash()));
         assertNotNull(active.getEmailVerifiedAt());
         String documentHash = documentService.getDocumentNumberHash(IdentityDocumentType.HKID, "A123456(3)", null);
         transactions.executeWithoutResult(status -> {

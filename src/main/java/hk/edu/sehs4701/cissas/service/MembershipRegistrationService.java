@@ -13,7 +13,6 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.server.ResponseStatusException;
 
-import java.nio.charset.StandardCharsets;
 import java.time.LocalDateTime;
 import java.util.Locale;
 
@@ -73,9 +72,6 @@ public class MembershipRegistrationService {
         if (!email.equals(verifiedEmail)) {
             throw new ResponseStatusException(HttpStatus.FORBIDDEN, "Email verification is required");
         }
-        if (request.password().getBytes(StandardCharsets.UTF_8).length > 72) {
-            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Password exceeds the 72-byte limit");
-        }
         Member member = memberRepository.findByEmailIgnoreCase(email)
                 .filter(existing -> existing.getAccountStatus() == AccountStatus.UNVERIFIED)
                 .orElseThrow(() -> new ResponseStatusException(HttpStatus.CONFLICT, "Unable to complete registration"));
@@ -83,6 +79,7 @@ public class MembershipRegistrationService {
             throw new ResponseStatusException(HttpStatus.CONFLICT,
                     "This pending registration requires administrator assistance");
         }
+        MemberPasswordPolicy.validate(request.password(), email);
         IdentityDocument document = identityDocumentService.createIdentityDocument(
                 request.documentType(), request.documentNumber(), request.issuingCountry());
         member.setPasswordHash(hashService.hashPassword(request.password()));
