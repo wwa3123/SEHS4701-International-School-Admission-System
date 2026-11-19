@@ -66,6 +66,17 @@ public interface ApplicationRepository extends JpaRepository<Application, Long> 
     Slice<Application> findExpiredOffers(java.time.LocalDateTime deadline, Long afterId, Pageable pageable);
 
     @Query("""
+        select a from Application a where a.status = hk.edu.sehs4701.cissas.enums.ApplicationStatus.Success
+          and a.respondedAt is null and a.acceptanceDeadline > :now and a.acceptanceDeadline <= :reminderDue
+          and a.offerReminderQueuedAt is null
+          and a.academicYear.status <> hk.edu.sehs4701.cissas.enums.AcademicYearStatus.ARCHIVED
+          and (:afterId is null or a.id > :afterId)
+        order by a.id
+        """)
+    Slice<Application> findOffersDueForReminder(LocalDateTime now, LocalDateTime reminderDue,
+                                                Long afterId, Pageable pageable);
+
+    @Query("""
         select f, c from Application f, Application c
         where f.id <> c.id
           and f.manualIdentityReviewRequired = true

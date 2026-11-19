@@ -14,9 +14,9 @@ import hk.edu.sehs4701.cissas.enums.ActorRole;
 import hk.edu.sehs4701.cissas.enums.ApplicationStatus;
 import hk.edu.sehs4701.cissas.repository.AdminRepository;
 import hk.edu.sehs4701.cissas.repository.ApplicationRepository;
+import hk.edu.sehs4701.cissas.repository.IdentityReviewLockRepository;
 import hk.edu.sehs4701.cissas.repository.ProgrammeLevelRepository;
 import hk.edu.sehs4701.cissas.repository.StatusHistoryRepository;
-import hk.edu.sehs4701.cissas.repository.IdentityReviewLockRepository;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Slice;
@@ -29,6 +29,7 @@ import org.springframework.web.server.ResponseStatusException;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.time.ZoneId;
+import java.util.ArrayList;
 import java.util.List;
 
 @Service
@@ -118,6 +119,7 @@ public class ApplicationResultService {
         application.setStatus(result);
         application.setResultReleasedAt(now);
         application.setAcceptanceDeadline(result == ApplicationStatus.Success ? now.plusHours(168) : null);
+        application.setOfferReminderQueuedAt(null);
         application.setRespondedAt(null);
         applications.save(application);
         recordHistory(application, previous, result, admin.getRole(), admin.getId(), correction ? reason.trim() : null, now);
@@ -182,12 +184,24 @@ public class ApplicationResultService {
                 && !now.isBefore(application.getAcceptanceDeadline())) {
             expire(application, now);
         }
+        var snapshot = application.getApplicantSnapshot();
+        List<MemberApplicationResult.StatusChange> statusHistory = new ArrayList<>();
+        statusHistory.add(new MemberApplicationResult.StatusChange(null, ApplicationStatus.Pending,
+                ActorRole.ROLE_MEMBER, "Application submitted", application.getSubmittedAt()));
+        history.findAllByApplication_IdOrderByChangedAtAsc(application.getId()).stream()
+                .map(entry -> new MemberApplicationResult.StatusChange(entry.getFromStatus(), entry.getToStatus(),
+                        entry.getChangedByRole(), entry.getRemarks(), entry.getChangedAt()))
+                .forEach(statusHistory::add);
         return new MemberApplicationResult(application.getApplicationNumber(),
-                application.getProgrammeLevel().getProgrammeName(), application.getStatus(),
-                application.getResultReleasedAt(), application.getAcceptanceDeadline(),
+                application.getAcademicYear().getName(), application.getProgrammeLevel().getProgrammeName(),
+                snapshot.getFullName(), snapshot.getDateOfBirth(), snapshot.getGender(), snapshot.getPhone(),
+                snapshot.getPreviousSchool(), snapshot.getDocumentType(), snapshot.getDocumentNumber(),
+                snapshot.getIssuingCountry(), application.getStatus(), application.getSubmittedAt(),
+                application.getDeclarationsAcceptedAt(), application.getResultReleasedAt(), application.getAcceptanceDeadline(),
                 application.getStatus() == ApplicationStatus.Pending
                         && application.getProgrammeLevel().getApplicationEndDate() != null
-                        && LocalDate.now(HONG_KONG).isBefore(application.getProgrammeLevel().getApplicationEndDate()));
+                        && LocalDate.now(HONG_KONG).isBefore(application.getProgrammeLevel().getApplicationEndDate()),
+                List.copyOf(statusHistory));
     }
 
     @Transactional(isolation = Isolation.READ_COMMITTED)
@@ -295,10 +309,28 @@ public class ApplicationResultService {
             throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "A later deadline and reason are required");
         }
         application.setAcceptanceDeadline(newDeadline);
+        application.setOfferReminderQueuedAt(null);
         applications.save(application);
         recordHistory(application, ApplicationStatus.Success, ApplicationStatus.Success, admin.getRole(),
                 admin.getId(), reason.trim(), now);
         notifications.notifyOfferDeadlineExtended(application);
+        return true;
+    }
+
+    @Transactional(isolation = Isolation.READ_COMMITTED)
+    public boolean sendOfferReminder(String applicationNumber) {
+        Application application = applications.findLockedByApplicationNumber(applicationNumber).orElse(null);
+        if (application == null || application.getAcademicYear().getStatus() == AcademicYearStatus.ARCHIVED
+                || application.getStatus() != ApplicationStatus.Success || application.getRespondedAt() != null
+                || application.getAcceptanceDeadline() == null || application.getOfferReminderQueuedAt() != null) {
+            return false;
+        }
+        LocalDateTime now = LocalDateTime.now(HONG_KONG);
+        if (!application.getAcceptanceDeadline().isAfter(now)
+                || application.getAcceptanceDeadline().isAfter(now.plusHours(48))) return false;
+        application.setOfferReminderQueuedAt(now);
+        applications.save(application);
+        notifications.notifyOfferReminder(application);
         return true;
     }
 

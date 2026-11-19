@@ -10,6 +10,7 @@ import lombok.AccessLevel;
 import org.hibernate.annotations.UpdateTimestamp;
 
 import java.time.LocalDateTime;
+import java.time.ZoneId;
 import java.util.Objects;
 
 @Entity
@@ -63,7 +64,7 @@ public class Application {
     private boolean manualIdentityReviewRequired;
 
     @Column(name = "submitted_at", nullable = false, updatable = false)
-    private LocalDateTime submittedAt = LocalDateTime.now();
+    private LocalDateTime submittedAt = LocalDateTime.now(ZoneId.of("Asia/Hong_Kong"));
 
     @Column(name = "declarations_accepted_at")
     private LocalDateTime declarationsAcceptedAt;
@@ -73,6 +74,9 @@ public class Application {
 
     @Column(name = "acceptance_deadline")
     private LocalDateTime acceptanceDeadline;
+
+    @Column(name = "offer_reminder_queued_at")
+    private LocalDateTime offerReminderQueuedAt;
 
     @Column(name = "responded_at")
     private LocalDateTime respondedAt;

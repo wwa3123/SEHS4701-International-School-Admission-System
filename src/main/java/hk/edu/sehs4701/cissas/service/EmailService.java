@@ -37,6 +37,10 @@ public class EmailService {
         emailLog.setMember(request.member());
         emailLog.setApplication(request.application());
         emailLog.setTemplateType(request.templateType());
+        if (request.templateType() == EmailTemplateType.OFFER_48_HOUR_REMINDER
+                && request.application() != null) {
+            emailLog.setOfferDeadlineSnapshot(request.application().getAcceptanceDeadline());
+        }
         emailLog.setRecipientEmail(request.recipientEmail());
         emailLog.setApplicantName(request.applicantName());
         emailLog.setApplicationNumber(request.applicationNumber());
@@ -138,7 +142,8 @@ public class EmailService {
     @Transactional(readOnly = true)
     public Long retryUnsentApplicationEmails(Long afterId) {
         Slice<Long> emails = emailLogRepository.findUnsentApplicationEmailHeads(
-                EmailSendAttemptService.UNSENT, EmailSendAttemptService.APPLICATION_EMAILS, afterId, PageRequest.of(0, 100));
+                EmailSendAttemptService.UNSENT, EmailSendAttemptService.APPLICATION_EMAILS,
+                EmailSendAttemptService.INDEPENDENT_APPLICATION_EMAILS, afterId, PageRequest.of(0, 100));
         emails.forEach(id -> eventPublisher.publishEvent(new EmailSendRequestedEvent(id, null)));
         return emails.hasNext() ? emails.getContent().getLast() : null;
     }

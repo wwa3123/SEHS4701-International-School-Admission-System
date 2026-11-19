@@ -1,6 +1,7 @@
 package hk.edu.sehs4701.cissas.service;
 
 import hk.edu.sehs4701.cissas.dto.request.EmailDispatchRequest;
+import hk.edu.sehs4701.cissas.entity.Application;
 import hk.edu.sehs4701.cissas.entity.EmailLog;
 import hk.edu.sehs4701.cissas.entity.Member;
 import hk.edu.sehs4701.cissas.enums.EmailTemplateType;
@@ -22,11 +23,33 @@ import static org.mockito.Mockito.*;
 
 class EmailServiceTest {
     @Test
+    void storesTheOfferDeadlineSnapshotWithReminderEmail() {
+        EmailLogRepository repository = mock(EmailLogRepository.class);
+        Application application = new Application();
+        java.time.LocalDateTime deadline = java.time.LocalDateTime.now(
+                java.time.ZoneId.of("Asia/Hong_Kong")).plusHours(24);
+        application.setAcceptanceDeadline(deadline);
+        Member member = new Member();
+        member.setEmail("member@example.com");
+        when(repository.save(any(EmailLog.class))).thenAnswer(invocation -> invocation.getArgument(0));
+
+        new EmailService(repository, mock(ApplicationEventPublisher.class)).sendAndLogEmail(
+                new EmailDispatchRequest(member, application, EmailTemplateType.OFFER_48_HOUR_REMINDER,
+                        "Applicant", "APP-1", "Respond to offer", "Reminder", "Reminder body"));
+
+        verify(repository).save(argThat(log -> deadline.equals(log.getOfferDeadlineSnapshot())));
+    }
+
+    @Test
     void acknowledgementEmailIsRecoverableButNotPartOfTheOrderedResultQueue() {
         assertFalse(EmailSendAttemptService.APPLICATION_RESULTS.contains(EmailTemplateType.APPLICATION_ACKNOWLEDGEMENT));
         assertTrue(EmailSendAttemptService.APPLICATION_EMAILS.contains(EmailTemplateType.APPLICATION_ACKNOWLEDGEMENT));
         assertTrue(EmailSendAttemptService.RECOVERABLE_APPLICATION_EMAILS
                 .contains(EmailTemplateType.APPLICATION_ACKNOWLEDGEMENT));
+        assertFalse(EmailSendAttemptService.APPLICATION_RESULTS.contains(EmailTemplateType.OFFER_48_HOUR_REMINDER));
+        assertTrue(EmailSendAttemptService.APPLICATION_EMAILS.contains(EmailTemplateType.OFFER_48_HOUR_REMINDER));
+        assertTrue(EmailSendAttemptService.RECOVERABLE_APPLICATION_EMAILS
+                .contains(EmailTemplateType.OFFER_48_HOUR_REMINDER));
     }
 
     @Test
@@ -113,7 +136,8 @@ class EmailServiceTest {
         ApplicationEventPublisher events = mock(ApplicationEventPublisher.class);
         when(repository.findUnsentApplicationEmailHeads(
                 eq(java.util.List.of(EmailDeliveryStatus.PENDING, EmailDeliveryStatus.FAILED)),
-                eq(EmailSendAttemptService.APPLICATION_EMAILS), eq(0L), eq(PageRequest.of(0, 100))))
+                eq(EmailSendAttemptService.APPLICATION_EMAILS),
+                eq(EmailSendAttemptService.INDEPENDENT_APPLICATION_EMAILS), eq(0L), eq(PageRequest.of(0, 100))))
                 .thenReturn(new SliceImpl<>(java.util.List.of(14L, 15L), PageRequest.of(0, 100), true));
 
         assertEquals(15L, new EmailService(repository, events).retryUnsentApplicationEmails(0L));

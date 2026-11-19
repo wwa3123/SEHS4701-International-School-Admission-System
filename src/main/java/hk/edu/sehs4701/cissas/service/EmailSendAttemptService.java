@@ -3,6 +3,9 @@ package hk.edu.sehs4701.cissas.service;
 import hk.edu.sehs4701.cissas.entity.EmailLog;
 import hk.edu.sehs4701.cissas.enums.EmailDeliveryStatus;
 import hk.edu.sehs4701.cissas.enums.EmailTemplateType;
+import hk.edu.sehs4701.cissas.entity.Application;
+import hk.edu.sehs4701.cissas.enums.AcademicYearStatus;
+import hk.edu.sehs4701.cissas.enums.ApplicationStatus;
 import hk.edu.sehs4701.cissas.event.EmailSendRequestedEvent;
 import hk.edu.sehs4701.cissas.repository.EmailLogRepository;
 import lombok.extern.slf4j.Slf4j;
@@ -24,18 +27,23 @@ import org.springframework.transaction.event.TransactionPhase;
 import org.springframework.transaction.event.TransactionalEventListener;
 
 import java.time.LocalDateTime;
+import java.time.ZoneId;
 import java.util.List;
 import java.util.stream.Stream;
 
 @Slf4j
 @Service
 public class EmailSendAttemptService {
+    private static final ZoneId HONG_KONG = ZoneId.of("Asia/Hong_Kong");
+
     static final List<EmailTemplateType> APPLICATION_RESULTS = List.of(
             EmailTemplateType.RESULT_ANNOUNCEMENT, EmailTemplateType.WAIT_TO_SUCCESS,
             EmailTemplateType.CORRECTED_RESULT_ANNOUNCEMENT, EmailTemplateType.APPLICATION_CANCELLATION,
             EmailTemplateType.OFFER_DEADLINE_EXTENSION);
+    static final List<EmailTemplateType> INDEPENDENT_APPLICATION_EMAILS = List.of(
+            EmailTemplateType.APPLICATION_ACKNOWLEDGEMENT, EmailTemplateType.OFFER_48_HOUR_REMINDER);
     static final List<EmailTemplateType> APPLICATION_EMAILS = Stream.concat(
-            Stream.of(EmailTemplateType.APPLICATION_ACKNOWLEDGEMENT), APPLICATION_RESULTS.stream()).toList();
+            INDEPENDENT_APPLICATION_EMAILS.stream(), APPLICATION_RESULTS.stream()).toList();
     static final List<EmailTemplateType> RECOVERABLE_APPLICATION_EMAILS =
             Stream.concat(APPLICATION_EMAILS.stream(), Stream.of(EmailTemplateType.APPLICATION_DUPLICATE_ALERT)).toList();
     static final List<EmailDeliveryStatus> UNSENT = List.of(EmailDeliveryStatus.PENDING, EmailDeliveryStatus.FAILED);
@@ -85,6 +93,19 @@ public class EmailSendAttemptService {
         if (emailLog.getStatus() != EmailDeliveryStatus.PENDING
                 && !(emailLog.getStatus() == EmailDeliveryStatus.FAILED
                 && RECOVERABLE_APPLICATION_EMAILS.contains(emailLog.getTemplateType()))) return;
+        if (emailLog.getTemplateType() == EmailTemplateType.OFFER_48_HOUR_REMINDER) {
+            Application application = emailLogRepository.findLockedApplicationForEmailLog(emailLogId).orElse(null);
+            if (application == null || application.getStatus() != ApplicationStatus.Success
+                    || application.getAcademicYear().getStatus() == AcademicYearStatus.ARCHIVED
+                    || application.getRespondedAt() != null
+                    || application.getAcceptanceDeadline() == null
+                    || !application.getAcceptanceDeadline().isAfter(LocalDateTime.now(HONG_KONG))
+                    || !application.getAcceptanceDeadline().equals(emailLog.getOfferDeadlineSnapshot())) {
+                emailLog.setStatus(EmailDeliveryStatus.SKIPPED);
+                emailLog.setErrorMessage("Offer changed or is no longer eligible for reminder delivery.");
+                return;
+            }
+        }
         boolean oneTimeCodeEmail = emailLog.getTemplateType() == EmailTemplateType.OTC_VERIFICATION
                 || emailLog.getTemplateType() == EmailTemplateType.PASSWORD_RESET_CODE;
         int expiryMinutes = emailLog.getTemplateType() == EmailTemplateType.PASSWORD_RESET_CODE

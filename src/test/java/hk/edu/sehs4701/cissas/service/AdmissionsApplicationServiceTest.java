@@ -53,6 +53,16 @@ class AdmissionsApplicationServiceTest {
     private ProgrammeLevel programmeLevel;
     private ApplicationSubmissionRequest request;
 
+    @Test
+    void applicationSubmissionTimestampUsesHongKongLocalTime() {
+        LocalDateTime before = LocalDateTime.now(ZoneId.of("Asia/Hong_Kong"));
+        Application application = new Application();
+        LocalDateTime after = LocalDateTime.now(ZoneId.of("Asia/Hong_Kong"));
+
+        assertFalse(application.getSubmittedAt().isBefore(before));
+        assertFalse(application.getSubmittedAt().isAfter(after));
+    }
+
     @BeforeEach
     void setUp() {
         LocalDate today = LocalDate.now(ZoneId.of("Asia/Hong_Kong"));

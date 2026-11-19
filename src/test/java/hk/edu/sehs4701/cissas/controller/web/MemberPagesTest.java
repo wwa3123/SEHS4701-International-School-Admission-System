@@ -104,8 +104,14 @@ class MemberPagesTest {
         when(results.memberApplications(1L, 0, 25)).thenReturn(
                 new SliceImpl<>(List.of(new MemberApplication("APP-1", "Secondary 1")), PageRequest.of(0, 25), true));
         when(results.memberResult(1L, "APP-1")).thenReturn(new MemberApplicationResult(
-                "APP-1", "Secondary 1", ApplicationStatus.Success, LocalDateTime.now(),
-                LocalDateTime.now().plusDays(7), false));
+                "APP-1", "2026/27", "Secondary 1", "Jane Doe", LocalDate.of(2018, 1, 1), "Female",
+                "12345678", "Example School", IdentityDocumentType.PASSPORT, "P123456", "HK",
+                ApplicationStatus.Success, LocalDateTime.now(), LocalDateTime.now(), LocalDateTime.now(),
+                LocalDateTime.now().plusDays(7), false, List.of(
+                        new MemberApplicationResult.StatusChange(null, ApplicationStatus.Pending,
+                                ActorRole.ROLE_MEMBER, "Application submitted", LocalDateTime.now()),
+                        new MemberApplicationResult.StatusChange(ApplicationStatus.Pending, ApplicationStatus.Success,
+                                ActorRole.ROLE_ADMIN, "Result released", LocalDateTime.now()))));
         when(years.getActiveAcademicYear()).thenReturn(
                 new AcademicYearResponse(1L, "Year", LocalDate.now(), null, AcademicYearStatus.ACTIVE));
         when(levels.list(1L)).thenReturn(List.of(new ProgrammeLevelResponse(
@@ -137,6 +143,17 @@ class MemberPagesTest {
                 .andExpect(content().string(org.hamcrest.Matchers.not(org.hamcrest.Matchers.containsString("DO-NOT-ECHO-ME"))));
         mvc.perform(post("/login").with(csrf()).param("email", "invalid"))
                 .andExpect(status().isBadRequest()).andExpect(view().name("auth/login"));
+    }
+
+    @Test
+    void applicationPageShowsSubmittedDetailsAndStatusHistory() throws Exception {
+        mvc.perform(get("/member/applications/APP-1").session(session))
+                .andExpect(status().isOk())
+                .andExpect(content().string(org.hamcrest.Matchers.containsString("Jane Doe")))
+                .andExpect(content().string(org.hamcrest.Matchers.containsString("P123456")))
+                .andExpect(content().string(org.hamcrest.Matchers.containsString("Example School")))
+                .andExpect(content().string(org.hamcrest.Matchers.containsString("Status history")))
+                .andExpect(content().string(org.hamcrest.Matchers.containsString("Result released")));
     }
 
     @Test
@@ -198,7 +215,11 @@ class MemberPagesTest {
     @Test
     void memberCanCancelOnlyThroughTheOwnedApplicationRoute() throws Exception {
         when(results.memberResult(1L, "APP-1")).thenReturn(new MemberApplicationResult(
-                "APP-1", "Secondary 1", ApplicationStatus.Pending, null, null, true));
+                "APP-1", "2026/27", "Secondary 1", "Jane Doe", LocalDate.of(2018, 1, 1), "Female",
+                "12345678", "Example School", IdentityDocumentType.PASSPORT, "P123456", "HK",
+                ApplicationStatus.Pending, LocalDateTime.now(), LocalDateTime.now(), null, null, true,
+                List.of(new MemberApplicationResult.StatusChange(null, ApplicationStatus.Pending,
+                        ActorRole.ROLE_MEMBER, "Application submitted", LocalDateTime.now()))));
         mvc.perform(get("/member/applications/APP-1").session(session))
                 .andExpect(status().isOk()).andExpect(content().string(
                         org.hamcrest.Matchers.containsString("Cancel application")));

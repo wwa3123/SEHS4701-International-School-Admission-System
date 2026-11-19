@@ -57,6 +57,8 @@ class ApplicationResultServiceTest {
         application.setApplicationNumber("APP-1");
         application.setStatus(ApplicationStatus.Pending);
         application.setMember(member);
+        application.setSubmittedAt(LocalDateTime.of(2026, 9, 1, 10, 0));
+        application.setDeclarationsAcceptedAt(LocalDateTime.of(2026, 9, 1, 9, 59));
         application.setApplicantSnapshot(new hk.edu.sehs4701.cissas.entity.ApplicantSnapshot(
                 "Example", LocalDate.of(2018, 1, 1), "Unspecified", "123", "School",
                 IdentityDocumentType.HKID, "123456", null));
@@ -67,6 +69,7 @@ class ApplicationResultServiceTest {
         application.setProgrammeLevel(level);
         AcademicYear year = new AcademicYear();
         year.setId(8L);
+        year.setName("2026/27");
         year.setStatus(AcademicYearStatus.ACTIVE);
         application.setAcademicYear(year);
         when(admins.findById(42L)).thenReturn(Optional.of(admin));
@@ -282,6 +285,30 @@ class ApplicationResultServiceTest {
     }
 
     @Test
+    void memberResultIncludesSubmittedSnapshotAndOrderedStatusHistory() {
+        StatusHistory transition = new StatusHistory();
+        transition.setFromStatus(ApplicationStatus.Pending);
+        transition.setToStatus(ApplicationStatus.Wait);
+        transition.setChangedByRole(ActorRole.ROLE_ADMIN);
+        transition.setRemarks("Waiting list");
+        transition.setChangedAt(LocalDateTime.of(2026, 10, 1, 12, 0));
+        when(history.findAllByApplication_IdOrderByChangedAtAsc(1L)).thenReturn(List.of(transition));
+
+        var result = service.memberResult(5L, "APP-1");
+
+        assertEquals("Example", result.applicantName());
+        assertEquals("2026/27", result.academicYear());
+        assertEquals("123", result.phone());
+        assertEquals(IdentityDocumentType.HKID, result.identityDocumentType());
+        assertEquals("123456", result.identityDocumentNumber());
+        assertEquals(LocalDateTime.of(2026, 9, 1, 10, 0), result.submittedAt());
+        assertEquals(2, result.statusHistory().size());
+        assertEquals(ApplicationStatus.Pending, result.statusHistory().getFirst().toStatus());
+        assertEquals(ApplicationStatus.Wait, result.statusHistory().get(1).toStatus());
+        assertEquals("Waiting list", result.statusHistory().get(1).remarks());
+    }
+
+    @Test
     void administratorsCanListAndFilterApplications() {
         when(levels.existsById(7L)).thenReturn(true);
         when(applications.findForAdministration(eq(7L), eq(ApplicationStatus.Pending), any(LocalDateTime.class), eq(PageRequest.of(0, 25))))
@@ -441,12 +468,45 @@ class ApplicationResultServiceTest {
     void deadlineExtensionRequiresUnexpiredOfferAndPersistsReason() {
         application.setStatus(ApplicationStatus.Success);
         application.setAcceptanceDeadline(LocalDateTime.now(ZoneId.of("Asia/Hong_Kong")).plusHours(1));
+        application.setOfferReminderQueuedAt(LocalDateTime.now(ZoneId.of("Asia/Hong_Kong")).minusHours(1));
         LocalDateTime extended = application.getAcceptanceDeadline().plusHours(2);
         assertTrue(service.extendDeadline(42L, "APP-1", extended, "System fault"));
         assertEquals(extended, application.getAcceptanceDeadline());
+        assertNull(application.getOfferReminderQueuedAt());
         verify(history).save(argThat(entry -> entry.getFromStatus() == ApplicationStatus.Success
                 && entry.getToStatus() == ApplicationStatus.Success && "System fault".equals(entry.getRemarks())));
         verify(notifications).notifyOfferDeadlineExtended(application);
+    }
+
+    @Test
+    void offerReminderQueuesOnlyOnceForAnUnansweredOfferWithin48Hours() {
+        application.setStatus(ApplicationStatus.Success);
+        application.setAcceptanceDeadline(LocalDateTime.now(ZoneId.of("Asia/Hong_Kong")).plusHours(24));
+
+        assertTrue(service.sendOfferReminder("APP-1"));
+        assertNotNull(application.getOfferReminderQueuedAt());
+        assertFalse(service.sendOfferReminder("APP-1"));
+
+        verify(applications, times(1)).save(application);
+        verify(notifications, times(1)).notifyOfferReminder(application);
+    }
+
+    @Test
+    void offerReminderSkipsExpiredRespondedAndArchivedOffers() {
+        application.setStatus(ApplicationStatus.Success);
+        application.setAcceptanceDeadline(LocalDateTime.now(ZoneId.of("Asia/Hong_Kong")).minusSeconds(1));
+        assertFalse(service.sendOfferReminder("APP-1"));
+
+        application.setAcceptanceDeadline(LocalDateTime.now(ZoneId.of("Asia/Hong_Kong")).plusHours(1));
+        application.setRespondedAt(LocalDateTime.now(ZoneId.of("Asia/Hong_Kong")));
+        assertFalse(service.sendOfferReminder("APP-1"));
+
+        application.setRespondedAt(null);
+        application.getAcademicYear().setStatus(AcademicYearStatus.ARCHIVED);
+        assertFalse(service.sendOfferReminder("APP-1"));
+
+        verify(applications, never()).save(any());
+        verify(notifications, never()).notifyOfferReminder(any());
     }
 
     @Test
