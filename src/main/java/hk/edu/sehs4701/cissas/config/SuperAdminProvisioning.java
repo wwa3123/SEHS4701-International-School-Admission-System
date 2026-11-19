@@ -21,14 +21,14 @@ public class SuperAdminProvisioning implements ApplicationRunner {
     @Override
     public void run(ApplicationArguments args) {
         if (Arrays.asList(args.getSourceArgs()).contains("--recover-super-admin")) {
-            accounts.recoverSuperAdmin(environment.getProperty("CISSAS_RECOVERY_EMAIL", ""),
-                    environment.getProperty("CISSAS_RECOVERY_PASSWORD", ""));
+            accounts.recoverSuperAdmin(environment.getProperty("cissas.recovery.email", ""),
+                    environment.getProperty("cissas.recovery.password", ""));
             return;
         }
         accounts.provisionSuperAdmin(new AccountRequest(
-                environment.getProperty("CISSAS_SUPER_ADMIN_EMAIL", ""),
-                environment.getProperty("CISSAS_SUPER_ADMIN_FIRST_NAME", ""),
-                environment.getProperty("CISSAS_SUPER_ADMIN_LAST_NAME", ""),
-                environment.getProperty("CISSAS_SUPER_ADMIN_PASSWORD", "")));
+                environment.getProperty("cissas.super-admin.email", ""),
+                environment.getProperty("cissas.super-admin.first-name", ""),
+                environment.getProperty("cissas.super-admin.last-name", ""),
+                environment.getProperty("cissas.super-admin.password", "")));
     }
 }

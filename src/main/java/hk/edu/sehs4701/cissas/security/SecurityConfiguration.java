@@ -44,12 +44,14 @@ public class SecurityConfiguration {
                                 "/complete-registration", "/about", "/admission-info",
                                 "/membership/register", "/membership/verify-email",
                                 "/membership/complete-registration", "/membership/success",
+                                "/password-reset",
                                 "/academic-years", "/academic-years/open-for-application",
                                 "/academic-years/{id}", "/academic-years/{id}/programme-levels",
                                 "/css/**", "/js/**", "/images/**", "/favicon.ico").permitAll()
                         .requestMatchers(HttpMethod.POST, "/login", "/logout",
                                 "/membership/register", "/membership/verify-email",
                                 "/membership/complete-registration", "/membership/resend-verification",
+                                "/password-reset/request", "/password-reset/confirm",
                                 "/api/public/auth/password-reset/request",
                                 "/api/public/auth/password-reset/confirm").permitAll()
                         .requestMatchers("/member/**").hasRole("MEMBER")

@@ -69,6 +69,7 @@ class MembershipPagesTest {
     @EnableWebMvc
     @EnableWebSecurity
     @Import({MembershipPageController.class, AuthPageController.class, MemberPageController.class,
+            MemberPasswordResetPageController.class,
             MemberIdentityDocumentPageController.class, PasswordResetController.class, PublicPageController.class,
             SecurityConfiguration.class, MemberSecurityProbe.class})
     static class TestConfiguration {
@@ -290,6 +291,41 @@ class MembershipPagesTest {
     }
 
     @Test
+    void memberPasswordResetIsAvailableThroughPublicSsrForms() throws Exception {
+        mvc.perform(get("/password-reset"))
+                .andExpect(status().isOk())
+                .andExpect(view().name("auth/password-reset"))
+                .andExpect(content().string(containsString("/password-reset/request")))
+                .andExpect(content().string(containsString("/password-reset/confirm")))
+                .andExpect(content().string(not(containsString("/api/public/auth/password-reset"))));
+
+        mvc.perform(post("/password-reset/request").with(csrf()).param("email", "member@example.com"))
+                .andExpect(redirectedUrl("/password-reset"))
+                .andExpect(flash().attributeExists("message"));
+        verify(passwordResets).requestCode("member@example.com");
+
+        mvc.perform(post("/password-reset/confirm").with(csrf())
+                        .param("email", "member@example.com").param("code", "123456")
+                        .param("newPassword", "secure-pass1"))
+                .andExpect(redirectedUrl("/login?passwordReset"));
+        verify(passwordResets).resetPassword("member@example.com", "123456", "secure-pass1");
+    }
+
+    @Test
+    void passwordResetFormDoesNotEchoSubmittedCodeOrPassword() throws Exception {
+        doThrow(new IllegalArgumentException("Invalid reset code"))
+                .when(passwordResets).resetPassword("member@example.com", "654321", "secure-pass1");
+
+        mvc.perform(post("/password-reset/confirm").with(csrf())
+                        .param("email", "member@example.com").param("code", "654321")
+                        .param("newPassword", "secure-pass1"))
+                .andExpect(status().isBadRequest())
+                .andExpect(view().name("auth/password-reset"))
+                .andExpect(content().string(not(containsString("654321"))))
+                .andExpect(content().string(not(containsString("secure-pass1"))));
+    }
+
+    @Test
     void verificationResendLimitIsShownToTheMember() throws Exception {
         doThrow(new OtcService.VerificationCodeLimitException("Verification code limit reached. Try again after an hour."))
                 .when(registrations).resendVerification("member@example.com");
@@ -434,10 +470,11 @@ class MembershipPagesTest {
     void allMutationsRequireCsrf() throws Exception {
         for (String route : new String[]{"/membership/register", "/membership/verify-email",
                 "/membership/resend-verification", "/membership/complete-registration",
+                "/password-reset/request", "/password-reset/confirm",
                 "/api/public/auth/password-reset/request", "/api/public/auth/password-reset/confirm"}) {
             mvc.perform(post(route)).andExpect(status().isForbidden());
         }
-        verifyNoInteractions(registrations);
+        verifyNoInteractions(registrations, passwordResets);
     }
 
     private void verifyEmail(MockHttpSession session) throws Exception {
