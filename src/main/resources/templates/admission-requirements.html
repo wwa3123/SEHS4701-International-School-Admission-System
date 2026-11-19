@@ -1,0 +1,96 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Admission Requirements - Christian International School</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css" rel="stylesheet">
+</head>
+<body class="bg-light">
+
+<nav class="navbar navbar-expand-lg navbar-dark bg-dark">
+    <div class="container">
+        <a class="navbar-brand" href="/">CIS Admission System</a>
+        <div class="navbar-nav ms-auto">
+            <a class="nav-link" href="/about">About</a>
+            <a class="nav-link" href="/admission-info">Admission Info</a>
+            <a class="nav-link" href="/login">Login</a>
+            <a class="nav-link" href="/register">Register</a>
+        </div>
+    </div>
+</nav>
+
+<div class="container my-5">
+    <h1 class="mb-3">Admission Requirements</h1>
+    <p class="lead text-muted mb-4">General requirements for admission to each programme level.</p>
+
+    <div class="accordion" id="requirementsAccordion">
+        <!-- S1 -->
+        <div class="accordion-item">
+            <h2 class="accordion-header">
+                <button class="accordion-button" type="button" data-bs-toggle="collapse" data-bs-target="#s1">
+                    S1 (IB MYP Year 1)
+                </button>
+            </h2>
+            <div id="s1" class="accordion-collapse collapse show" data-bs-parent="#requirementsAccordion">
+                <div class="accordion-body">
+                    Applicants should have completed primary education. Basic English proficiency is expected.
+                    Previous school reports may be required.
+                </div>
+            </div>
+        </div>
+
+        <!-- S2 - S4 -->
+        <div class="accordion-item">
+            <h2 class="accordion-header">
+                <button class="accordion-button collapsed" type="button" data-bs-toggle="collapse" data-bs-target="#s2s4">
+                    S2 – S4 (IB MYP)
+                </button>
+            </h2>
+            <div id="s2s4" class="accordion-collapse collapse" data-bs-parent="#requirementsAccordion">
+                <div class="accordion-body">
+                    Applicants should have completed the previous year level. School reports and a recommendation
+                    letter may be requested. English language ability appropriate to the grade level is required.
+                </div>
+            </div>
+        </div>
+
+        <!-- S5 -->
+        <div class="accordion-item">
+            <h2 class="accordion-header">
+                <button class="accordion-button collapsed" type="button" data-bs-toggle="collapse" data-bs-target="#s5">
+                    S5 (IB DP Year 1)
+                </button>
+            </h2>
+            <div id="s5" class="accordion-collapse collapse" data-bs-parent="#requirementsAccordion">
+                <div class="accordion-body">
+                    Successful completion of MYP Year 5 (or equivalent). Strong academic performance and
+                    English proficiency are expected. Subject prerequisites may apply for certain Higher Level subjects.
+                </div>
+            </div>
+        </div>
+
+        <!-- S6 -->
+        <div class="accordion-item">
+            <h2 class="accordion-header">
+                <button class="accordion-button collapsed" type="button" data-bs-toggle="collapse" data-bs-target="#s6">
+                    S6 (IB DP Year 2)
+                </button>
+            </h2>
+            <div id="s6" class="accordion-collapse collapse" data-bs-parent="#requirementsAccordion">
+                <div class="accordion-body">
+                    S6 is normally reserved for continuing students from S5. Admission to S6 for new students
+                    is only possible when the Super Administrator opens S6 for that admission year.
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<footer class="text-center py-4 text-muted border-top bg-white mt-5">
+    <p class="mb-0">&copy; 2026 Christian International School. All rights reserved.</p>
+</footer>
+
+<script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/js/bootstrap.bundle.min.js"></script>
+</body>
+</html>
