@@ -104,7 +104,8 @@ class MemberPagesTest {
         when(results.memberApplications(1L, 0, 25)).thenReturn(
                 new SliceImpl<>(List.of(new MemberApplication("APP-1", "Secondary 1")), PageRequest.of(0, 25), true));
         when(results.memberResult(1L, "APP-1")).thenReturn(new MemberApplicationResult(
-                "APP-1", "Secondary 1", ApplicationStatus.Success, LocalDateTime.now(), LocalDateTime.now().plusDays(7)));
+                "APP-1", "Secondary 1", ApplicationStatus.Success, LocalDateTime.now(),
+                LocalDateTime.now().plusDays(7), false));
         when(years.getActiveAcademicYear()).thenReturn(
                 new AcademicYearResponse(1L, "Year", LocalDate.now(), null, AcademicYearStatus.ACTIVE));
         when(levels.list(1L)).thenReturn(List.of(new ProgrammeLevelResponse(
@@ -173,12 +174,44 @@ class MemberPagesTest {
                         .param("applicantIdentityDocumentNumber", "P123456")
                         .param("applicantIdentityDocumentType", "PASSPORT")
                         .param("applicantIdentityDocumentIssuingCountry", "HK").param("dateOfBirth", "2018-01-01")
-                        .param("gender", "Unspecified").param("phone", "12345678").param("previousSchool", "School"))
+                        .param("gender", "Unspecified").param("phone", "12345678").param("previousSchool", "School")
+                        .param("truthDeclarationAccepted", "true").param("dataPrivacyDeclarationAccepted", "true")
+                        .param("parentGuardianDeclarationAccepted", "true"))
                 .andExpect(redirectedUrl("/member/applications"));
         verify(admissions).submitApplication(argThat(form -> form.dateOfBirth().equals(LocalDate.of(2018, 1, 1))), eq(1L));
         mvc.perform(post("/member/applications").session(session).with(csrf()).param("dateOfBirth", "not-a-date"))
                 .andExpect(status().isBadRequest()).andExpect(view().name("member/application-form"))
                 .andExpect(model().attributeHasFieldErrors("applicationForm", "dateOfBirth"));
+        mvc.perform(post("/member/applications").session(session).with(csrf())
+                        .param("levelCode", "S1").param("applicantFullName", "Applicant")
+                        .param("applicantIdentityDocumentNumber", "P123456")
+                        .param("applicantIdentityDocumentType", "PASSPORT")
+                        .param("applicantIdentityDocumentIssuingCountry", "HK").param("dateOfBirth", "2018-01-01")
+                        .param("gender", "Unspecified").param("phone", "12345678").param("previousSchool", "School")
+                        .param("truthDeclarationAccepted", "false").param("dataPrivacyDeclarationAccepted", "true")
+                        .param("parentGuardianDeclarationAccepted", "true"))
+                .andExpect(status().isBadRequest()).andExpect(view().name("member/application-form"))
+                .andExpect(model().attributeHasFieldErrors("applicationForm", "truthDeclarationAccepted"));
+        verify(admissions, times(1)).submitApplication(any(), eq(1L));
+    }
+
+    @Test
+    void memberCanCancelOnlyThroughTheOwnedApplicationRoute() throws Exception {
+        when(results.memberResult(1L, "APP-1")).thenReturn(new MemberApplicationResult(
+                "APP-1", "Secondary 1", ApplicationStatus.Pending, null, null, true));
+        mvc.perform(get("/member/applications/APP-1").session(session))
+                .andExpect(status().isOk()).andExpect(content().string(
+                        org.hamcrest.Matchers.containsString("Cancel application")));
+        mvc.perform(post("/member/applications/APP-1/cancel").session(session).with(csrf()))
+                .andExpect(redirectedUrl("/member/applications/APP-1"))
+                .andExpect(flash().attributeExists("message"));
+        verify(results).cancelPendingApplication(1L, "APP-1");
+
+        doThrow(new ResponseStatusException(HttpStatus.CONFLICT, "Only a Pending application can be cancelled"))
+                .when(results).cancelPendingApplication(1L, "APP-1");
+        mvc.perform(post("/member/applications/APP-1/cancel").session(session).with(csrf()))
+                .andExpect(redirectedUrl("/member/applications/APP-1"))
+                .andExpect(flash().attributeExists("error"));
     }
 
     @Test
@@ -285,7 +318,9 @@ class MemberPagesTest {
                 .param("levelCode", "S1").param("applicantFullName", "Applicant")
                 .param("applicantIdentityDocumentNumber", "P123456").param("applicantIdentityDocumentType", "PASSPORT")
                 .param("applicantIdentityDocumentIssuingCountry", "HK").param("dateOfBirth", "2018-01-01")
-                .param("gender", "Unspecified").param("phone", "12345678").param("previousSchool", "School");
+                .param("gender", "Unspecified").param("phone", "12345678").param("previousSchool", "School")
+                .param("truthDeclarationAccepted", "true").param("dataPrivacyDeclarationAccepted", "true")
+                .param("parentGuardianDeclarationAccepted", "true");
     }
 
     private String hidden(String html, String name) {

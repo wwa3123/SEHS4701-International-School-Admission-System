@@ -407,6 +407,37 @@ class ApplicationResultServiceTest {
     }
 
     @Test
+    void memberCancelsOwnedPendingApplicationBeforeClosingDateAndKeepsAudit() {
+        level.setApplicationEndDate(LocalDate.now(ZoneId.of("Asia/Hong_Kong")).plusDays(1));
+        application.setManualIdentityReviewRequired(true);
+
+        service.cancelPendingApplication(5L, "APP-1");
+
+        assertEquals(ApplicationStatus.Cancelled, application.getStatus());
+        assertFalse(application.isManualIdentityReviewRequired());
+        verify(applications).save(application);
+        verify(history).save(argThat(entry -> entry.getFromStatus() == ApplicationStatus.Pending
+                && entry.getToStatus() == ApplicationStatus.Cancelled
+                && entry.getChangedByRole() == ActorRole.ROLE_MEMBER
+                && entry.getChangedById() == 5L));
+        verify(notifications).notifyMemberApplicationCancelled(application);
+        assertThrows(ResponseStatusException.class, () -> service.cancelPendingApplication(5L, "APP-1"));
+        verify(notifications, times(1)).notifyMemberApplicationCancelled(application);
+    }
+
+    @Test
+    void memberCannotCancelAfterClosingDateOrCancelAnotherMembersApplication() {
+        level.setApplicationEndDate(LocalDate.now(ZoneId.of("Asia/Hong_Kong")));
+        assertEquals(HttpStatus.CONFLICT, assertThrows(ResponseStatusException.class,
+                () -> service.cancelPendingApplication(5L, "APP-1")).getStatusCode());
+        when(applications.findProgrammeLevelIdForMember("APP-1", 99L)).thenReturn(Optional.empty());
+        assertEquals(HttpStatus.NOT_FOUND, assertThrows(ResponseStatusException.class,
+                () -> service.cancelPendingApplication(99L, "APP-1")).getStatusCode());
+        verify(applications, never()).save(any());
+        verify(notifications, never()).notifyMemberApplicationCancelled(any());
+    }
+
+    @Test
     void deadlineExtensionRequiresUnexpiredOfferAndPersistsReason() {
         application.setStatus(ApplicationStatus.Success);
         application.setAcceptanceDeadline(LocalDateTime.now(ZoneId.of("Asia/Hong_Kong")).plusHours(1));

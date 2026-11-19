@@ -70,7 +70,6 @@ public interface ApplicationRepository extends JpaRepository<Application, Long> 
         where f.id <> c.id
           and f.manualIdentityReviewRequired = true
           and f.status = hk.edu.sehs4701.cissas.enums.ApplicationStatus.Pending
-          and c.status <> hk.edu.sehs4701.cissas.enums.ApplicationStatus.Cancelled
           and (:afterFlagged is null or f.id > :afterFlagged
                or (f.id = :afterFlagged and c.id > :afterCandidate))
           and f.applicantSnapshot.dateOfBirth = c.applicantSnapshot.dateOfBirth
@@ -84,8 +83,8 @@ public interface ApplicationRepository extends JpaRepository<Application, Long> 
         """)
     Slice<Object[]> findPotentialReviewPairs(Long afterFlagged, Long afterCandidate, Pageable pageable);
 
-    List<Application> findAllByStatusNotAndApplicantSnapshot_DateOfBirthAndApplicantSnapshot_NameHash(
-            ApplicationStatus status, LocalDate dateOfBirth, byte[] nameHash);
+    List<Application> findAllByApplicantSnapshot_DateOfBirthAndApplicantSnapshot_NameHash(
+            LocalDate dateOfBirth, byte[] nameHash);
 
 
     Optional<Application> findFirstByApplicant_IdAndAcademicYear_IdAndStatusNotOrderBySubmittedAtDesc(

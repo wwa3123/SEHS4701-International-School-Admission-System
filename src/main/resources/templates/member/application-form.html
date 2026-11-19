@@ -35,6 +35,15 @@
             <input id="phone" type="tel" th:field="*{phone}" required maxlength="25"></p>
         <p><label for="previousSchool">Previous school</label>
             <input id="previousSchool" th:field="*{previousSchool}" required maxlength="150"></p>
+        <fieldset>
+            <legend>Declarations</legend>
+            <p><input id="truthDeclarationAccepted" type="checkbox" th:field="*{truthDeclarationAccepted}" required>
+                <label for="truthDeclarationAccepted">I declare that the information provided is true and complete.</label></p>
+            <p><input id="dataPrivacyDeclarationAccepted" type="checkbox" th:field="*{dataPrivacyDeclarationAccepted}" required>
+                <label for="dataPrivacyDeclarationAccepted">I have read and accept the data privacy declaration.</label></p>
+            <p><input id="parentGuardianDeclarationAccepted" type="checkbox" th:field="*{parentGuardianDeclarationAccepted}" required>
+                <label for="parentGuardianDeclarationAccepted">I confirm that I am the applicant's parent or guardian, or am authorized to submit this application on their behalf.</label></p>
+        </fieldset>
         <button type="submit" th:disabled="${#lists.isEmpty(programmeLevels)}">Submit application</button>
     </form>
     <a th:href="@{/member/applications}">Back to applications</a>

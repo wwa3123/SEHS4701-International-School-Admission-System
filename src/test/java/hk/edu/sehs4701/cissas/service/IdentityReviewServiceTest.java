@@ -76,14 +76,14 @@ class IdentityReviewServiceTest {
     }
 
     @Test
-    void cannotReviewAgainstCancelledApplication() {
+    void canConfirmPossibleDuplicateAgainstCancelledApplication() {
         candidate.setStatus(ApplicationStatus.Cancelled);
 
-        assertEquals(HttpStatus.CONFLICT, assertThrows(ResponseStatusException.class,
-                () -> service.review(9L, "APP-1", "APP-2", true)).getStatusCode());
-        assertEquals(ApplicationStatus.Pending, flagged.getStatus());
-        verify(reviews, never()).saveAndFlush(any());
-        verify(notifications, never()).notifyApplicationCancelled(any());
+        service.review(9L, "APP-1", "APP-2", true);
+
+        assertEquals(ApplicationStatus.Cancelled, flagged.getStatus());
+        verify(reviews).saveAndFlush(argThat(IdentityReview::isSamePerson));
+        verify(notifications).notifyApplicationCancelled(flagged);
     }
 
     @Test
@@ -135,6 +135,16 @@ class IdentityReviewServiceTest {
     }
 
     @Test
+    void canReviewCancelledApplicationAsPossibleMatch() {
+        candidate.setStatus(ApplicationStatus.Cancelled);
+
+        service.review(9L, "APP-1", "APP-2", false);
+
+        verify(reviews).saveAndFlush(argThat(review -> !review.isSamePerson()));
+        assertFalse(flagged.isManualIdentityReviewRequired());
+    }
+
+    @Test
     void repeatedConfirmationKeepsExistingCurrentDecision() {
         IdentityReview previous = new IdentityReview(flagged, candidate, admin, true);
         existing(List.of(previous));
@@ -151,8 +161,8 @@ class IdentityReviewServiceTest {
         Application third = application(3L, "APP-3", IdentityDocumentType.HKID);
         existing(List.of(new IdentityReview(flagged, third, admin, true),
                 new IdentityReview(third, candidate, admin, false)));
-        when(applications.findAllByStatusNotAndApplicantSnapshot_DateOfBirthAndApplicantSnapshot_NameHash(
-                eq(ApplicationStatus.Cancelled), any(), any())).thenReturn(List.of(candidate));
+        when(applications.findAllByApplicantSnapshot_DateOfBirthAndApplicantSnapshot_NameHash(
+                any(), any())).thenReturn(List.of(candidate));
 
         assertFalse(service.hasPossibleDuplicate(flagged));
     }
@@ -163,6 +173,18 @@ class IdentityReviewServiceTest {
         assertEquals(1, service.pending(9L, null, 25).items().size());
         when(applications.findPotentialReviewPairs(isNull(), isNull(), any())).thenReturn(new SliceImpl<>(List.of()));
         assertTrue(service.pending(9L, null, 25).items().isEmpty());
+    }
+
+    @Test
+    void pendingReviewIncludesCancelledMatchingApplication() {
+        candidate.setStatus(ApplicationStatus.Cancelled);
+        when(applications.findPotentialReviewPairs(isNull(), isNull(), any()))
+                .thenReturn(new SliceImpl<>(java.util.Collections.singletonList(new Object[]{flagged, candidate})));
+
+        var page = service.pending(9L, null, 25);
+
+        assertEquals(1, page.items().size());
+        assertEquals("Cancelled", page.items().getFirst().possibleMatch().status());
     }
 
     @Test

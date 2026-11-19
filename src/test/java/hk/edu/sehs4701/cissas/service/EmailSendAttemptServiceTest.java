@@ -40,6 +40,7 @@ class EmailSendAttemptServiceTest {
         skipped.setStatus(EmailDeliveryStatus.SKIPPED);
         skipped.setTemplateType(EmailTemplateType.RESULT_ANNOUNCEMENT);
         when(emails.findApplicationId(1L)).thenReturn(Optional.of(7L));
+        when(emails.findTemplateType(1L)).thenReturn(Optional.of(EmailTemplateType.RESULT_ANNOUNCEMENT));
         when(emails.findFirstApplicationEmailId(eq(7L), anyCollection())).thenReturn(Optional.of(1L));
         when(emails.findLockedById(1L)).thenReturn(Optional.of(skipped));
 
@@ -70,6 +71,7 @@ class EmailSendAttemptServiceTest {
         newer.setId(2L);
         newer.setTemplateType(EmailTemplateType.CORRECTED_RESULT_ANNOUNCEMENT);
         when(emails.findApplicationId(2L)).thenReturn(Optional.of(7L));
+        when(emails.findTemplateType(2L)).thenReturn(Optional.of(EmailTemplateType.CORRECTED_RESULT_ANNOUNCEMENT));
         when(emails.findFirstApplicationEmailId(eq(7L), anyCollection())).thenReturn(Optional.of(1L));
         when(emails.findLockedById(1L)).thenReturn(Optional.of(older));
         when(emails.findLockedById(2L)).thenReturn(Optional.of(newer));
@@ -88,6 +90,67 @@ class EmailSendAttemptServiceTest {
     }
 
     @Test
+    void acknowledgementDoesNotWaitForAnUnsentResultEmail() {
+        EmailLogRepository emails = mock(EmailLogRepository.class);
+        JavaMailSender sender = mock(JavaMailSender.class);
+        EmailLog result = new EmailLog();
+        result.setId(1L);
+        result.setStatus(EmailDeliveryStatus.FAILED);
+        result.setTemplateType(EmailTemplateType.RESULT_ANNOUNCEMENT);
+        EmailLog acknowledgement = new EmailLog();
+        acknowledgement.setId(2L);
+        acknowledgement.setStatus(EmailDeliveryStatus.PENDING);
+        acknowledgement.setTemplateType(EmailTemplateType.APPLICATION_ACKNOWLEDGEMENT);
+        acknowledgement.setRecipientEmail("member@example.test");
+        acknowledgement.setSubject("Application received");
+        acknowledgement.setBody("Acknowledgement");
+        when(emails.findApplicationId(2L)).thenReturn(Optional.of(7L));
+        when(emails.findTemplateType(2L)).thenReturn(Optional.of(EmailTemplateType.APPLICATION_ACKNOWLEDGEMENT));
+        when(emails.findLockedById(2L)).thenReturn(Optional.of(acknowledgement));
+        var service = new EmailSendAttemptService(emails, sender, mock(ApplicationEventPublisher.class));
+        ReflectionTestUtils.setField(service, "fromAddress", "school@example.test");
+
+        service.attemptSmtpSend(new EmailSendRequestedEvent(2L, null));
+
+        assertEquals(EmailDeliveryStatus.SENT, acknowledgement.getStatus());
+        verify(sender).send(any(org.springframework.mail.SimpleMailMessage.class));
+        verify(emails, never()).findLockedById(1L);
+        verify(emails, never()).findFirstApplicationEmailId(anyLong(), anyCollection());
+        verify(emails, never()).findFirstByApplication_IdAndTemplateTypeInAndStatusInOrderByIdAsc(
+                anyLong(), anyCollection(), anyCollection());
+    }
+
+    @Test
+    void failedAcknowledgementDoesNotBlockLaterResultEmail() {
+        EmailLogRepository emails = mock(EmailLogRepository.class);
+        JavaMailSender sender = mock(JavaMailSender.class);
+        EmailLog result = new EmailLog();
+        result.setId(2L);
+        result.setStatus(EmailDeliveryStatus.PENDING);
+        result.setTemplateType(EmailTemplateType.RESULT_ANNOUNCEMENT);
+        result.setRecipientEmail("member@example.test");
+        result.setSubject("Admission result");
+        result.setBody("Success");
+        assertFalse(EmailSendAttemptService.APPLICATION_RESULTS.contains(
+                EmailTemplateType.APPLICATION_ACKNOWLEDGEMENT));
+        when(emails.findApplicationId(2L)).thenReturn(Optional.of(7L));
+        when(emails.findTemplateType(2L)).thenReturn(Optional.of(EmailTemplateType.RESULT_ANNOUNCEMENT));
+        when(emails.findFirstApplicationEmailId(7L, EmailSendAttemptService.APPLICATION_RESULTS))
+                .thenReturn(Optional.of(2L));
+        when(emails.findLockedById(2L)).thenReturn(Optional.of(result));
+        when(emails.findFirstByApplication_IdAndTemplateTypeInAndStatusInOrderByIdAsc(
+                7L, EmailSendAttemptService.APPLICATION_RESULTS, EmailSendAttemptService.UNSENT))
+                .thenReturn(Optional.of(result), Optional.empty());
+        var service = new EmailSendAttemptService(emails, sender, mock(ApplicationEventPublisher.class));
+        ReflectionTestUtils.setField(service, "fromAddress", "school@example.test");
+
+        service.attemptSmtpSend(new EmailSendRequestedEvent(2L, null));
+
+        assertEquals(EmailDeliveryStatus.SENT, result.getStatus());
+        verify(sender).send(any(org.springframework.mail.SimpleMailMessage.class));
+    }
+
+    @Test
     void sendsEarlierResultAndSchedulesNextAfterCommit() {
         EmailLogRepository emails = mock(EmailLogRepository.class);
         JavaMailSender sender = mock(JavaMailSender.class);
@@ -101,6 +164,7 @@ class EmailSendAttemptServiceTest {
         EmailLog newer = new EmailLog();
         newer.setId(2L);
         when(emails.findApplicationId(1L)).thenReturn(Optional.of(7L));
+        when(emails.findTemplateType(1L)).thenReturn(Optional.of(EmailTemplateType.RESULT_ANNOUNCEMENT));
         when(emails.findFirstApplicationEmailId(eq(7L), anyCollection())).thenReturn(Optional.of(1L));
         when(emails.findLockedById(1L)).thenReturn(Optional.of(older));
         when(emails.findFirstByApplication_IdAndTemplateTypeInAndStatusInOrderByIdAsc(
@@ -127,6 +191,7 @@ class EmailSendAttemptServiceTest {
         pending.setSubject("Result");
         pending.setBody("Result");
         when(emails.findApplicationId(1L)).thenReturn(Optional.of(7L));
+        when(emails.findTemplateType(1L)).thenReturn(Optional.of(EmailTemplateType.RESULT_ANNOUNCEMENT));
         when(emails.findFirstApplicationEmailId(eq(7L), anyCollection())).thenReturn(Optional.of(1L));
         when(emails.findLockedById(1L)).thenReturn(Optional.of(pending));
         when(emails.findFirstByApplication_IdAndTemplateTypeInAndStatusInOrderByIdAsc(
@@ -153,6 +218,7 @@ class EmailSendAttemptServiceTest {
         update.setId(2L);
         update.setTemplateType(EmailTemplateType.OFFER_DEADLINE_EXTENSION);
         when(emails.findApplicationId(2L)).thenReturn(Optional.of(7L));
+        when(emails.findTemplateType(2L)).thenReturn(Optional.of(EmailTemplateType.OFFER_DEADLINE_EXTENSION));
         when(emails.findFirstApplicationEmailId(eq(7L), anyCollection())).thenReturn(Optional.of(1L));
         when(emails.findLockedById(1L)).thenReturn(Optional.of(earlier));
         when(emails.findLockedById(2L)).thenReturn(Optional.of(update));
@@ -178,6 +244,7 @@ class EmailSendAttemptServiceTest {
         later.setId(2L);
         later.setTemplateType(EmailTemplateType.CORRECTED_RESULT_ANNOUNCEMENT);
         when(emails.findApplicationId(2L)).thenReturn(Optional.of(7L));
+        when(emails.findTemplateType(2L)).thenReturn(Optional.of(EmailTemplateType.CORRECTED_RESULT_ANNOUNCEMENT));
         when(emails.findFirstApplicationEmailId(eq(7L), anyCollection())).thenReturn(Optional.of(1L));
         when(emails.findLockedById(1L)).thenReturn(Optional.of(failed));
         when(emails.findLockedById(2L)).thenReturn(Optional.of(later));
@@ -206,6 +273,7 @@ class EmailSendAttemptServiceTest {
         EmailLog next = new EmailLog();
         next.setId(2L);
         when(emails.findApplicationId(1L)).thenReturn(Optional.of(7L));
+        when(emails.findTemplateType(1L)).thenReturn(Optional.of(EmailTemplateType.RESULT_ANNOUNCEMENT));
         when(emails.findFirstApplicationEmailId(eq(7L), anyCollection())).thenReturn(Optional.of(1L));
         when(emails.findLockedById(1L)).thenReturn(Optional.of(failed));
         when(emails.findFirstByApplication_IdAndTemplateTypeInAndStatusInOrderByIdAsc(
@@ -233,6 +301,7 @@ class EmailSendAttemptServiceTest {
         alert.setSubject("Possible duplicate");
         alert.setBody("Please review");
         when(emails.findApplicationId(2L)).thenReturn(Optional.of(7L));
+        when(emails.findTemplateType(2L)).thenReturn(Optional.of(EmailTemplateType.APPLICATION_DUPLICATE_ALERT));
         when(emails.findFirstApplicationEmailId(7L, EmailSendAttemptService.APPLICATION_RESULTS))
                 .thenReturn(Optional.of(1L));
         when(emails.findLockedById(1L)).thenReturn(Optional.of(result));

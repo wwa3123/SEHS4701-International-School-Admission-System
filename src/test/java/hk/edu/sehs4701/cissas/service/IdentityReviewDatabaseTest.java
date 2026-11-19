@@ -523,6 +523,17 @@ class IdentityReviewDatabaseTest {
         first.setStatus(EmailDeliveryStatus.FAILED);
         first = emailLogs.saveAndFlush(first);
         Long firstId = first.getId();
+        EmailLog acknowledgement = new EmailLog();
+        acknowledgement.setMember(owner);
+        acknowledgement.setApplication(application);
+        acknowledgement.setApplicationNumber(application.getApplicationNumber());
+        acknowledgement.setRecipientEmail(owner.getEmail());
+        acknowledgement.setTemplateType(EmailTemplateType.APPLICATION_ACKNOWLEDGEMENT);
+        acknowledgement.setActionRequired("Track application");
+        acknowledgement.setSubject("Application received");
+        acknowledgement.setBody("Acknowledgement");
+        acknowledgement.setStatus(EmailDeliveryStatus.FAILED);
+        acknowledgement = emailLogs.saveAndFlush(acknowledgement);
 
         assertThrows(IllegalStateException.class, () -> emails.skipFailedApplicationEmail(firstId, 42L, "Unavailable"));
         assertEquals(EmailDeliveryStatus.FAILED, emailLogs.findById(firstId).orElseThrow().getStatus());
@@ -539,8 +550,9 @@ class IdentityReviewDatabaseTest {
         next = emailLogs.saveAndFlush(next);
         Long nextId = next.getId();
         var queue = emailLogs.findUnsentApplicationEmailHeads(
-                EmailSendAttemptService.UNSENT, EmailSendAttemptService.APPLICATION_RESULTS,
-                firstId - 1, org.springframework.data.domain.PageRequest.of(0, 100));
+                EmailSendAttemptService.UNSENT, EmailSendAttemptService.APPLICATION_EMAILS,
+                acknowledgement.getId() - 1, org.springframework.data.domain.PageRequest.of(0, 100));
+        assertTrue(queue.getContent().contains(acknowledgement.getId()));
         assertTrue(queue.getContent().contains(firstId));
         assertFalse(queue.getContent().contains(nextId));
         emails.skipFailedApplicationEmail(firstId, 42L, "Unavailable");
@@ -551,8 +563,9 @@ class IdentityReviewDatabaseTest {
         assertNotNull(skipped.getSkippedAt());
         assertThrows(IllegalStateException.class, () -> emails.manualResend(firstId));
         var pendingQueue = emailLogs.findUnsentApplicationEmailHeads(
-                EmailSendAttemptService.UNSENT, EmailSendAttemptService.APPLICATION_RESULTS,
-                firstId - 1, org.springframework.data.domain.PageRequest.of(0, 100));
+                EmailSendAttemptService.UNSENT, EmailSendAttemptService.APPLICATION_EMAILS,
+                acknowledgement.getId() - 1, org.springframework.data.domain.PageRequest.of(0, 100));
+        assertTrue(pendingQueue.getContent().contains(acknowledgement.getId()));
         assertFalse(pendingQueue.getContent().contains(firstId));
         assertTrue(pendingQueue.getContent().contains(nextId));
     }
@@ -858,6 +871,39 @@ class IdentityReviewDatabaseTest {
             cursor = result.nextCursor();
         } while (cursor != null);
         assertTrue(found);
+    }
+
+    @Test
+    void pendingReviewIncludesCancelledPossibleMatch() {
+        Member cancelledMember = member("cancelled-match-a");
+        Member pendingMember = member("cancelled-match-b");
+        assertEquals(201, submit(request("Cancelled Match", IdentityDocumentType.HKID, "K123456(7)", null),
+                cancelledMember.getId()));
+        assertEquals(201, submit(request("Cancelled Match", IdentityDocumentType.PASSPORT, "CANCELLED-MATCH", "HK"),
+                pendingMember.getId()));
+        String cancelledNumber = applications.findAll().stream()
+                .filter(application -> application.getMember().getId().equals(cancelledMember.getId()))
+                .findFirst().orElseThrow().getApplicationNumber();
+        String pendingNumber = applications.findAll().stream()
+                .filter(application -> application.getMember().getId().equals(pendingMember.getId()))
+                .findFirst().orElseThrow().getApplicationNumber();
+        changeStatus(cancelledNumber, ApplicationStatus.Cancelled);
+
+        Admin admin = new Admin();
+        admin.setEmail("cancelled-match-admin@example.test");
+        admin.setFirstName("Admin");
+        admin.setLastName("Cancelled Match");
+        admin.setPasswordHash("test");
+        admin = admins.saveAndFlush(admin);
+
+        List<Candidate> pair = pendingPair(admin.getId(), pendingNumber, cancelledNumber);
+        assertEquals(1, pair.size());
+        assertEquals("Cancelled", pair.getFirst().possibleMatch().status());
+
+        reviewService.review(admin.getId(), pendingNumber, cancelledNumber, false);
+
+        assertFalse(applications.findByApplicationNumber(pendingNumber).orElseThrow()
+                .isManualIdentityReviewRequired());
     }
 
     @Test
@@ -1390,6 +1436,6 @@ class IdentityReviewDatabaseTest {
 
     private ApplicationSubmissionRequest request(String name, IdentityDocumentType type, String number, String country) {
         return new ApplicationSubmissionRequest(LevelCode.S1, name, number, type, country,
-                LocalDate.of(2018, 1, 1), "Unspecified", "12345678", "School");
+                LocalDate.of(2018, 1, 1), "Unspecified", "12345678", "School", true, true, true);
     }
 }

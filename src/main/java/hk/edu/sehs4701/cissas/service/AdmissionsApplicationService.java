@@ -65,6 +65,11 @@ public class AdmissionsApplicationService {
 
     @Transactional(propagation = Propagation.REQUIRES_NEW, isolation = Isolation.READ_COMMITTED)
     public void submitApplication(ApplicationSubmissionRequest applicationSubmissionRequest, Long memberId) {
+        if (applicationSubmissionRequest == null || !applicationSubmissionRequest.truthDeclarationAccepted()
+                || !applicationSubmissionRequest.dataPrivacyDeclarationAccepted()
+                || !applicationSubmissionRequest.parentGuardianDeclarationAccepted()) {
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "All application declarations must be accepted");
+        }
         identityReviewLockRepository.acquire();
 
         Member member = memberRepository.findByIdForUpdate(memberId)
@@ -153,7 +158,9 @@ public class AdmissionsApplicationService {
         application.setAcademicYear(level.getAcademicYear());
         application.setStatus(ApplicationStatus.Pending);
         application.setManualIdentityReviewRequired(manualIdentityReviewRequired);
+        application.setDeclarationsAcceptedAt(java.time.LocalDateTime.now(ZoneId.of("Asia/Hong_Kong")));
         Application savedApplication = applicationRepository.save(application);
+        notificationService.notifyApplicationAcknowledged(member, savedApplication);
         if (manualIdentityReviewRequired) {
             notificationService.notifyAdminOfPossibleDuplicate(
                     member, savedApplication, openAcademicYear.name());
@@ -165,8 +172,8 @@ public class AdmissionsApplicationService {
             Applicant applicant) {
         String normalizedName = ApplicantSnapshot.normalizeName(request.applicantFullName());
         return applicationRepository
-                .findAllByStatusNotAndApplicantSnapshot_DateOfBirthAndApplicantSnapshot_NameHash(
-                        ApplicationStatus.Cancelled, request.dateOfBirth(),
+                .findAllByApplicantSnapshot_DateOfBirthAndApplicantSnapshot_NameHash(
+                        request.dateOfBirth(),
                         ApplicantSnapshot.hashName(request.applicantFullName()))
                 .stream()
                 .filter(application -> ApplicantSnapshot.normalizeName(application.getApplicantSnapshot().getFullName())

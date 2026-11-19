@@ -21,6 +21,9 @@ public interface EmailLogRepository extends JpaRepository<EmailLog, Long> {
     @Query("select e.application.id from EmailLog e where e.id = :id")
     Optional<Long> findApplicationId(Long id);
 
+    @Query("select e.templateType from EmailLog e where e.id = :id")
+    Optional<EmailTemplateType> findTemplateType(Long id);
+
     @Lock(LockModeType.PESSIMISTIC_WRITE)
     Optional<EmailLog> findLockedById(Long id);
 
@@ -36,9 +39,11 @@ public interface EmailLogRepository extends JpaRepository<EmailLog, Long> {
             select e.id from EmailLog e
             where e.application is not null and e.status in :statuses and e.templateType in :types
               and e.id > :afterId
-              and not exists (select earlier.id from EmailLog earlier
-                  where earlier.application = e.application and earlier.id < e.id
-                    and earlier.status in :statuses and earlier.templateType in :types)
+              and (e.templateType = hk.edu.sehs4701.cissas.enums.EmailTemplateType.APPLICATION_ACKNOWLEDGEMENT
+                   or not exists (select earlier.id from EmailLog earlier
+                   where earlier.application = e.application and earlier.id < e.id
+                     and earlier.status in :statuses and earlier.templateType in :types
+                     and earlier.templateType <> hk.edu.sehs4701.cissas.enums.EmailTemplateType.APPLICATION_ACKNOWLEDGEMENT))
             order by e.id
             """)
     Slice<Long> findUnsentApplicationEmailHeads(

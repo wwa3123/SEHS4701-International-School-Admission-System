@@ -184,7 +184,36 @@ public class ApplicationResultService {
         }
         return new MemberApplicationResult(application.getApplicationNumber(),
                 application.getProgrammeLevel().getProgrammeName(), application.getStatus(),
-                application.getResultReleasedAt(), application.getAcceptanceDeadline());
+                application.getResultReleasedAt(), application.getAcceptanceDeadline(),
+                application.getStatus() == ApplicationStatus.Pending
+                        && application.getProgrammeLevel().getApplicationEndDate() != null
+                        && LocalDate.now(HONG_KONG).isBefore(application.getProgrammeLevel().getApplicationEndDate()));
+    }
+
+    @Transactional(isolation = Isolation.READ_COMMITTED)
+    public void cancelPendingApplication(Long memberId, String applicationNumber) {
+        duplicateLock.acquire();
+        Long levelId = applications.findProgrammeLevelIdForMember(applicationNumber, memberId)
+                .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Application not found"));
+        programmeLevels.findLockedById(levelId)
+                .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Programme level not found"));
+        Application application = applications.findLockedByApplicationNumberAndMember_Id(applicationNumber, memberId)
+                .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Application not found"));
+        if (application.getStatus() != ApplicationStatus.Pending) {
+            throw new ResponseStatusException(HttpStatus.CONFLICT, "Only a Pending application can be cancelled");
+        }
+        LocalDateTime now = LocalDateTime.now(HONG_KONG);
+        LocalDate closingDate = application.getProgrammeLevel().getApplicationEndDate();
+        if (closingDate == null || !LocalDate.now(HONG_KONG).isBefore(closingDate)) {
+            throw new ResponseStatusException(HttpStatus.CONFLICT,
+                    "Applications can only be cancelled before the programme closing date");
+        }
+        application.setStatus(ApplicationStatus.Cancelled);
+        application.setManualIdentityReviewRequired(false);
+        applications.save(application);
+        recordHistory(application, ApplicationStatus.Pending, ApplicationStatus.Cancelled,
+                ActorRole.ROLE_MEMBER, memberId, "Cancelled by member", now);
+        notifications.notifyMemberApplicationCancelled(application);
     }
 
     @Transactional(isolation = Isolation.READ_COMMITTED)
