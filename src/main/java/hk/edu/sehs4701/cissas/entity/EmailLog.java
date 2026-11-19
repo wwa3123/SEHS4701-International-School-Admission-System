@@ -41,6 +41,9 @@ public class EmailLog {
     @Column(name = "application_number", length = 30)
     private String applicationNumber;
 
+    @Column(name = "offer_deadline_snapshot")
+    private LocalDateTime offerDeadlineSnapshot;
+
     @Column(name = "action_required", nullable = false)
     private String actionRequired;
 

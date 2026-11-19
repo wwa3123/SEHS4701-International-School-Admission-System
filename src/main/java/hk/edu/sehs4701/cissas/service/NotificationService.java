@@ -148,6 +148,21 @@ public class NotificationService {
     }
 
     @Transactional
+    public void notifyOfferReminder(Application application) {
+        ApplicantSnapshot applicant = application.getApplicantSnapshot();
+        String actionRequired = "Log in to SAS now to accept or reject your offer before the deadline.";
+        String body = formatStandardBody(application.getMember().getFirstName(), applicant.getFullName(),
+                application.getApplicationNumber(), actionRequired,
+                "Your offer acceptance deadline is within 48 hours: " + application.getAcceptanceDeadline() + "."
+                        + "\nProgramme Level: " + application.getProgrammeLevel().getProgrammeName()
+                        + "\nCheck your current deadline in SAS in case it has changed.");
+        emailService.sendAndLogEmail(new EmailDispatchRequest(
+                application.getMember(), application, EmailTemplateType.OFFER_48_HOUR_REMINDER,
+                applicant.getFullName(), application.getApplicationNumber(), actionRequired,
+                "[CIS SAS] Offer Response Deadline Reminder", body));
+    }
+
+    @Transactional
     public void notifyOfferDeadlineExtended(Application application) {
         ApplicantSnapshot applicant = application.getApplicantSnapshot();
         String actionRequired = "Log in to SAS to check your current application status and any action required.";

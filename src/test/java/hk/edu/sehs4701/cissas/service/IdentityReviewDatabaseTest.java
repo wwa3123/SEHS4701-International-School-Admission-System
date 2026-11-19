@@ -534,6 +534,17 @@ class IdentityReviewDatabaseTest {
         acknowledgement.setBody("Acknowledgement");
         acknowledgement.setStatus(EmailDeliveryStatus.FAILED);
         acknowledgement = emailLogs.saveAndFlush(acknowledgement);
+        EmailLog reminder = new EmailLog();
+        reminder.setMember(owner);
+        reminder.setApplication(application);
+        reminder.setApplicationNumber(application.getApplicationNumber());
+        reminder.setRecipientEmail(owner.getEmail());
+        reminder.setTemplateType(EmailTemplateType.OFFER_48_HOUR_REMINDER);
+        reminder.setActionRequired("Respond to offer");
+        reminder.setSubject("Offer deadline reminder");
+        reminder.setBody("Reminder");
+        reminder.setStatus(EmailDeliveryStatus.FAILED);
+        reminder = emailLogs.saveAndFlush(reminder);
 
         assertThrows(IllegalStateException.class, () -> emails.skipFailedApplicationEmail(firstId, 42L, "Unavailable"));
         assertEquals(EmailDeliveryStatus.FAILED, emailLogs.findById(firstId).orElseThrow().getStatus());
@@ -551,8 +562,10 @@ class IdentityReviewDatabaseTest {
         Long nextId = next.getId();
         var queue = emailLogs.findUnsentApplicationEmailHeads(
                 EmailSendAttemptService.UNSENT, EmailSendAttemptService.APPLICATION_EMAILS,
+                EmailSendAttemptService.INDEPENDENT_APPLICATION_EMAILS,
                 acknowledgement.getId() - 1, org.springframework.data.domain.PageRequest.of(0, 100));
         assertTrue(queue.getContent().contains(acknowledgement.getId()));
+        assertTrue(queue.getContent().contains(reminder.getId()));
         assertTrue(queue.getContent().contains(firstId));
         assertFalse(queue.getContent().contains(nextId));
         emails.skipFailedApplicationEmail(firstId, 42L, "Unavailable");
@@ -564,6 +577,7 @@ class IdentityReviewDatabaseTest {
         assertThrows(IllegalStateException.class, () -> emails.manualResend(firstId));
         var pendingQueue = emailLogs.findUnsentApplicationEmailHeads(
                 EmailSendAttemptService.UNSENT, EmailSendAttemptService.APPLICATION_EMAILS,
+                EmailSendAttemptService.INDEPENDENT_APPLICATION_EMAILS,
                 acknowledgement.getId() - 1, org.springframework.data.domain.PageRequest.of(0, 100));
         assertTrue(pendingQueue.getContent().contains(acknowledgement.getId()));
         assertFalse(pendingQueue.getContent().contains(firstId));

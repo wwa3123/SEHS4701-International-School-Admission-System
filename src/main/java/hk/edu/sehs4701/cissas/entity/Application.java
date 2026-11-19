@@ -75,6 +75,9 @@ public class Application {
     @Column(name = "acceptance_deadline")
     private LocalDateTime acceptanceDeadline;
 
+    @Column(name = "offer_reminder_queued_at")
+    private LocalDateTime offerReminderQueuedAt;
+
     @Column(name = "responded_at")
     private LocalDateTime respondedAt;
 

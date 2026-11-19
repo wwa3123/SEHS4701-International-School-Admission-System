@@ -119,6 +119,7 @@ public class ApplicationResultService {
         application.setStatus(result);
         application.setResultReleasedAt(now);
         application.setAcceptanceDeadline(result == ApplicationStatus.Success ? now.plusHours(168) : null);
+        application.setOfferReminderQueuedAt(null);
         application.setRespondedAt(null);
         applications.save(application);
         recordHistory(application, previous, result, admin.getRole(), admin.getId(), correction ? reason.trim() : null, now);
@@ -308,10 +309,28 @@ public class ApplicationResultService {
             throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "A later deadline and reason are required");
         }
         application.setAcceptanceDeadline(newDeadline);
+        application.setOfferReminderQueuedAt(null);
         applications.save(application);
         recordHistory(application, ApplicationStatus.Success, ApplicationStatus.Success, admin.getRole(),
                 admin.getId(), reason.trim(), now);
         notifications.notifyOfferDeadlineExtended(application);
+        return true;
+    }
+
+    @Transactional(isolation = Isolation.READ_COMMITTED)
+    public boolean sendOfferReminder(String applicationNumber) {
+        Application application = applications.findLockedByApplicationNumber(applicationNumber).orElse(null);
+        if (application == null || application.getAcademicYear().getStatus() == AcademicYearStatus.ARCHIVED
+                || application.getStatus() != ApplicationStatus.Success || application.getRespondedAt() != null
+                || application.getAcceptanceDeadline() == null || application.getOfferReminderQueuedAt() != null) {
+            return false;
+        }
+        LocalDateTime now = LocalDateTime.now(HONG_KONG);
+        if (!application.getAcceptanceDeadline().isAfter(now)
+                || application.getAcceptanceDeadline().isAfter(now.plusHours(48))) return false;
+        application.setOfferReminderQueuedAt(now);
+        applications.save(application);
+        notifications.notifyOfferReminder(application);
         return true;
     }
 

@@ -468,12 +468,45 @@ class ApplicationResultServiceTest {
     void deadlineExtensionRequiresUnexpiredOfferAndPersistsReason() {
         application.setStatus(ApplicationStatus.Success);
         application.setAcceptanceDeadline(LocalDateTime.now(ZoneId.of("Asia/Hong_Kong")).plusHours(1));
+        application.setOfferReminderQueuedAt(LocalDateTime.now(ZoneId.of("Asia/Hong_Kong")).minusHours(1));
         LocalDateTime extended = application.getAcceptanceDeadline().plusHours(2);
         assertTrue(service.extendDeadline(42L, "APP-1", extended, "System fault"));
         assertEquals(extended, application.getAcceptanceDeadline());
+        assertNull(application.getOfferReminderQueuedAt());
         verify(history).save(argThat(entry -> entry.getFromStatus() == ApplicationStatus.Success
                 && entry.getToStatus() == ApplicationStatus.Success && "System fault".equals(entry.getRemarks())));
         verify(notifications).notifyOfferDeadlineExtended(application);
+    }
+
+    @Test
+    void offerReminderQueuesOnlyOnceForAnUnansweredOfferWithin48Hours() {
+        application.setStatus(ApplicationStatus.Success);
+        application.setAcceptanceDeadline(LocalDateTime.now(ZoneId.of("Asia/Hong_Kong")).plusHours(24));
+
+        assertTrue(service.sendOfferReminder("APP-1"));
+        assertNotNull(application.getOfferReminderQueuedAt());
+        assertFalse(service.sendOfferReminder("APP-1"));
+
+        verify(applications, times(1)).save(application);
+        verify(notifications, times(1)).notifyOfferReminder(application);
+    }
+
+    @Test
+    void offerReminderSkipsExpiredRespondedAndArchivedOffers() {
+        application.setStatus(ApplicationStatus.Success);
+        application.setAcceptanceDeadline(LocalDateTime.now(ZoneId.of("Asia/Hong_Kong")).minusSeconds(1));
+        assertFalse(service.sendOfferReminder("APP-1"));
+
+        application.setAcceptanceDeadline(LocalDateTime.now(ZoneId.of("Asia/Hong_Kong")).plusHours(1));
+        application.setRespondedAt(LocalDateTime.now(ZoneId.of("Asia/Hong_Kong")));
+        assertFalse(service.sendOfferReminder("APP-1"));
+
+        application.setRespondedAt(null);
+        application.getAcademicYear().setStatus(AcademicYearStatus.ARCHIVED);
+        assertFalse(service.sendOfferReminder("APP-1"));
+
+        verify(applications, never()).save(any());
+        verify(notifications, never()).notifyOfferReminder(any());
     }
 
     @Test

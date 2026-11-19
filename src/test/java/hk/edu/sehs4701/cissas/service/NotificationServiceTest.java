@@ -202,4 +202,37 @@ class NotificationServiceTest {
         assertTrue(request.body().contains("Log in to SAS to check your current application status"));
         assertTrue(request.body().contains("The deadline or result may have changed"));
     }
+
+    @Test
+    void offerReminderAsksMemberToRespondAndCheckCurrentDeadline() {
+        EmailService emailService = mock(EmailService.class);
+        NotificationService service = new NotificationService(emailService);
+        Member member = new Member();
+        member.setFirstName("Member");
+        member.setEmail("member@example.com");
+        Application application = new Application();
+        application.setMember(member);
+        application.setApplicationNumber("APP-456");
+        application.setAcceptanceDeadline(LocalDateTime.of(2026, 11, 18, 12, 0));
+        application.setApplicantSnapshot(new ApplicantSnapshot(
+                "Applicant Name", LocalDate.of(2018, 1, 1), "Unspecified",
+                "12345678", "Previous School", IdentityDocumentType.HKID, "A123456(3)", null));
+        ProgrammeLevel level = new ProgrammeLevel();
+        level.setProgrammeName("Primary");
+        application.setProgrammeLevel(level);
+
+        service.notifyOfferReminder(application);
+
+        ArgumentCaptor<EmailDispatchRequest> captured = ArgumentCaptor.forClass(EmailDispatchRequest.class);
+        verify(emailService).sendAndLogEmail(captured.capture());
+        EmailDispatchRequest request = captured.getValue();
+        assertEquals(EmailTemplateType.OFFER_48_HOUR_REMINDER, request.templateType());
+        assertEquals("member@example.com", request.recipientEmail());
+        assertTrue(request.body().contains("APP-456"));
+        assertTrue(request.body().contains("Primary"));
+        assertTrue(request.body().contains("within 48 hours"));
+        assertTrue(request.body().contains("2026-11-18T12:00"));
+        assertTrue(request.body().contains("accept or reject"));
+        assertTrue(request.body().contains("Check your current deadline in SAS"));
+    }
 }

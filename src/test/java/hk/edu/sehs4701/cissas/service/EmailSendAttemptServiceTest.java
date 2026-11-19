@@ -1,6 +1,10 @@
 package hk.edu.sehs4701.cissas.service;
 
 import hk.edu.sehs4701.cissas.entity.EmailLog;
+import hk.edu.sehs4701.cissas.entity.Application;
+import hk.edu.sehs4701.cissas.entity.AcademicYear;
+import hk.edu.sehs4701.cissas.enums.AcademicYearStatus;
+import hk.edu.sehs4701.cissas.enums.ApplicationStatus;
 import hk.edu.sehs4701.cissas.enums.EmailDeliveryStatus;
 import hk.edu.sehs4701.cissas.enums.EmailTemplateType;
 import hk.edu.sehs4701.cissas.event.EmailSendRequestedEvent;
@@ -13,11 +17,92 @@ import org.springframework.test.util.ReflectionTestUtils;
 
 import java.util.Optional;
 import java.time.LocalDateTime;
+import java.time.ZoneId;
 
 import static org.mockito.Mockito.*;
 import static org.junit.jupiter.api.Assertions.*;
 
 class EmailSendAttemptServiceTest {
+    @Test
+    void sendsReminderWhileTheOfferIsStillUnansweredAndUnchanged() {
+        EmailLogRepository emails = mock(EmailLogRepository.class);
+        JavaMailSender sender = mock(JavaMailSender.class);
+        LocalDateTime deadline = LocalDateTime.now(ZoneId.of("Asia/Hong_Kong")).plusHours(24);
+        Application application = new Application();
+        application.setStatus(ApplicationStatus.Success);
+        application.setAcceptanceDeadline(deadline);
+        AcademicYear year = new AcademicYear();
+        year.setStatus(AcademicYearStatus.ACTIVE);
+        application.setAcademicYear(year);
+        EmailLog reminder = new EmailLog();
+        reminder.setTemplateType(EmailTemplateType.OFFER_48_HOUR_REMINDER);
+        reminder.setStatus(EmailDeliveryStatus.PENDING);
+        reminder.setOfferDeadlineSnapshot(deadline);
+        reminder.setRecipientEmail("member@example.test");
+        reminder.setSubject("Offer reminder");
+        reminder.setBody("Please respond in SAS");
+        when(emails.findLockedById(1L)).thenReturn(Optional.of(reminder));
+        when(emails.findLockedApplicationForEmailLog(1L)).thenReturn(Optional.of(application));
+        var service = new EmailSendAttemptService(emails, sender, mock(ApplicationEventPublisher.class));
+        ReflectionTestUtils.setField(service, "fromAddress", "school@example.test");
+
+        service.attemptSmtpSend(new EmailSendRequestedEvent(1L, null));
+
+        assertEquals(EmailDeliveryStatus.SENT, reminder.getStatus());
+        verify(sender).send(any(org.springframework.mail.SimpleMailMessage.class));
+    }
+
+    @Test
+    void skipsReminderWhenOfferDeadlineWasExtended() {
+        EmailLogRepository emails = mock(EmailLogRepository.class);
+        JavaMailSender sender = mock(JavaMailSender.class);
+        LocalDateTime originalDeadline = LocalDateTime.now(ZoneId.of("Asia/Hong_Kong")).plusHours(24);
+        Application application = new Application();
+        application.setStatus(ApplicationStatus.Success);
+        application.setAcceptanceDeadline(originalDeadline.plusHours(12));
+        AcademicYear year = new AcademicYear();
+        year.setStatus(AcademicYearStatus.ACTIVE);
+        application.setAcademicYear(year);
+        EmailLog reminder = new EmailLog();
+        reminder.setTemplateType(EmailTemplateType.OFFER_48_HOUR_REMINDER);
+        reminder.setStatus(EmailDeliveryStatus.FAILED);
+        reminder.setOfferDeadlineSnapshot(originalDeadline);
+        when(emails.findLockedById(1L)).thenReturn(Optional.of(reminder));
+        when(emails.findLockedApplicationForEmailLog(1L)).thenReturn(Optional.of(application));
+
+        new EmailSendAttemptService(emails, sender, mock(ApplicationEventPublisher.class))
+                .attemptSmtpSend(new EmailSendRequestedEvent(1L, null));
+
+        assertEquals(EmailDeliveryStatus.SKIPPED, reminder.getStatus());
+        verifyNoInteractions(sender);
+    }
+
+    @Test
+    void skipsReminderWhenMemberHasAlreadyResponded() {
+        EmailLogRepository emails = mock(EmailLogRepository.class);
+        JavaMailSender sender = mock(JavaMailSender.class);
+        LocalDateTime deadline = LocalDateTime.now(ZoneId.of("Asia/Hong_Kong")).plusHours(24);
+        Application application = new Application();
+        application.setStatus(ApplicationStatus.Accepted);
+        application.setRespondedAt(LocalDateTime.now(ZoneId.of("Asia/Hong_Kong")));
+        application.setAcceptanceDeadline(deadline);
+        AcademicYear year = new AcademicYear();
+        year.setStatus(AcademicYearStatus.ACTIVE);
+        application.setAcademicYear(year);
+        EmailLog reminder = new EmailLog();
+        reminder.setTemplateType(EmailTemplateType.OFFER_48_HOUR_REMINDER);
+        reminder.setStatus(EmailDeliveryStatus.FAILED);
+        reminder.setOfferDeadlineSnapshot(deadline);
+        when(emails.findLockedById(1L)).thenReturn(Optional.of(reminder));
+        when(emails.findLockedApplicationForEmailLog(1L)).thenReturn(Optional.of(application));
+
+        new EmailSendAttemptService(emails, sender, mock(ApplicationEventPublisher.class))
+                .attemptSmtpSend(new EmailSendRequestedEvent(1L, null));
+
+        assertEquals(EmailDeliveryStatus.SKIPPED, reminder.getStatus());
+        verifyNoInteractions(sender);
+    }
+
     @Test
     void ignoresRecoveredEmailAlreadySentByAnotherWorker() {
         EmailLogRepository emails = mock(EmailLogRepository.class);
