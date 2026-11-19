@@ -63,6 +63,8 @@ public class MembershipPageController {
                 registrations.register(form);
             } catch (OtcService.ResendCooldownException ignored) {
                 // Keep registered, pending and unknown addresses indistinguishable.
+            } catch (OtcService.VerificationCodeLimitException ignored) {
+                // Keep registered, pending and unknown addresses indistinguishable.
             } catch (DataIntegrityViolationException ex) {
                 if (!isDuplicateKeyViolation(ex)) throw ex;
             } catch (ResponseStatusException ex) {
@@ -121,6 +123,9 @@ public class MembershipPageController {
                 registrations.resendVerification(form.email());
             } catch (OtcService.ResendCooldownException ignored) {
                 // The cooldown must not reveal whether the address is pending.
+            } catch (OtcService.VerificationCodeLimitException exception) {
+                return error(new ResponseStatusException(HttpStatus.TOO_MANY_REQUESTS, exception.getMessage()),
+                        response, model, "auth/registration-verify");
             }
         } catch (ResponseStatusException ex) {
             if (ex.getStatusCode() != HttpStatus.TOO_MANY_REQUESTS) throw ex;

@@ -17,6 +17,7 @@ import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.server.ResponseStatusException;
 
 import java.nio.charset.StandardCharsets;
+import java.time.LocalDateTime;
 import java.util.Locale;
 
 @Service
@@ -32,7 +33,7 @@ public class LoginService {
         this.hashService = hashService;
     }
 
-    @Transactional(readOnly = true)
+    @Transactional(noRollbackFor = ResponseStatusException.class)
     public LoginResult login(String email, String password, LoginAccountType accountType) {
         if (email == null || email.isBlank()
                 || password == null || password.isBlank()
@@ -43,15 +44,27 @@ public class LoginService {
 
         String normalizedEmail = email.trim().toLowerCase(Locale.ROOT);
         if (accountType == LoginAccountType.MEMBER) {
-            Member member = memberRepository.findFirstByEmailIgnoreCase(normalizedEmail).orElse(null);
+            Member member = memberRepository.findByEmailIgnoreCase(normalizedEmail).orElse(null);
             boolean passwordMatches = hashService.verifyPassword(
                     password, member == null ? null : member.getPasswordHash()
             );
-            if (member == null || member.getAccountStatus() != AccountStatus.ACTIVE || !passwordMatches) {
+            if (member == null || member.getAccountStatus() != AccountStatus.ACTIVE) {
                 throw invalidCredentials();
             }
+            LocalDateTime now = LocalDateTime.now();
+            if (member.getLoginLockedUntil() != null && member.getLoginLockedUntil().isAfter(now)) {
+                throw invalidCredentials();
+            }
+            if (member.getLoginLockedUntil() != null) member.resetLoginFailures();
+            if (!passwordMatches) {
+                int failures = member.getFailedLoginAttempts() + 1;
+                member.setFailedLoginAttempts(failures);
+                if (failures >= 5) member.setLoginLockedUntil(now.plusMinutes(15));
+                throw invalidCredentials();
+            }
+            member.resetLoginFailures();
             return new LoginResult(new LoginResponse(member.getId(), member.getEmail(), member.getFirstName(),
-                    member.getLastName(), ActorRole.ROLE_MEMBER, false), null);
+                    member.getLastName(), ActorRole.ROLE_MEMBER, false), member.getCredentialVersion());
         }
 
         Admin admin = adminRepository.findByEmailIgnoreCase(normalizedEmail).orElse(null);

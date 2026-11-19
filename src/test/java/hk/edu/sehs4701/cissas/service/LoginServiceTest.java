@@ -15,8 +15,7 @@ import org.springframework.web.server.ResponseStatusException;
 
 import java.util.Optional;
 
-import static org.junit.jupiter.api.Assertions.assertEquals;
-import static org.junit.jupiter.api.Assertions.assertThrows;
+import static org.junit.jupiter.api.Assertions.*;
 import static org.mockito.Mockito.*;
 
 class LoginServiceTest {
@@ -34,7 +33,7 @@ class LoginServiceTest {
         member.setLastName("Member");
         member.setAccountStatus(AccountStatus.ACTIVE);
         member.setPasswordHash("member-hash");
-        when(memberRepository.findFirstByEmailIgnoreCase("member@example.com")).thenReturn(Optional.of(member));
+        when(memberRepository.findByEmailIgnoreCase("member@example.com")).thenReturn(Optional.of(member));
         when(hashService.verifyPassword("valid-password", "member-hash")).thenReturn(true);
 
         assertEquals(
@@ -54,12 +53,6 @@ class LoginServiceTest {
         admin.setPasswordHash("admin-hash");
         admin.setRole(ActorRole.ROLE_SUPER_ADMIN);
         admin.setPasswordChangeRequired(true);
-        Member memberWithSameEmail = new Member();
-        memberWithSameEmail.setEmail("admin@example.com");
-        memberWithSameEmail.setAccountStatus(AccountStatus.ACTIVE);
-        memberWithSameEmail.setPasswordHash("admin-hash");
-        when(memberRepository.findFirstByEmailIgnoreCase("admin@example.com"))
-                .thenReturn(Optional.of(memberWithSameEmail));
         when(adminRepository.findByEmailIgnoreCase("admin@example.com")).thenReturn(Optional.of(admin));
         when(hashService.verifyPassword("valid-password", "admin-hash")).thenReturn(true);
 
@@ -81,7 +74,7 @@ class LoginServiceTest {
         member.setLastName("Account");
         member.setAccountStatus(AccountStatus.ACTIVE);
         member.setPasswordHash("member-hash");
-        when(memberRepository.findFirstByEmailIgnoreCase("shared@example.com")).thenReturn(Optional.of(member));
+        when(memberRepository.findByEmailIgnoreCase("shared@example.com")).thenReturn(Optional.of(member));
         when(hashService.verifyPassword("member-password", "member-hash")).thenReturn(true);
 
         LoginResponse response = service.login(
@@ -97,7 +90,18 @@ class LoginServiceTest {
         Member member = new Member();
         member.setPasswordHash("member-hash");
         member.setAccountStatus(AccountStatus.UNVERIFIED);
-        when(memberRepository.findFirstByEmailIgnoreCase("member@example.com")).thenReturn(Optional.of(member));
+        when(memberRepository.findByEmailIgnoreCase("member@example.com")).thenReturn(Optional.of(member));
+
+        assertUnauthorized(() -> service.login("member@example.com", "valid-password", LoginAccountType.MEMBER));
+        verify(hashService).verifyPassword("valid-password", "member-hash");
+    }
+
+    @Test
+    void rejectsSuspendedMemberWithGenericUnauthorizedResponse() {
+        Member member = new Member();
+        member.setPasswordHash("member-hash");
+        member.setAccountStatus(AccountStatus.SUSPENDED);
+        when(memberRepository.findByEmailIgnoreCase("member@example.com")).thenReturn(Optional.of(member));
 
         assertUnauthorized(() -> service.login("member@example.com", "valid-password", LoginAccountType.MEMBER));
         verify(hashService).verifyPassword("valid-password", "member-hash");
@@ -119,15 +123,39 @@ class LoginServiceTest {
         Member member = new Member();
         member.setPasswordHash("member-hash");
         member.setAccountStatus(AccountStatus.ACTIVE);
-        when(memberRepository.findFirstByEmailIgnoreCase("member@example.com")).thenReturn(Optional.of(member));
+        when(memberRepository.findByEmailIgnoreCase("member@example.com")).thenReturn(Optional.of(member));
         when(hashService.verifyPassword("wrong-password", "member-hash")).thenReturn(false);
 
         assertUnauthorized(() -> service.login("member@example.com", "wrong-password", LoginAccountType.MEMBER));
+        assertEquals(1, member.getFailedLoginAttempts());
+    }
+
+    @Test
+    void locksMemberAfterFiveFailuresAndResetsLockAfterSuccessfulLogin() {
+        Member member = new Member();
+        member.setId(1L);
+        member.setEmail("member@example.com");
+        member.setAccountStatus(AccountStatus.ACTIVE);
+        member.setPasswordHash("member-hash");
+        when(memberRepository.findByEmailIgnoreCase("member@example.com")).thenReturn(Optional.of(member));
+        when(hashService.verifyPassword("wrong-password", "member-hash")).thenReturn(false);
+        when(hashService.verifyPassword("valid-password", "member-hash")).thenReturn(true);
+        member.setFailedLoginAttempts(4);
+
+        assertUnauthorized(() -> service.login("member@example.com", "wrong-password", LoginAccountType.MEMBER));
+        assertEquals(5, member.getFailedLoginAttempts());
+        assertTrue(member.getLoginLockedUntil().isAfter(java.time.LocalDateTime.now().plusMinutes(14)));
+        assertUnauthorized(() -> service.login("member@example.com", "valid-password", LoginAccountType.MEMBER));
+
+        member.setLoginLockedUntil(java.time.LocalDateTime.now().minusSeconds(1));
+        service.login("member@example.com", "valid-password", LoginAccountType.MEMBER);
+        assertEquals(0, member.getFailedLoginAttempts());
+        assertNull(member.getLoginLockedUntil());
     }
 
     @Test
     void rejectsUnknownEmailAfterPerformingBothDummyPasswordChecks() {
-        when(memberRepository.findFirstByEmailIgnoreCase("unknown@example.com")).thenReturn(Optional.empty());
+        when(memberRepository.findByEmailIgnoreCase("unknown@example.com")).thenReturn(Optional.empty());
         assertUnauthorized(() -> service.login(
                 "unknown@example.com", "valid-password", LoginAccountType.MEMBER
         ));

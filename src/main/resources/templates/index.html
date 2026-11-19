@@ -33,6 +33,8 @@
         <a th:if="${session.authenticatedUserRole == 'ROLE_SUPER_ADMIN'}"
            th:href="@{/super-admin/admissions-officers}">Admissions officers</a>
         <a th:if="${session.authenticatedUserRole == 'ROLE_SUPER_ADMIN'}"
+           th:href="@{/super-admin/members}">Manage members</a>
+        <a th:if="${session.authenticatedUserRole == 'ROLE_SUPER_ADMIN'}"
            th:href="@{/super-admin/academic-years}">Manage academic years</a>
     </nav>
     <div class="p-5 mb-4 bg-white rounded-3 shadow-sm border">

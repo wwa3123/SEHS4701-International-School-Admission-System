@@ -78,10 +78,13 @@ public class EmailSendAttemptService {
         if (emailLog.getStatus() != EmailDeliveryStatus.PENDING
                 && !(emailLog.getStatus() == EmailDeliveryStatus.FAILED
                 && RECOVERABLE_APPLICATION_EMAILS.contains(emailLog.getTemplateType()))) return;
-        if (emailLog.getTemplateType() == EmailTemplateType.OTC_VERIFICATION
-                && emailLog.getCreatedAt().plusMinutes(otcExpiryMinutes).isBefore(LocalDateTime.now())) {
+        boolean oneTimeCodeEmail = emailLog.getTemplateType() == EmailTemplateType.OTC_VERIFICATION
+                || emailLog.getTemplateType() == EmailTemplateType.PASSWORD_RESET_CODE;
+        int expiryMinutes = emailLog.getTemplateType() == EmailTemplateType.PASSWORD_RESET_CODE
+                ? 15 : otcExpiryMinutes;
+        if (oneTimeCodeEmail && !emailLog.getCreatedAt().plusMinutes(expiryMinutes).isAfter(LocalDateTime.now())) {
             emailLog.setStatus(EmailDeliveryStatus.FAILED);
-            emailLog.setErrorMessage("Verification code expired before delivery; request a new code.");
+            emailLog.setErrorMessage("One-time code expired before delivery; request a new code.");
             return;
         }
         if (ordered) {

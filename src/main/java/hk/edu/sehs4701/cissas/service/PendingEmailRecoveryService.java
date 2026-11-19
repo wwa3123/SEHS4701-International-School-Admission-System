@@ -18,7 +18,7 @@ import java.time.LocalDateTime;
 
 @Service
 public class PendingEmailRecoveryService {
-    private static final String REDACTED_BODY = "[Verification code email body redacted]";
+    private static final String REDACTED_BODY = "[One-time code email body redacted]";
 
     private final EmailLogRepository emailLogRepository;
     private final ApplicationEventPublisher events;
@@ -39,6 +39,7 @@ public class PendingEmailRecoveryService {
             return;
         }
         emailLogRepository.redactBodiesByTemplateType(EmailTemplateType.OTC_VERIFICATION, REDACTED_BODY);
+        emailLogRepository.redactBodiesByTemplateType(EmailTemplateType.PASSWORD_RESET_CODE, REDACTED_BODY);
         failExpiredVerificationEmails();
     }
 
@@ -51,6 +52,13 @@ public class PendingEmailRecoveryService {
                 EmailDeliveryStatus.FAILED,
                 LocalDateTime.now().minusMinutes(otcExpiryMinutes),
                 "Verification code expired before delivery; request a new code."
+        );
+        emailLogRepository.failExpiredPendingEmailsByTemplateType(
+                EmailTemplateType.PASSWORD_RESET_CODE,
+                EmailDeliveryStatus.PENDING,
+                EmailDeliveryStatus.FAILED,
+                LocalDateTime.now().minusMinutes(15),
+                "Password reset code expired before delivery; request a new code."
         );
     }
 

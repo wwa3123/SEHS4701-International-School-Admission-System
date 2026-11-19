@@ -1,0 +1,28 @@
+<!DOCTYPE html>
+<html lang="en" xmlns:th="http://www.thymeleaf.org">
+<head><meta charset="UTF-8"><title>Members</title></head>
+<body>
+<nav><a th:href="@{/}">Home</a> <a th:href="@{/super-admin/admissions-officers}">Admissions officers</a>
+    <a th:href="@{/super-admin/academic-years}">Academic years</a></nav>
+<main>
+<h1>Member accounts</h1>
+<p role="status" th:if="${message}" th:text="${message}"></p>
+<table>
+<caption>Member accounts</caption>
+<thead><tr><th scope="col">Email</th><th scope="col">Name</th><th scope="col">Status</th><th scope="col">Action</th></tr></thead>
+<tbody><tr th:each="member : ${members.content}">
+<td th:text="${member.email}"></td><td th:text="${member.firstName + ' ' + member.lastName}"></td>
+<td th:text="${member.status}"></td>
+<td th:if="${member.status != T(hk.edu.sehs4701.cissas.enums.AccountStatus).SUSPENDED}">
+<form method="post" th:action="@{/super-admin/members/{id}/deactivate(id=${member.id})}">
+<button type="submit" th:attr="aria-label=${'Deactivate ' + member.email}">Deactivate</button>
+</form></td><td th:unless="${member.status != T(hk.edu.sehs4701.cissas.enums.AccountStatus).SUSPENDED}">No actions</td>
+</tr></tbody>
+</table>
+<nav aria-label="Member pages">
+<a th:if="${members.hasPrevious()}" th:href="@{/super-admin/members(page=${members.number - 1})}">Previous</a>
+<span th:text="${'Page ' + (members.number + 1)}"></span>
+<a th:if="${members.hasNext()}" th:href="@{/super-admin/members(page=${members.number + 1})}">Next</a>
+</nav>
+</main>
+</body></html>

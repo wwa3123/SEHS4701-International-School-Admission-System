@@ -74,7 +74,7 @@ class IdentityDocumentServiceTest {
 
         ResponseStatusException exception = assertThrows(
                 ResponseStatusException.class,
-                () -> service.createIdentityDocument(IdentityDocumentType.PASSPORT, "A123", "hk")
+                () -> service.createIdentityDocument(IdentityDocumentType.PASSPORT, "AB123", "hk")
         );
 
         assertEquals(HttpStatus.CONFLICT, exception.getStatusCode());
@@ -82,12 +82,33 @@ class IdentityDocumentServiceTest {
 
     @Test
     void requiresIssuingCountryForNonHkidDocuments() {
-        ResponseStatusException exception = assertThrows(
-                ResponseStatusException.class,
-                () -> service.createIdentityDocument(IdentityDocumentType.PASSPORT, "A123", "HKG")
-        );
+        for (String country : new String[]{null, "", "HKG", "1A"}) {
+            ResponseStatusException exception = assertThrows(
+                    ResponseStatusException.class,
+                    () -> service.createIdentityDocument(IdentityDocumentType.PASSPORT, "AB123", country)
+            );
+            assertEquals(HttpStatus.BAD_REQUEST, exception.getStatusCode());
+        }
+        verifyNoInteractions(repository, hashService);
+    }
 
-        assertEquals(HttpStatus.BAD_REQUEST, exception.getStatusCode());
+    @Test
+    void acceptsPassportNumberAtBothLengthBoundaries() {
+        when(hashService.generateDocumentNumberHash(any())).thenReturn("document-hash");
+
+        assertEquals("ABCDE", service.createIdentityDocument(IdentityDocumentType.PASSPORT, "abcde", "hk")
+                .getDocumentNumber());
+        assertEquals("ABCDEFGHIJKLMNOPQRST", service.createIdentityDocument(
+                IdentityDocumentType.PASSPORT, "ABCDEFGHIJKLMNOPQRST", "hk").getDocumentNumber());
+    }
+
+    @Test
+    void rejectsPassportNumbersOutsideLengthOrCharacterLimits() {
+        for (String number : new String[]{"AB12", "ABCDEFGHIJKLMNOPQRSTU", "AB-123", "AB１２３"}) {
+            ResponseStatusException exception = assertThrows(ResponseStatusException.class,
+                    () -> service.createIdentityDocument(IdentityDocumentType.PASSPORT, number, "HK"));
+            assertEquals(HttpStatus.BAD_REQUEST, exception.getStatusCode());
+        }
         verifyNoInteractions(repository, hashService);
     }
 }

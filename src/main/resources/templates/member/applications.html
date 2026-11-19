@@ -6,6 +6,7 @@
     <h1>My applications</h1>
     <p role="status" th:if="${message}" th:text="${message}"></p>
     <a th:href="@{/member/applications/new}">New application</a>
+    <a th:href="@{/member/identity-documents}">Manage identity documents</a>
     <p th:if="${applications.empty}">No applications on this page.</p>
     <ul>
         <li th:each="item : ${applications.content}">

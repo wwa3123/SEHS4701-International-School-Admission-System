@@ -40,11 +40,18 @@ public class IdentityDocumentService {
             if (!validateHKIDChecksum(documentNumber)) {
                 throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Invalid HKID format");
             }
-        } else if (issuingCountry == null || !issuingCountry.matches("^[A-Z]{2}$")) {
-            throw new ResponseStatusException(
-                    HttpStatus.BAD_REQUEST,
-                    "A two-letter issuing country is required for this document type"
-            );
+        } else {
+            if (documentType == IdentityDocumentType.PASSPORT
+                    && !documentNumber.matches("^[A-Za-z0-9]{5,20}$")) {
+                throw new ResponseStatusException(HttpStatus.BAD_REQUEST,
+                        "Passport number must contain 5 to 20 letters or digits");
+            }
+            if (issuingCountry == null || !issuingCountry.matches("^[A-Z]{2}$")) {
+                throw new ResponseStatusException(
+                        HttpStatus.BAD_REQUEST,
+                        "A two-letter issuing country is required for this document type"
+                );
+            }
         }
     }
 

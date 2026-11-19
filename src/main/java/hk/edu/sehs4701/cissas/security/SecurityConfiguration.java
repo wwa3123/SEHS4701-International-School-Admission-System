@@ -27,8 +27,8 @@ import java.io.IOException;
 import java.util.List;
 
 /**
- * Browser-only SSR: public registration/academic-year pages, role-protected staff/member pages,
- * and CSRF-protected POST forms. Former /api routes are not allowed.
+ * Browser-only SSR with JSON password-reset endpoints, public registration/academic-year pages,
+ * role-protected staff/member pages, and CSRF-protected POST requests.
  */
 @Configuration(proxyBeanMethods = false)
 public class SecurityConfiguration {
@@ -49,7 +49,9 @@ public class SecurityConfiguration {
                                 "/css/**", "/js/**", "/images/**", "/favicon.ico").permitAll()
                         .requestMatchers(HttpMethod.POST, "/login", "/logout",
                                 "/membership/register", "/membership/verify-email",
-                                "/membership/complete-registration", "/membership/resend-verification").permitAll()
+                                "/membership/complete-registration", "/membership/resend-verification",
+                                "/api/public/auth/password-reset/request",
+                                "/api/public/auth/password-reset/confirm").permitAll()
                         .requestMatchers("/member/**").hasRole("MEMBER")
                         .requestMatchers("/dashboard", "/my-applications", "/apply", "/applications/**")
                         .hasRole("MEMBER")
@@ -84,8 +86,12 @@ public class SecurityConfiguration {
                     && session.getAttribute("authenticatedUserRole") instanceof String role) {
                 boolean valid = false;
                 if (ActorRole.ROLE_MEMBER.name().equals(role)) {
-                    valid = members.findById(id)
-                            .filter(member -> member.getAccountStatus() == AccountStatus.ACTIVE).isPresent();
+                    valid = members.findById(id).filter(member -> {
+                        Object version = session.getAttribute("memberCredentialVersion");
+                        long sessionVersion = version instanceof Number number ? number.longValue() : 0L;
+                        return member.getAccountStatus() == AccountStatus.ACTIVE
+                                && member.getCredentialVersion() == sessionVersion;
+                    }).isPresent();
                 } else if (ActorRole.ROLE_ADMIN.name().equals(role)
                         || ActorRole.ROLE_SUPER_ADMIN.name().equals(role)) {
                     try {
@@ -100,6 +106,7 @@ public class SecurityConfiguration {
                         if (ex.getStatusCode().value() != 401 && ex.getStatusCode().value() != 403) throw ex;
                     }
                 }
+                if (!valid && ActorRole.ROLE_MEMBER.name().equals(role)) session.invalidate();
                 if (valid) {
                     SecurityContextHolder.getContext().setAuthentication(
                             UsernamePasswordAuthenticationToken.authenticated(id, null,

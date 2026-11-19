@@ -23,8 +23,7 @@ import lombok.AccessLevel;
 @Table(
         name = "identity_document",
         uniqueConstraints = {
-                @UniqueConstraint(name = "uk_identity_document_applicant_type", columnNames = {"applicant_id", "document_type"}),
-                @UniqueConstraint(name = "uk_identity_document_member_type", columnNames = {"member_id", "document_type"})
+                @UniqueConstraint(name = "uk_identity_document_applicant_type", columnNames = {"applicant_id", "document_type"})
         }
 )
 @Check(constraints = "applicant_id IS NOT NULL OR member_id IS NOT NULL")
@@ -58,6 +57,9 @@ public class IdentityDocument {
     @Column(name = "issuing_country", updatable = false, length = 2)
     private String issuingCountry;
 
+    @Column(name = "primary_document", nullable = false, columnDefinition = "boolean not null default false")
+    private boolean primaryDocument;
+
     public IdentityDocument(IdentityDocumentType documentType, String documentNumber,
                             String issuingCountry, String documentNumberHash) {
         this.documentType = documentType;
@@ -80,5 +82,9 @@ public class IdentityDocument {
             throw new IllegalStateException("Identity document cannot be linked to this member");
         }
         this.member = member;
+    }
+
+    public void setPrimaryDocument(boolean primaryDocument) {
+        this.primaryDocument = primaryDocument;
     }
 }

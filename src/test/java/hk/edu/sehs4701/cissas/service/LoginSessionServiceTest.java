@@ -42,6 +42,19 @@ class LoginSessionServiceTest {
     }
 
     @Test
+    void memberLoginStoresCredentialVersionForGlobalSessionInvalidation() {
+        MockHttpServletRequest request = new MockHttpServletRequest();
+        when(login.login("member@example.test", "password", LoginAccountType.MEMBER)).thenReturn(
+                new LoginResult(new LoginResponse(7L, "member@example.test", "Member", "User",
+                        ActorRole.ROLE_MEMBER, false), 3L));
+
+        sessions.login(new LoginRequest("member@example.test", "password", LoginAccountType.MEMBER), request);
+
+        assertEquals(3L, request.getSession().getAttribute("memberCredentialVersion"));
+        assertNull(request.getSession().getAttribute("adminCredentialVersion"));
+    }
+
+    @Test
     void rateLimitedLoginDoesNotCheckCredentialsOrCreateSession() {
         MockHttpServletRequest request = new MockHttpServletRequest();
         when(limits.resolveClientAddress(request)).thenReturn("127.0.0.1");

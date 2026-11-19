@@ -1,15 +1,21 @@
 package hk.edu.sehs4701.cissas.controller.web;
 
 import hk.edu.sehs4701.cissas.entity.Member;
+import hk.edu.sehs4701.cissas.controller.api.pub.PasswordResetController;
 import hk.edu.sehs4701.cissas.dto.response.AcademicYearResponse;
 import hk.edu.sehs4701.cissas.dto.response.ProgrammeLevelResponse;
+import hk.edu.sehs4701.cissas.dto.response.MemberIdentityDocument;
 import hk.edu.sehs4701.cissas.enums.AccountStatus;
 import hk.edu.sehs4701.cissas.enums.AcademicYearStatus;
+import hk.edu.sehs4701.cissas.enums.IdentityDocumentType;
 import hk.edu.sehs4701.cissas.enums.LevelCode;
 import hk.edu.sehs4701.cissas.repository.MemberRepository;
 import hk.edu.sehs4701.cissas.security.SecurityConfiguration;
 import hk.edu.sehs4701.cissas.service.AdminAccountService;
 import hk.edu.sehs4701.cissas.service.MembershipRegistrationService;
+import hk.edu.sehs4701.cissas.service.MemberIdentityDocumentService;
+import hk.edu.sehs4701.cissas.service.MemberSessionService;
+import hk.edu.sehs4701.cissas.service.MemberPasswordResetService;
 import hk.edu.sehs4701.cissas.service.OtcService;
 import hk.edu.sehs4701.cissas.service.RateLimitService;
 import hk.edu.sehs4701.cissas.service.AcademicYearService;
@@ -63,7 +69,8 @@ class MembershipPagesTest {
     @EnableWebMvc
     @EnableWebSecurity
     @Import({MembershipPageController.class, AuthPageController.class, MemberPageController.class,
-            PublicPageController.class, SecurityConfiguration.class, MemberSecurityProbe.class})
+            MemberIdentityDocumentPageController.class, PasswordResetController.class, PublicPageController.class,
+            SecurityConfiguration.class, MemberSecurityProbe.class})
     static class TestConfiguration {
         @Bean MembershipRegistrationService registrations() { return mock(MembershipRegistrationService.class); }
         @Bean RateLimitService limits() { return mock(RateLimitService.class); }
@@ -71,6 +78,9 @@ class MembershipPagesTest {
         @Bean AdminAccountService accounts() { return mock(AdminAccountService.class); }
         @Bean AcademicYearService years() { return mock(AcademicYearService.class); }
         @Bean ProgrammeLevelService levels() { return mock(ProgrammeLevelService.class); }
+        @Bean MemberIdentityDocumentService memberIdentityDocuments() { return mock(MemberIdentityDocumentService.class); }
+        @Bean MemberSessionService sessions() { return mock(MemberSessionService.class); }
+        @Bean MemberPasswordResetService passwordResets() { return mock(MemberPasswordResetService.class); }
         @Bean ThymeleafViewResolver views(ApplicationContext context) {
             SpringResourceTemplateResolver templates = new SpringResourceTemplateResolver();
             templates.setApplicationContext(context);
@@ -101,11 +111,14 @@ class MembershipPagesTest {
     @Autowired private AdminAccountService accounts;
     @Autowired private AcademicYearService years;
     @Autowired private ProgrammeLevelService levels;
+    @Autowired private MemberIdentityDocumentService memberIdentityDocuments;
+    @Autowired private MemberSessionService sessions;
+    @Autowired private MemberPasswordResetService passwordResets;
     private MockMvc mvc;
 
     @BeforeEach
     void setup() {
-        reset(registrations, limits, members, accounts, years, levels);
+        reset(registrations, limits, members, accounts, years, levels, memberIdentityDocuments, sessions, passwordResets);
         when(limits.resolveClientAddress(any())).thenReturn("127.0.0.1");
         mvc = MockMvcBuilders.webAppContextSetup(context).apply(springSecurity()).build();
     }
@@ -178,7 +191,7 @@ class MembershipPagesTest {
         mvc.perform(get("/membership/success")).andExpect(status().isOk())
                 .andExpect(content().string(containsString("Sign in")));
         verify(registrations).completeRegistration(eq("member@example.com"),
-                argThat(form -> form.firstName().equals("Test") && form.password().equals("secure-password")));
+                argThat(form -> form.firstName().equals("Test") && form.password().equals("secure-password1")));
         verify(limits).checkAllowed("127.0.0.1");
         verify(limits).checkAllowed("registration-verify:127.0.0.1");
     }
@@ -204,6 +217,87 @@ class MembershipPagesTest {
         verify(members, atLeast(3)).findById(7L);
         mvc.perform(get("/super-admin/admissions-officers").session(session)).andExpect(status().isForbidden());
         mvc.perform(get("/membership/verify-email")).andExpect(status().isOk()).andExpect(unauthenticated());
+    }
+
+    @Test
+    void passwordResetVersionInvalidatesExistingMemberSession() throws Exception {
+        Member member = new Member();
+        member.setAccountStatus(AccountStatus.ACTIVE);
+        member.setCredentialVersion(1L);
+        when(members.findById(7L)).thenReturn(Optional.of(member));
+        MockHttpSession session = new MockHttpSession();
+        session.setAttribute("authenticatedUserId", 7L);
+        session.setAttribute("authenticatedUserRole", "ROLE_MEMBER");
+        session.setAttribute("memberCredentialVersion", 0L);
+
+        mvc.perform(get("/member/identity-documents").session(session))
+                .andExpect(redirectedUrl("/login"));
+
+        assertTrue(session.isInvalid());
+        verifyNoInteractions(memberIdentityDocuments);
+    }
+
+    @Test
+    void memberCanManageMaskedIdentityDocuments() throws Exception {
+        Member member = new Member();
+        member.setAccountStatus(AccountStatus.ACTIVE);
+        when(members.findById(7L)).thenReturn(Optional.of(member));
+        when(sessions.memberId(any())).thenReturn(7L);
+        when(memberIdentityDocuments.list(7L)).thenReturn(List.of(
+                new MemberIdentityDocument(2L, IdentityDocumentType.PASSPORT, "****45", "HK", true)));
+        MockHttpSession session = new MockHttpSession();
+        session.setAttribute("authenticatedUserId", 7L);
+        session.setAttribute("authenticatedUserRole", "ROLE_MEMBER");
+
+        mvc.perform(get("/member/identity-documents").session(session))
+                .andExpect(status().isOk())
+                .andExpect(content().string(containsString("****45")))
+                .andExpect(content().string(not(containsString("AB12345"))))
+                .andExpect(content().string(not(containsString("Make primary"))));
+
+        mvc.perform(post("/member/identity-documents").session(session).with(csrf())
+                        .param("documentType", "PASSPORT").param("documentNumber", "AB12345")
+                        .param("issuingCountry", "HK"))
+                .andExpect(redirectedUrl("/member/identity-documents"));
+        verify(memberIdentityDocuments).add(eq(7L), argThat(form -> form.documentNumber().equals("AB12345")
+                && form.documentType() == IdentityDocumentType.PASSPORT));
+
+        mvc.perform(post("/member/identity-documents/2/primary").session(session).with(csrf()))
+                .andExpect(redirectedUrl("/member/identity-documents"));
+        verify(memberIdentityDocuments).setPrimary(7L, 2L);
+    }
+
+    @Test
+    void publicPasswordResetJsonEndpointsRequestAndConfirmCodes() throws Exception {
+        mvc.perform(post("/api/public/auth/password-reset/request").with(csrf())
+                        .contentType("application/json").content("{\"email\":\"member@example.com\"}"))
+                .andExpect(status().isAccepted());
+        verify(passwordResets).requestCode("member@example.com");
+
+        mvc.perform(post("/api/public/auth/password-reset/confirm").with(csrf())
+                        .contentType("application/json").content("""
+                                {"email":"member@example.com","code":"123456","newPassword":"secure-pass1"}
+                                """))
+                .andExpect(status().isNoContent());
+        verify(passwordResets).resetPassword("member@example.com", "123456", "secure-pass1");
+
+        mvc.perform(post("/api/public/auth/password-reset/confirm").with(csrf())
+                        .contentType("application/json").content("""
+                                {"email":"member@example.com","code":"bad","newPassword":"secure-pass1"}
+                                """))
+                .andExpect(status().isBadRequest());
+        verifyNoMoreInteractions(passwordResets);
+    }
+
+    @Test
+    void verificationResendLimitIsShownToTheMember() throws Exception {
+        doThrow(new OtcService.VerificationCodeLimitException("Verification code limit reached. Try again after an hour."))
+                .when(registrations).resendVerification("member@example.com");
+
+        mvc.perform(post("/membership/resend-verification").with(csrf()).param("email", "member@example.com"))
+                .andExpect(status().isTooManyRequests())
+                .andExpect(view().name("auth/registration-verify"))
+                .andExpect(content().string(containsString("Verification code limit reached")));
     }
 
     @Test
@@ -339,7 +433,8 @@ class MembershipPagesTest {
     @Test
     void allMutationsRequireCsrf() throws Exception {
         for (String route : new String[]{"/membership/register", "/membership/verify-email",
-                "/membership/resend-verification", "/membership/complete-registration"}) {
+                "/membership/resend-verification", "/membership/complete-registration",
+                "/api/public/auth/password-reset/request", "/api/public/auth/password-reset/confirm"}) {
             mvc.perform(post(route)).andExpect(status().isForbidden());
         }
         verifyNoInteractions(registrations);
@@ -355,7 +450,7 @@ class MembershipPagesTest {
         return post("/membership/complete-registration").session(session).with(csrf())
                 .param("firstName", "Test").param("lastName", "Member").param("email", "member@example.com")
                 .param("phoneNumber", "12345678").param("documentType", "HKID")
-                .param("documentNumber", "A123456(3)").param("password", "secure-password");
+                .param("documentNumber", "A123456(3)").param("password", "secure-password1");
     }
 
     private DataIntegrityViolationException duplicate() {
