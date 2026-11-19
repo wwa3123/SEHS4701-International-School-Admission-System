@@ -12,8 +12,8 @@ class SuperAdminProvisioningTest {
     void recoveryRunsOnlyForExplicitLocalCommand() {
         AdminAccountService accounts = mock(AdminAccountService.class);
         MockEnvironment environment = new MockEnvironment()
-                .withProperty("CISSAS_RECOVERY_EMAIL", "super@example.com")
-                .withProperty("CISSAS_RECOVERY_PASSWORD", "temporary-password");
+                .withProperty("cissas.recovery.email", "super@example.com")
+                .withProperty("cissas.recovery.password", "temporary-password");
         SuperAdminProvisioning runner = new SuperAdminProvisioning(accounts, environment);
         runner.run(new DefaultApplicationArguments("--recover-super-admin"));
         verify(accounts).recoverSuperAdmin("super@example.com", "temporary-password");
