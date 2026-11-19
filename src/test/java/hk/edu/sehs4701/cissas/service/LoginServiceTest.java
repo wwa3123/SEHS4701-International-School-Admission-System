@@ -97,6 +97,17 @@ class LoginServiceTest {
     }
 
     @Test
+    void rejectsSuspendedMemberWithGenericUnauthorizedResponse() {
+        Member member = new Member();
+        member.setPasswordHash("member-hash");
+        member.setAccountStatus(AccountStatus.SUSPENDED);
+        when(memberRepository.findByEmailIgnoreCase("member@example.com")).thenReturn(Optional.of(member));
+
+        assertUnauthorized(() -> service.login("member@example.com", "valid-password", LoginAccountType.MEMBER));
+        verify(hashService).verifyPassword("valid-password", "member-hash");
+    }
+
+    @Test
     void rejectsDeactivatedOfficer() {
         Admin admin = new Admin();
         admin.setActive(false);

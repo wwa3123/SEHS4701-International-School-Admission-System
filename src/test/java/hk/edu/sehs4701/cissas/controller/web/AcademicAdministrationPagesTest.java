@@ -50,9 +50,11 @@ class AcademicAdministrationPagesTest {
     @EnableWebMvc
     @EnableWebSecurity
     @Import({SecurityConfiguration.class, AdmissionsOfficerPageController.class,
-            SuperAdminAcademicYearPageController.class, AcademicYearPageController.class})
+            SuperAdminAcademicYearPageController.class, SuperAdminMemberPageController.class,
+            AcademicYearPageController.class})
     static class TestConfiguration {
         @Bean AdminAccountService accounts() { return mock(AdminAccountService.class); }
+        @Bean MemberAccountService memberAccounts() { return mock(MemberAccountService.class); }
         @Bean AcademicYearService years() { return mock(AcademicYearService.class); }
         @Bean ProgrammeLevelService levels() { return mock(ProgrammeLevelService.class); }
         @Bean MemberRepository members() { return mock(MemberRepository.class); }
@@ -75,6 +77,7 @@ class AcademicAdministrationPagesTest {
 
     @Autowired private WebApplicationContext context;
     @Autowired private AdminAccountService accounts;
+    @Autowired private MemberAccountService memberAccounts;
     @Autowired private AcademicYearService years;
     @Autowired private ProgrammeLevelService levels;
     private MockMvc mvc;
@@ -84,7 +87,7 @@ class AcademicAdministrationPagesTest {
 
     @BeforeEach
     void setup() {
-        reset(accounts, years, levels);
+        reset(accounts, memberAccounts, years, levels);
         mvc = MockMvcBuilders.webAppContextSetup(context).apply(springSecurity()).build();
         session = new MockHttpSession();
         session.setAttribute("authenticatedUserId", 1L);
@@ -304,8 +307,33 @@ class AcademicAdministrationPagesTest {
     }
 
     @Test
+    void onlySuperAdminCanBrowseAndDeactivateMembers() throws Exception {
+        session.setAttribute("authenticatedUserRole", "ROLE_ADMIN");
+        mvc.perform(get("/super-admin/members").session(session)).andExpect(status().isForbidden());
+        mvc.perform(post("/super-admin/members/12/deactivate").session(session).with(csrf()))
+                .andExpect(status().isForbidden());
+        verifyNoInteractions(memberAccounts);
+
+        session.setAttribute("authenticatedUserRole", "ROLE_SUPER_ADMIN");
+        when(memberAccounts.list(any())).thenReturn(new org.springframework.data.domain.PageImpl<>(List.of(
+                new MemberAccountResponse(12L, "member@example.com", "First", "Last", AccountStatus.ACTIVE))));
+        mvc.perform(get("/super-admin/members").session(session))
+                .andExpect(status().isOk()).andExpect(view().name("super-admin/members"))
+                .andExpect(header().string("Cache-Control", "no-store"))
+                .andExpect(content().string(containsString("member@example.com")))
+                .andExpect(content().string(containsString("Deactivate")));
+        mvc.perform(post("/super-admin/members/12/deactivate").session(session).with(csrf()))
+                .andExpect(status().is3xxRedirection()).andExpect(redirectedUrl("/super-admin/members"));
+        verify(memberAccounts).list(org.mockito.ArgumentMatchers.eq(
+                org.springframework.data.domain.PageRequest.of(0, 50)));
+        verify(memberAccounts).deactivate(12L);
+        verify(accounts, times(2)).requireSuperAdminForUpdate(any());
+    }
+
+    @Test
     void controllerTransactionsPreserveGuardIsolationAndQuotaAuditCommit() throws Exception {
-        for (Class<?> controller : List.of(AdmissionsOfficerPageController.class, SuperAdminAcademicYearPageController.class)) {
+        for (Class<?> controller : List.of(AdmissionsOfficerPageController.class,
+                SuperAdminAcademicYearPageController.class, SuperAdminMemberPageController.class)) {
             assertEquals(Isolation.READ_COMMITTED, controller.getAnnotation(Transactional.class).isolation());
         }
         var update = SuperAdminAcademicYearPageController.class.getMethod("updateProgramme", Long.class, Long.class,
