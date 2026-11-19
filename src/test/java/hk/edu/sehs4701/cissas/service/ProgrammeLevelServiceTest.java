@@ -4,6 +4,7 @@ import hk.edu.sehs4701.cissas.dto.response.ProgrammeLevelResponse;
 import hk.edu.sehs4701.cissas.entity.AcademicYear;
 import hk.edu.sehs4701.cissas.entity.ProgrammeLevel;
 import hk.edu.sehs4701.cissas.enums.LevelCode;
+import hk.edu.sehs4701.cissas.enums.AcademicYearStatus;
 import hk.edu.sehs4701.cissas.repository.AcademicYearRepository;
 import hk.edu.sehs4701.cissas.repository.ApplicationRepository;
 import hk.edu.sehs4701.cissas.repository.IdentityReviewLockRepository;
@@ -32,6 +33,7 @@ class ProgrammeLevelServiceTest {
     private AcademicYear year() {
         AcademicYear year = new AcademicYear();
         year.setId(1L);
+        year.setStatus(AcademicYearStatus.PLANNING);
         return year;
     }
 
@@ -66,6 +68,18 @@ class ProgrammeLevelServiceTest {
     }
 
     @Test
+    void refusesToCreateProgrammeForArchivedYear() {
+        AcademicYear archivedYear = year();
+        archivedYear.setStatus(AcademicYearStatus.ARCHIVED);
+        when(years.findById(1L)).thenReturn(Optional.of(archivedYear));
+
+        assertEquals(HttpStatus.CONFLICT, assertThrows(ResponseStatusException.class,
+                () -> service.create(1L, LevelCode.S1, "Secondary", 150,
+                        applicationStartDate, applicationEndDate)).getStatusCode());
+        verify(levels, never()).save(any());
+    }
+
+    @Test
     void updatesOnlyTheRequestedYearsProgrammeAndValidatesDates() {
         ProgrammeLevel level = new ProgrammeLevel();
         level.setId(10L);
@@ -86,6 +100,22 @@ class ProgrammeLevelServiceTest {
                 service.update(1L, 10L, " Corrected ", 100,
                         applicationStartDate, applicationEndDate));
         verify(levels, times(1)).save(level);
+    }
+
+    @Test
+    void refusesToUpdateProgrammeForArchivedYear() {
+        AcademicYear archivedYear = year();
+        archivedYear.setStatus(AcademicYearStatus.ARCHIVED);
+        ProgrammeLevel level = new ProgrammeLevel();
+        level.setId(10L);
+        level.setAcademicYear(archivedYear);
+        when(levels.findByIdAndAcademicYear_Id(10L, 1L)).thenReturn(Optional.of(level));
+
+        assertEquals(HttpStatus.CONFLICT, assertThrows(ResponseStatusException.class,
+                () -> service.update(1L, 10L, "Changed", 150,
+                        applicationStartDate, applicationEndDate)).getStatusCode());
+        verify(results, never()).expireOffersForLevel(any(), any());
+        verify(levels, never()).save(any());
     }
 
     @Test

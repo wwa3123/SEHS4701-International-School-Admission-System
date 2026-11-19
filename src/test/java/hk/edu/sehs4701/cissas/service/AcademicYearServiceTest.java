@@ -4,6 +4,7 @@ import hk.edu.sehs4701.cissas.dto.response.AcademicYearResponse;
 import hk.edu.sehs4701.cissas.entity.AcademicYear;
 import hk.edu.sehs4701.cissas.enums.AcademicYearStatus;
 import hk.edu.sehs4701.cissas.repository.AcademicYearRepository;
+import hk.edu.sehs4701.cissas.repository.ApplicationRepository;
 import hk.edu.sehs4701.cissas.repository.IdentityReviewLockRepository;
 import hk.edu.sehs4701.cissas.repository.ProgrammeLevelRepository;
 import org.junit.jupiter.api.Test;
@@ -15,16 +16,15 @@ import java.time.ZoneId;
 import java.util.List;
 import java.util.Optional;
 
-import static org.junit.jupiter.api.Assertions.assertEquals;
-import static org.junit.jupiter.api.Assertions.assertNull;
-import static org.junit.jupiter.api.Assertions.assertThrows;
+import static org.junit.jupiter.api.Assertions.*;
 import static org.mockito.Mockito.*;
 
 class AcademicYearServiceTest {
     private final AcademicYearRepository repository = mock(AcademicYearRepository.class);
+    private final ApplicationRepository applications = mock(ApplicationRepository.class);
     private final IdentityReviewLockRepository lock = mock(IdentityReviewLockRepository.class);
     private final ProgrammeLevelRepository levels = mock(ProgrammeLevelRepository.class);
-    private final AcademicYearService service = new AcademicYearService(repository, lock, levels);
+    private final AcademicYearService service = new AcademicYearService(repository, applications, lock, levels);
 
     @Test
     void listsAcademicYearsAsResponses() {
@@ -137,6 +137,9 @@ class AcademicYearServiceTest {
                 service.updateLifecycle(1L, AcademicYearStatus.ARCHIVED).status());
         assertEquals(AcademicYearStatus.ARCHIVED, year.getStatus());
         assertEquals(LocalDate.now(ZoneId.of("Asia/Hong_Kong")), year.getArchiveDate());
+        assertEquals(HttpStatus.CONFLICT, assertThrows(ResponseStatusException.class,
+                () -> service.updateLifecycle(1L, AcademicYearStatus.ACTIVE)).getStatusCode());
+        verify(repository, times(1)).save(year);
     }
 
     @Test
@@ -148,7 +151,7 @@ class AcademicYearServiceTest {
     }
 
     @Test
-    void acceptsEachSupportedLifecycleValue() {
+    void allowsTransitionsUntilArchived() {
         AcademicYear year = academicYear(1L, "2026/27");
         when(repository.findById(1L)).thenReturn(Optional.of(year));
         when(repository.save(year)).thenReturn(year);
@@ -158,8 +161,23 @@ class AcademicYearServiceTest {
             assertEquals(status, year.getStatus());
         }
         assertEquals(LocalDate.now(ZoneId.of("Asia/Hong_Kong")), year.getArchiveDate());
-        service.updateLifecycle(1L, AcademicYearStatus.ACTIVE);
+        assertEquals(HttpStatus.CONFLICT, assertThrows(ResponseStatusException.class,
+                () -> service.updateLifecycle(1L, AcademicYearStatus.PLANNING)).getStatusCode());
+        assertEquals(AcademicYearStatus.ARCHIVED, year.getStatus());
+    }
+
+    @Test
+    void refusesToArchiveYearWithPendingApplications() {
+        AcademicYear year = academicYear(1L, "2026/27");
+        when(repository.findById(1L)).thenReturn(Optional.of(year));
+        when(applications.countByAcademicYear_IdAndStatus(1L,
+                hk.edu.sehs4701.cissas.enums.ApplicationStatus.Pending)).thenReturn(1L);
+
+        assertEquals(HttpStatus.CONFLICT, assertThrows(ResponseStatusException.class,
+                () -> service.updateLifecycle(1L, AcademicYearStatus.ARCHIVED)).getStatusCode());
+        assertEquals(AcademicYearStatus.ACTIVE, year.getStatus());
         assertNull(year.getArchiveDate());
+        verify(repository, never()).save(any());
     }
 
     @Test

@@ -32,6 +32,8 @@ public interface ApplicationRepository extends JpaRepository<Application, Long> 
 
     long countByProgrammeLevel_IdAndStatusIn(Long programmeLevelId, Collection<ApplicationStatus> statuses);
 
+    long countByAcademicYear_IdAndStatus(Long academicYearId, ApplicationStatus status);
+
     List<Application> findAllByProgrammeLevel_IdAndStatus(Long programmeLevelId, ApplicationStatus status);
 
     @Query("""

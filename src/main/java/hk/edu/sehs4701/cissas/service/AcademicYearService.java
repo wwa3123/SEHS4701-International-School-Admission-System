@@ -3,7 +3,9 @@ package hk.edu.sehs4701.cissas.service;
 import hk.edu.sehs4701.cissas.dto.response.AcademicYearResponse;
 import hk.edu.sehs4701.cissas.entity.AcademicYear;
 import hk.edu.sehs4701.cissas.enums.AcademicYearStatus;
+import hk.edu.sehs4701.cissas.enums.ApplicationStatus;
 import hk.edu.sehs4701.cissas.repository.AcademicYearRepository;
+import hk.edu.sehs4701.cissas.repository.ApplicationRepository;
 import hk.edu.sehs4701.cissas.repository.IdentityReviewLockRepository;
 import hk.edu.sehs4701.cissas.repository.ProgrammeLevelRepository;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -19,13 +21,16 @@ import java.util.List;
 @Service
 public class AcademicYearService {
     private final AcademicYearRepository academicYearRepository;
+    private final ApplicationRepository applications;
     private final IdentityReviewLockRepository lock;
     private final ProgrammeLevelRepository programmeLevels;
 
     @Autowired
-    public AcademicYearService(AcademicYearRepository academicYearRepository, IdentityReviewLockRepository lock,
+    public AcademicYearService(AcademicYearRepository academicYearRepository, ApplicationRepository applications,
+                               IdentityReviewLockRepository lock,
                                ProgrammeLevelRepository programmeLevels) {
         this.academicYearRepository = academicYearRepository;
+        this.applications = applications;
         this.lock = lock;
         this.programmeLevels = programmeLevels;
     }
@@ -87,9 +92,17 @@ public class AcademicYearService {
         lock.acquire();
         AcademicYear academicYear = academicYearRepository.findById(id)
                 .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Academic year not found"));
+        if (academicYear.getStatus() == AcademicYearStatus.ARCHIVED && lifecycle != AcademicYearStatus.ARCHIVED) {
+            throw new ResponseStatusException(HttpStatus.CONFLICT, "Archived academic years are read-only");
+        }
         if (lifecycle == AcademicYearStatus.ACTIVE
                 && academicYearRepository.existsByStatusAndIdNot(AcademicYearStatus.ACTIVE, id)) {
             throw new ResponseStatusException(HttpStatus.CONFLICT, "Another academic year is active");
+        }
+        if (lifecycle == AcademicYearStatus.ARCHIVED
+                && applications.countByAcademicYear_IdAndStatus(id, ApplicationStatus.Pending) > 0) {
+            throw new ResponseStatusException(HttpStatus.CONFLICT,
+                    "Academic year cannot be archived while applications are pending");
         }
         if (lifecycle == AcademicYearStatus.ARCHIVED
                 && (academicYear.getStatus() != AcademicYearStatus.ARCHIVED || academicYear.getArchiveDate() == null)) {

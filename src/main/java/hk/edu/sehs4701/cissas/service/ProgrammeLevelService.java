@@ -3,6 +3,7 @@ package hk.edu.sehs4701.cissas.service;
 import hk.edu.sehs4701.cissas.dto.response.ProgrammeLevelResponse;
 import hk.edu.sehs4701.cissas.entity.AcademicYear;
 import hk.edu.sehs4701.cissas.entity.ProgrammeLevel;
+import hk.edu.sehs4701.cissas.enums.AcademicYearStatus;
 import hk.edu.sehs4701.cissas.enums.ApplicationStatus;
 import hk.edu.sehs4701.cissas.enums.LevelCode;
 import hk.edu.sehs4701.cissas.exception.SeatQuotaExceededException;
@@ -55,6 +56,7 @@ public class ProgrammeLevelService {
         lock.acquire();
         AcademicYear year = years.findById(yearId)
                 .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Academic year not found"));
+        ensureYearIsWritable(year);
         validateDates(applicationStartDate, applicationEndDate);
         if (levels.existsByLevelCodeAndAcademicYear_Id(code, yearId)) {
             throw new ResponseStatusException(HttpStatus.CONFLICT, "Programme level already exists for academic year");
@@ -71,6 +73,7 @@ public class ProgrammeLevelService {
         lock.acquire();
         ProgrammeLevel level = levels.findByIdAndAcademicYear_Id(levelId, yearId)
                 .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Programme level not found"));
+        ensureYearIsWritable(level.getAcademicYear());
         validateDates(applicationStartDate, applicationEndDate);
         results.expireOffersForLevel(levelId, LocalDateTime.now(ZoneId.of("Asia/Hong_Kong")));
         long offers = applications.countByProgrammeLevel_IdAndStatusIn(levelId,
@@ -84,6 +87,12 @@ public class ProgrammeLevelService {
     private void validateDates(LocalDate startDate, LocalDate endDate) {
         if (startDate == null || endDate == null || !startDate.isBefore(endDate)) {
             throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Invalid programme application period");
+        }
+    }
+
+    private void ensureYearIsWritable(AcademicYear year) {
+        if (year.getStatus() == AcademicYearStatus.ARCHIVED) {
+            throw new ResponseStatusException(HttpStatus.CONFLICT, "Archived academic years are read-only");
         }
     }
 
