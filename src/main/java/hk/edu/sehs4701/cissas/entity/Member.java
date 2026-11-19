@@ -73,7 +73,9 @@ public class Member {
     private List<IdentityDocument> identityDocuments = new ArrayList<>();
 
     public void addIdentityDocument(IdentityDocument identityDocument) {
+        boolean hasPrimary = identityDocuments.stream().anyMatch(IdentityDocument::isPrimaryDocument);
         identityDocument.attachToMember(this);
+        identityDocument.setPrimaryDocument(!hasPrimary);
         identityDocuments.add(identityDocument);
     }
 

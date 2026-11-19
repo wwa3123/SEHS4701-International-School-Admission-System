@@ -6,6 +6,7 @@ import hk.edu.sehs4701.cissas.dto.request.CreateAcademicYearRequest;
 import hk.edu.sehs4701.cissas.dto.request.PasswordChangeRequest;
 import hk.edu.sehs4701.cissas.dto.request.PasswordResetRequest;
 import hk.edu.sehs4701.cissas.dto.request.OfferDecisionRequest;
+import hk.edu.sehs4701.cissas.dto.request.MemberIdentityDocumentRequest;
 import hk.edu.sehs4701.cissas.dto.response.Candidate;
 import hk.edu.sehs4701.cissas.dto.response.CandidatePage;
 import hk.edu.sehs4701.cissas.dto.response.Decision;
@@ -72,7 +73,7 @@ class IdentityReviewDatabaseTest {
     @Import({AdmissionsApplicationService.class, IdentityReviewService.class, AcademicYearService.class,
                 ApplicationResultService.class, AdminApplicationPageController.class, EmailService.class,
                 ProgrammeLevelService.class, AdminAccountService.class, LoginService.class,
-                SuperAdminAcademicYearPageController.class,
+                SuperAdminAcademicYearPageController.class, MemberIdentityDocumentService.class,
             IdentityDocumentService.class, HashService.class, AesEncryptionConverter.class})
     static class TestConfiguration {}
 
@@ -98,6 +99,7 @@ class IdentityReviewDatabaseTest {
     @Autowired private IdentityReviewLockRepository reviewLock;
     @Autowired private IdentityDocumentRepository documents;
     @Autowired private IdentityDocumentService documentService;
+    @Autowired private MemberIdentityDocumentService memberIdentityDocuments;
     @Autowired private TransactionTemplate transactions;
 
     @DynamicPropertySource
@@ -158,6 +160,33 @@ class IdentityReviewDatabaseTest {
         assertEquals(applicantId, applications.findByApplicationNumber(applicationNumberFor(owner))
                 .orElseThrow().getApplicant().getId());
         assertEquals(applicantId, documents.findById(documentId).orElseThrow().getApplicant().getId());
+    }
+
+    @Test
+    void memberCanStoreCountryScopedPassportsAndChangePrimaryDocument() {
+        Member owner = member("multiple-documents");
+        memberIdentityDocuments.add(owner.getId(),
+                new MemberIdentityDocumentRequest(IdentityDocumentType.PASSPORT, "AB12345", "HK"));
+        memberIdentityDocuments.add(owner.getId(),
+                new MemberIdentityDocumentRequest(IdentityDocumentType.PASSPORT, "AB12345", "JP"));
+
+        var stored = memberIdentityDocuments.list(owner.getId());
+        assertEquals(2, stored.size());
+        assertTrue(stored.stream().allMatch(document -> document.maskedDocumentNumber().equals("****45")));
+        var hkPassport = stored.stream().filter(document -> "HK".equals(document.issuingCountry())).findFirst().orElseThrow();
+        var jpPassport = stored.stream().filter(document -> "JP".equals(document.issuingCountry())).findFirst().orElseThrow();
+        assertTrue(hkPassport.primary());
+        assertFalse(jpPassport.primary());
+
+        memberIdentityDocuments.setPrimary(owner.getId(), jpPassport.id());
+
+        var updated = memberIdentityDocuments.list(owner.getId());
+        assertFalse(updated.stream().filter(document -> "HK".equals(document.issuingCountry())).findFirst().orElseThrow().primary());
+        assertTrue(updated.stream().filter(document -> "JP".equals(document.issuingCountry())).findFirst().orElseThrow().primary());
+        assertEquals(HttpStatus.CONFLICT, assertThrows(ResponseStatusException.class,
+                () -> memberIdentityDocuments.add(owner.getId(),
+                        new MemberIdentityDocumentRequest(IdentityDocumentType.PASSPORT, "AB12345", "HK")))
+                .getStatusCode());
     }
 
     @Test
@@ -553,19 +582,12 @@ class IdentityReviewDatabaseTest {
     }
 
     @Test
-    void storesMaximumLengthPassportAfterUnicodeUppercaseExpansion() {
+    void rejectsPassportOutsideSupportedLengthAndCharacterSet() {
         Member owner = member("expanded-passport");
         String number = "\u0390".repeat(512);
-        assertEquals(201, submit(request("Expanded Passport", IdentityDocumentType.PASSPORT, number, "HK"),
+        assertEquals(400, submit(request("Expanded Passport", IdentityDocumentType.PASSPORT, number, "HK"),
                 owner.getId()));
-
-        String hash = documentService.getDocumentNumberHash(IdentityDocumentType.PASSPORT, number, "HK");
-        transactions.executeWithoutResult(status -> {
-            IdentityDocument stored = documents.findByDocumentNumberHash(hash).orElseThrow();
-            assertEquals(number.toUpperCase(java.util.Locale.ROOT), stored.getDocumentNumber());
-        });
-        assertEquals(number, applications.findByApplicationNumber(applicationNumberFor(owner))
-                .orElseThrow().getApplicantSnapshot().getDocumentNumber());
+        assertTrue(applications.findAll().stream().noneMatch(application -> application.getMember().getId().equals(owner.getId())));
     }
 
     @Test
@@ -1193,7 +1215,7 @@ class IdentityReviewDatabaseTest {
     void revokedSessionCannotReadEvidenceAfterWaitingForAccountLock() throws Exception {
         Member member = member("revoked-read");
         assertEquals(201, submit(request("Revoked Read", IdentityDocumentType.PASSPORT,
-                "REVOKED-READ", "HK"), member.getId()));
+                "REVOKEDREAD", "HK"), member.getId()));
         String number = applications.findAll().stream()
                 .filter(application -> application.getMember().getId().equals(member.getId()))
                 .findFirst().orElseThrow().getApplicationNumber();
@@ -1211,7 +1233,7 @@ class IdentityReviewDatabaseTest {
         request.setSession(session);
         var evidenceModel = new org.springframework.ui.ExtendedModelMap();
         applicationController.duplicateEvidence(number, request, evidenceModel);
-        assertEquals("REVOKED-READ", ((hk.edu.sehs4701.cissas.dto.response.ApplicationEvidence)
+        assertEquals("REVOKEDREAD", ((hk.edu.sehs4701.cissas.dto.response.ApplicationEvidence)
                 evidenceModel.get("evidence")).documentNumber());
 
         var executor = Executors.newSingleThreadExecutor();
@@ -1248,7 +1270,7 @@ class IdentityReviewDatabaseTest {
         Member first = member("cross1");
         Member second = member("cross2");
         ApplicationSubmissionRequest hkid = request("Cross Applicant", IdentityDocumentType.HKID, "B123456(6)", null);
-        ApplicationSubmissionRequest passport = request("Cross Applicant", IdentityDocumentType.PASSPORT, "P-TEST", "HK");
+        ApplicationSubmissionRequest passport = request("Cross Applicant", IdentityDocumentType.PASSPORT, "PTEST1", "HK");
         assertEquals(List.of(201, 201), submitTogether(hkid, first.getId(), passport, second.getId()));
 
         Admin admin = new Admin();

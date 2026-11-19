@@ -1,0 +1,37 @@
+<!DOCTYPE html>
+<html lang="en" xmlns:th="http://www.thymeleaf.org">
+<head><meta charset="UTF-8"><title>Identity documents</title></head>
+<body><main>
+    <h1>Identity documents</h1>
+    <p role="status" th:if="${message}" th:text="${message}"></p>
+    <p role="alert" th:if="${error}" th:text="${error}"></p>
+    <ul>
+        <li th:each="document : ${identityDocuments}">
+            <span th:text="${document.documentType + ' ' + document.maskedDocumentNumber}"></span>
+            <span th:if="${document.issuingCountry}" th:text="${document.issuingCountry}"></span>
+            <strong th:if="${document.primary}">Primary</strong>
+            <form th:unless="${document.primary}"
+                  th:action="@{/member/identity-documents/{id}/primary(id=${document.id})}" method="post">
+                <button type="submit">Make primary</button>
+            </form>
+        </li>
+    </ul>
+    <h2>Add an identity document</h2>
+    <form th:action="@{/member/identity-documents}" th:object="${documentForm}" method="post">
+        <ul role="alert" th:if="${#fields.hasAnyErrors()}">
+            <li th:each="fieldError : ${#fields.allErrors()}" th:text="${fieldError}"></li>
+        </ul>
+        <label for="documentType">Document type</label>
+        <select id="documentType" th:field="*{documentType}" required>
+            <option value="">Select a document type</option>
+            <option th:each="type : ${documentTypes}" th:value="${type}" th:text="${type}"></option>
+        </select>
+        <label for="documentNumber">Document number</label>
+        <input id="documentNumber" th:field="*{documentNumber}" maxlength="512" required>
+        <label for="issuingCountry">Issuing country (required for passports)</label>
+        <input id="issuingCountry" th:field="*{issuingCountry}" maxlength="2">
+        <button type="submit">Add document</button>
+    </form>
+    <a th:href="@{/member/applications}">Back to applications</a>
+</main></body>
+</html>

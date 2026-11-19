@@ -73,6 +73,7 @@ class MembershipRegistrationServiceTest {
         assertEquals(AccountStatus.ACTIVE, member.getAccountStatus());
         assertNotNull(member.getEmailVerifiedAt());
         assertSame(document, member.getIdentityDocuments().getFirst());
+        assertTrue(document.isPrimaryDocument());
     }
 
     @Test
