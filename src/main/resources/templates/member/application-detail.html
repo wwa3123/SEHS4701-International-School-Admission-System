@@ -1,0 +1,123 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Application Detail - CIS</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css" rel="stylesheet">
+</head>
+<body class="bg-light">
+
+<nav class="navbar navbar-expand-lg navbar-dark bg-dark">
+    <div class="container">
+        <a class="navbar-brand" href="/">CIS Admission System</a>
+        <div class="navbar-nav ms-auto">
+            <a class="nav-link" href="/my-applications">My Applications</a>
+        </div>
+    </div>
+</nav>
+
+<div class="container my-5">
+    <h2 class="mb-4">Application Detail</h2>
+
+    <div id="loading">Loading...</div>
+    <div id="content" class="d-none">
+        <div class="card shadow-sm mb-4">
+            <div class="card-body">
+                <p><strong>Application No.:</strong> <span id="appNumber"></span></p>
+                <p><strong>Applicant:</strong> <span id="applicantName"></span></p>
+                <p><strong>Programme Level:</strong> <span id="programmeLevel"></span></p>
+                <p><strong>Status:</strong> <span id="status" class="badge bg-primary"></span></p>
+                <p id="deadlineRow" class="d-none">
+                    <strong>Acceptance Deadline:</strong> <span id="deadline"></span>
+                </p>
+            </div>
+        </div>
+
+        <div id="actionCard" class="card border-warning mb-4 d-none">
+            <div class="card-body">
+                <h5 class="text-warning">Action Required</h5>
+                <p>Please accept or reject this offer before the deadline.</p>
+                <button class="btn btn-success me-2" onclick="respond('ACCEPT')">Accept Offer</button>
+                <button class="btn btn-outline-danger" onclick="respond('REJECT')">Reject Offer</button>
+            </div>
+        </div>
+
+        <div class="card shadow-sm">
+            <div class="card-header">Status History</div>
+            <ul class="list-group list-group-flush" id="historyList"></ul>
+        </div>
+    </div>
+</div>
+
+<script>
+    const applicationNumber = window.location.pathname.split('/').pop();
+
+    async function loadDetail() {
+        try {
+            const res = await fetch(`/api/member/applications/${applicationNumber}/result`, {
+                credentials: 'include'
+            });
+            if (res.status === 401) {
+                window.location.href = '/login';
+                return;
+            }
+            if (!res.ok) throw new Error('Failed to load application');
+
+            const data = await res.json();
+            document.getElementById('loading').classList.add('d-none');
+            document.getElementById('content').classList.remove('d-none');
+
+            document.getElementById('appNumber').textContent = data.applicationNumber || applicationNumber;
+            document.getElementById('applicantName').textContent = data.applicantName || '-';
+            document.getElementById('programmeLevel').textContent = data.programmeLevel || '-';
+            document.getElementById('status').textContent = data.status || '-';
+
+            if (data.acceptanceDeadline) {
+                document.getElementById('deadline').textContent = data.acceptanceDeadline;
+                document.getElementById('deadlineRow').classList.remove('d-none');
+            }
+            if (data.status === 'Success') {
+                document.getElementById('actionCard').classList.remove('d-none');
+            }
+
+            const historyList = document.getElementById('historyList');
+            if (data.statusHistory && data.statusHistory.length > 0) {
+                historyList.innerHTML = data.statusHistory.map(item => `
+                    <li class="list-group-item">
+                        <strong>${item.status}</strong> — ${item.changedAt || ''}
+                        ${item.reason ? `<div class="text-muted small">${item.reason}</div>` : ''}
+                    </li>
+                `).join('');
+            } else {
+                historyList.innerHTML = '<li class="list-group-item text-muted">No history available</li>';
+            }
+        } catch (err) {
+            document.getElementById('loading').textContent = err.message;
+        }
+    }
+
+    async function respond(decision) {
+        if (!confirm(`Are you sure you want to ${decision} this offer?`)) return;
+        try {
+            const res = await fetch(`/api/member/applications/${applicationNumber}/offer-response`, {
+                method: 'PUT',
+                headers: { 'Content-Type': 'application/json' },
+                credentials: 'include',
+                body: JSON.stringify({ decision })
+            });
+            if (!res.ok) {
+                const err = await res.json().catch(() => ({}));
+                throw new Error(err.message || 'Failed to submit decision');
+            }
+            alert(`Offer ${decision === 'ACCEPT' ? 'accepted' : 'rejected'} successfully.`);
+            window.location.href = '/my-applications';
+        } catch (err) {
+            alert(err.message);
+        }
+    }
+
+    loadDetail();
+</script>
+</body>
+</html>
