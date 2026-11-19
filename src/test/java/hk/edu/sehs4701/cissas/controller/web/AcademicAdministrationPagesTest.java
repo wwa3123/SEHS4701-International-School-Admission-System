@@ -91,7 +91,7 @@ class AcademicAdministrationPagesTest {
         session.setAttribute("authenticatedUserRole", "ROLE_SUPER_ADMIN");
         session.setAttribute("adminCredentialVersion", 0L);
         year = new AcademicYearResponse(1L, "2028/29", LocalDate.of(2028, 1, 1), null, AcademicYearStatus.PLANNING);
-        level = new ProgrammeLevelResponse(10L, 1L, LevelCode.S1, "Secondary 1", 20,
+        level = new ProgrammeLevelResponse(10L, 1L, LevelCode.S1, "Secondary 1", 20, true,
                 LocalDate.of(2028, 9, 1), LocalDate.of(2028, 9, 30));
         when(years.list()).thenReturn(List.of(year));
         when(years.get(1L)).thenReturn(year);
@@ -240,7 +240,7 @@ class AcademicAdministrationPagesTest {
         verify(levels).create(1L, LevelCode.S1, "Secondary 1", 20, level.applicationStartDate(), level.applicationEndDate());
         mvc.perform(programmePost("/super-admin/academic-years/1/programme-levels/10"))
                 .andExpect(redirectedUrl("/super-admin/academic-years/1"));
-        verify(levels).update(1L, 10L, "Secondary 1", 20, level.applicationStartDate(), level.applicationEndDate());
+        verify(levels).update(1L, 10L, "Secondary 1", 20, false, level.applicationStartDate(), level.applicationEndDate());
     }
 
     @Test
@@ -286,7 +286,7 @@ class AcademicAdministrationPagesTest {
             }
         }
         verify(levels, never()).create(any(), any(), any(), anyInt(), any(), any());
-        verify(levels, never()).update(any(), any(), any(), anyInt(), any(), any());
+        verify(levels, never()).update(any(), any(), any(), anyInt(), anyBoolean(), any(), any());
         when(levels.create(any(), any(), any(), anyInt(), any(), any())).thenThrow(
                 new ResponseStatusException(HttpStatus.BAD_REQUEST, "Invalid programme application period"));
         mvc.perform(programmePost("/super-admin/academic-years/1/programme-levels").param("levelCode", "S1"))
@@ -296,7 +296,7 @@ class AcademicAdministrationPagesTest {
 
     @Test
     void refusedQuotaShowsCurrentCountAndKeepsSubmittedValues() throws Exception {
-        when(levels.update(any(), any(), any(), anyInt(), any(), any())).thenThrow(new SeatQuotaExceededException(21));
+        when(levels.update(any(), any(), any(), anyInt(), anyBoolean(), any(), any())).thenThrow(new SeatQuotaExceededException(21));
         mvc.perform(programmePost("/super-admin/academic-years/1/programme-levels/10"))
                 .andExpect(status().isConflict()).andExpect(view().name("super-admin/programme-form"))
                 .andExpect(content().string(containsString("current Success and Accepted count: 21")))
@@ -324,7 +324,7 @@ class AcademicAdministrationPagesTest {
 
     private MockHttpServletRequestBuilder programmePost(String route) {
         return post(route).session(session).with(csrf()).param("programmeName", "Secondary 1")
-                .param("seatQuota", "20").param("applicationStartDate", "2028-09-01")
+                .param("seatQuota", "20").param("admissionOpen", "false").param("applicationStartDate", "2028-09-01")
                 .param("applicationEndDate", "2028-09-30");
     }
 

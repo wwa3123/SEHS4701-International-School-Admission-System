@@ -42,10 +42,13 @@ public class ProgrammeLevel {
     @Column(name = "seat_quota", nullable = false)
     private Integer seatQuota = 150;
 
-    @Column(name = "application_start_date", nullable = false)
+    @Column(name = "admission_open", nullable = false)
+    private boolean admissionOpen;
+
+    @Column(name = "application_start_date")
     private LocalDate applicationStartDate;
 
-    @Column(name = "application_end_date", nullable = false)
+    @Column(name = "application_end_date")
     private LocalDate applicationEndDate;
 
     @UpdateTimestamp

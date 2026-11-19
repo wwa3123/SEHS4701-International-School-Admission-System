@@ -10,6 +10,7 @@ public record ProgrammeLevelResponse(
         LevelCode levelCode,
         String programmeName,
         Integer seatQuota,
+        boolean admissionOpen,
         LocalDate applicationStartDate,
         LocalDate applicationEndDate) {
 }

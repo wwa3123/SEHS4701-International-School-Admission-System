@@ -64,12 +64,14 @@ public class ProgrammeLevelService {
         ProgrammeLevel level = new ProgrammeLevel();
         level.setAcademicYear(year);
         level.setLevelCode(code);
+        level.setAdmissionOpen(code != LevelCode.S6);
         return save(level, name, quota, applicationStartDate, applicationEndDate);
     }
 
     @Transactional(noRollbackFor = SeatQuotaExceededException.class)
     public ProgrammeLevelResponse update(Long yearId, Long levelId, String name, int quota,
-                                         LocalDate applicationStartDate, LocalDate applicationEndDate) {
+                                         boolean admissionOpen, LocalDate applicationStartDate,
+                                         LocalDate applicationEndDate) {
         lock.acquire();
         ProgrammeLevel level = levels.findByIdAndAcademicYear_Id(levelId, yearId)
                 .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Programme level not found"));
@@ -81,6 +83,7 @@ public class ProgrammeLevelService {
         if (quota < offers) {
             throw new SeatQuotaExceededException(offers);
         }
+        level.setAdmissionOpen(level.getLevelCode() != LevelCode.S6 || admissionOpen);
         return save(level, name, quota, applicationStartDate, applicationEndDate);
     }
 
@@ -108,6 +111,7 @@ public class ProgrammeLevelService {
 
     private ProgrammeLevelResponse response(ProgrammeLevel level, Long yearId) {
         return new ProgrammeLevelResponse(level.getId(), yearId, level.getLevelCode(), level.getProgrammeName(),
-                level.getSeatQuota(), level.getApplicationStartDate(), level.getApplicationEndDate());
+                level.getSeatQuota(), level.getLevelCode() != LevelCode.S6 || level.isAdmissionOpen(),
+                level.getApplicationStartDate(), level.getApplicationEndDate());
     }
 }

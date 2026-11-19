@@ -2,8 +2,10 @@ package hk.edu.sehs4701.cissas.service;
 
 import hk.edu.sehs4701.cissas.dto.response.AcademicYearResponse;
 import hk.edu.sehs4701.cissas.entity.AcademicYear;
+import hk.edu.sehs4701.cissas.entity.ProgrammeLevel;
 import hk.edu.sehs4701.cissas.enums.AcademicYearStatus;
 import hk.edu.sehs4701.cissas.enums.ApplicationStatus;
+import hk.edu.sehs4701.cissas.enums.LevelCode;
 import hk.edu.sehs4701.cissas.repository.AcademicYearRepository;
 import hk.edu.sehs4701.cissas.repository.ApplicationRepository;
 import hk.edu.sehs4701.cissas.repository.IdentityReviewLockRepository;
@@ -16,6 +18,7 @@ import org.springframework.web.server.ResponseStatusException;
 
 import java.time.LocalDate;
 import java.time.ZoneId;
+import java.util.Arrays;
 import java.util.List;
 
 @Service
@@ -53,8 +56,7 @@ public class AcademicYearService {
     public AcademicYearResponse getCurrentOpenForApplicationAcademicYear() {
         AcademicYearResponse year = getActiveAcademicYear();
         LocalDate today = LocalDate.now(ZoneId.of("Asia/Hong_Kong"));
-        if (!programmeLevels.existsByAcademicYear_IdAndApplicationStartDateLessThanEqualAndApplicationEndDateGreaterThanEqual(
-                year.id(), today, today)) {
+        if (!programmeLevels.existsOpenForApplication(year.id(), today, LevelCode.S6)) {
             throw new ResponseStatusException(HttpStatus.NOT_FOUND, "No academic year open for applications found");
         }
         return year;
@@ -80,7 +82,17 @@ public class AcademicYearService {
         academicYear.setName(normalizedName);
         academicYear.setCreationDate(LocalDate.now(ZoneId.of("Asia/Hong_Kong")));
         academicYear.setStatus(AcademicYearStatus.PLANNING);
-        return toResponse(academicYearRepository.save(academicYear));
+        AcademicYear savedYear = academicYearRepository.save(academicYear);
+        programmeLevels.saveAll(Arrays.stream(LevelCode.values()).map(code -> {
+            ProgrammeLevel level = new ProgrammeLevel();
+            level.setAcademicYear(savedYear);
+            level.setLevelCode(code);
+            level.setProgrammeName(code == LevelCode.S5 || code == LevelCode.S6 ? "IB DP" : "IB MYP");
+            level.setSeatQuota(150);
+            level.setAdmissionOpen(code != LevelCode.S6);
+            return level;
+        }).toList());
+        return toResponse(savedYear);
     }
 
     @Transactional
@@ -99,10 +111,23 @@ public class AcademicYearService {
                 && academicYearRepository.existsByStatusAndIdNot(AcademicYearStatus.ACTIVE, id)) {
             throw new ResponseStatusException(HttpStatus.CONFLICT, "Another academic year is active");
         }
+        if (lifecycle == AcademicYearStatus.ACTIVE) {
+            List<ProgrammeLevel> levels = programmeLevels.findAllByAcademicYear_IdOrderByLevelCodeAsc(id);
+            if (levels.size() != LevelCode.values().length || levels.stream()
+                    .anyMatch(level -> level.getApplicationStartDate() == null || level.getApplicationEndDate() == null)) {
+                throw new ResponseStatusException(HttpStatus.CONFLICT,
+                        "Set an opening and closing date for every programme level before activation");
+            }
+        }
         if (lifecycle == AcademicYearStatus.ARCHIVED
                 && applications.countByAcademicYear_IdAndStatus(id, ApplicationStatus.Pending) > 0) {
             throw new ResponseStatusException(HttpStatus.CONFLICT,
                     "Academic year cannot be archived while applications are pending");
+        }
+        if (lifecycle == AcademicYearStatus.ARCHIVED
+                && applications.countByAcademicYear_IdAndStatus(id, ApplicationStatus.Success) > 0) {
+            throw new ResponseStatusException(HttpStatus.CONFLICT,
+                    "Academic year cannot be archived while offers are awaiting a response");
         }
         if (lifecycle == AcademicYearStatus.ARCHIVED
                 && (academicYear.getStatus() != AcademicYearStatus.ARCHIVED || academicYear.getArchiveDate() == null)) {

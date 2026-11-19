@@ -275,6 +275,7 @@ public class ApplicationResultService {
 
     @Transactional(isolation = Isolation.READ_COMMITTED)
     public void expireOffer(String applicationNumber) {
+        duplicateLock.acquire();
         Long levelId = applications.findProgrammeLevelId(applicationNumber).orElse(null);
         if (levelId == null) return;
         programmeLevels.findLockedById(levelId)
@@ -293,6 +294,7 @@ public class ApplicationResultService {
     }
 
     private void expire(Application application, LocalDateTime now) {
+        if (application.getAcademicYear().getStatus() == AcademicYearStatus.ARCHIVED) return;
         application.setStatus(ApplicationStatus.Rejected);
         application.setRespondedAt(now);
         applications.save(application);

@@ -196,6 +196,7 @@ class ApplicationResultServiceTest {
     void expiresOverdueOffersBeforeCheckingAvailableSeats() {
         application.setStatus(ApplicationStatus.Wait);
         Application expired = new Application();
+        expired.setAcademicYear(application.getAcademicYear());
         expired.setStatus(ApplicationStatus.Success);
         when(applications.findAllByProgrammeLevel_IdAndStatusAndAcceptanceDeadlineLessThanEqual(
                 eq(7L), eq(ApplicationStatus.Success), any())).thenReturn(List.of(expired));
@@ -376,6 +377,33 @@ class ApplicationResultServiceTest {
         assertEquals(ApplicationStatus.Rejected, application.getStatus());
         verify(history).save(argThat(entry -> entry.getChangedByRole() == ActorRole.ROLE_SYSTEM
                 && entry.getToStatus() == ApplicationStatus.Rejected));
+    }
+
+    @Test
+    void expiryJobDoesNotChangeAnArchivedApplication() {
+        application.getAcademicYear().setStatus(AcademicYearStatus.ARCHIVED);
+        application.setStatus(ApplicationStatus.Success);
+        application.setAcceptanceDeadline(LocalDateTime.now(ZoneId.of("Asia/Hong_Kong")).minusSeconds(1));
+
+        service.expireOffer("APP-1");
+
+        assertEquals(ApplicationStatus.Success, application.getStatus());
+        verify(applications, never()).save(any());
+        verify(history, never()).save(any());
+        verify(duplicateLock).acquire();
+    }
+
+    @Test
+    void memberCanReadAnArchivedOfferWithoutExpiringIt() {
+        application.getAcademicYear().setStatus(AcademicYearStatus.ARCHIVED);
+        application.setStatus(ApplicationStatus.Success);
+        application.setAcceptanceDeadline(LocalDateTime.now(ZoneId.of("Asia/Hong_Kong")).minusSeconds(1));
+
+        var result = service.memberResult(5L, "APP-1");
+
+        assertEquals(ApplicationStatus.Success, result.status());
+        verify(applications, never()).save(any());
+        verify(history, never()).save(any());
     }
 
     @Test

@@ -108,7 +108,8 @@ class MemberPagesTest {
         when(years.getActiveAcademicYear()).thenReturn(
                 new AcademicYearResponse(1L, "Year", LocalDate.now(), null, AcademicYearStatus.ACTIVE));
         when(levels.list(1L)).thenReturn(List.of(new ProgrammeLevelResponse(
-                1L, 1L, LevelCode.S1, "Secondary 1", 10, LocalDate.now().minusDays(1), LocalDate.now().plusDays(1))));
+                1L, 1L, LevelCode.S1, "Secondary 1", 10, true,
+                LocalDate.now().minusDays(1), LocalDate.now().plusDays(1))));
     }
 
     @Test
@@ -166,7 +167,7 @@ class MemberPagesTest {
                 .andExpect(content().string(org.hamcrest.Matchers.containsString("APP-1")))
                 .andExpect(content().string(org.hamcrest.Matchers.containsString("page=1")));
         mvc.perform(get("/member/applications/new").session(session)).andExpect(status().isOk())
-                .andExpect(content().string(org.hamcrest.Matchers.containsString("Secondary 1")));
+                .andExpect(content().string(org.hamcrest.Matchers.containsString("S1 - Secondary 1")));
         mvc.perform(post("/member/applications").session(session).with(csrf())
                         .param("levelCode", "S1").param("applicantFullName", "Applicant")
                         .param("applicantIdentityDocumentNumber", "P123456")

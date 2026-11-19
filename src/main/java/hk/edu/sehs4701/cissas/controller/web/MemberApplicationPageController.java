@@ -142,7 +142,8 @@ public class MemberApplicationPageController {
             var year = years.getActiveAcademicYear();
             LocalDate today = LocalDate.now(ZoneId.of("Asia/Hong_Kong"));
             model.addAttribute("programmeLevels", levels.list(year.id()).stream()
-                    .filter(level -> !today.isBefore(level.applicationStartDate())
+                    .filter(level -> level.admissionOpen() && level.applicationStartDate() != null
+                            && level.applicationEndDate() != null && !today.isBefore(level.applicationStartDate())
                             && !today.isAfter(level.applicationEndDate())).toList());
         } catch (ResponseStatusException ex) {
             if (ex.getStatusCode().value() != 404) throw ex;

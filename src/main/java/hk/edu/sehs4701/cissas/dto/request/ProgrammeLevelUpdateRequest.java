@@ -11,6 +11,7 @@ import java.time.LocalDate;
 public record ProgrammeLevelUpdateRequest(
         @NotBlank @Size(max = 120) String programmeName,
         @NotNull @Min(0) Integer seatQuota,
+        boolean admissionOpen,
         @NotNull @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate applicationStartDate,
         @NotNull @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate applicationEndDate) {
 }

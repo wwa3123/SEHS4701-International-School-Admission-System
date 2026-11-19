@@ -139,7 +139,7 @@ class MembershipPagesTest {
                 AcademicYearStatus.ACTIVE);
         doReturn(year).when(years).getCurrentOpenForApplicationAcademicYear();
         when(levels.list(1L)).thenReturn(List.of(new ProgrammeLevelResponse(10L, 1L, LevelCode.S1,
-                "Secondary 1", 20, LocalDate.of(2028, 9, 1), LocalDate.of(2028, 9, 30))));
+                "Secondary 1", 20, true, LocalDate.of(2028, 9, 1), LocalDate.of(2028, 9, 30))));
         mvc.perform(get("/admission-info")).andExpect(status().isOk())
                 .andExpect(content().string(containsString("2028/29")))
                 .andExpect(content().string(containsString("Secondary 1")));

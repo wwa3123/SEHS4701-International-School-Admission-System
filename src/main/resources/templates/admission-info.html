@@ -39,6 +39,7 @@
                     <th>Programme Level</th>
                     <th>Programme Name</th>
                     <th>Seat Quota</th>
+                    <th>Admission</th>
                     <th>Application Start</th>
                     <th>Application End</th>
                 </tr>
@@ -48,6 +49,7 @@
                     <td th:text="${level.levelCode}">S1</td>
                     <td th:text="${level.programmeName}">IB MYP</td>
                     <td th:text="${level.seatQuota}">150</td>
+                    <td th:text="${level.admissionOpen ? 'Open' : 'Closed'}">Open</td>
                     <td th:text="${level.applicationStartDate}">2026-01-01</td>
                     <td th:text="${level.applicationEndDate}">2026-03-31</td>
                 </tr>

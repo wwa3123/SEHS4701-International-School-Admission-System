@@ -126,7 +126,8 @@ public class SuperAdminAcademicYearPageController {
         var level = levels.list(yearId).stream().filter(item -> item.id().equals(levelId)).findFirst()
                 .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Programme level not found"));
         model.addAttribute("programmeForm", new ProgrammeLevelUpdateRequest(level.programmeName(), level.seatQuota(),
-                level.applicationStartDate(), level.applicationEndDate()));
+                level.admissionOpen(), level.applicationStartDate(), level.applicationEndDate()));
+        model.addAttribute("levelCode", level.levelCode());
         return "super-admin/programme-form";
     }
 
@@ -141,7 +142,7 @@ public class SuperAdminAcademicYearPageController {
         if (invalid(errors, request, response, model, "super-admin/programme-form")) {
             return "super-admin/programme-form";
         }
-        levels.update(yearId, levelId, form.programmeName(), form.seatQuota(),
+        levels.update(yearId, levelId, form.programmeName(), form.seatQuota(), form.admissionOpen(),
                 form.applicationStartDate(), form.applicationEndDate());
         redirect.addFlashAttribute("message", "Programme level updated.");
         return "redirect:/super-admin/academic-years/" + yearId;
@@ -162,6 +163,12 @@ public class SuperAdminAcademicYearPageController {
         model.addAttribute("year", years.get(yearId));
         model.addAttribute("levelId", levelId);
         model.addAttribute("levelCodes", LevelCode.values());
+        if (levelId != null) {
+            model.addAttribute("levelCode", levels.list(yearId).stream()
+                    .filter(item -> item.id().equals(levelId)).findFirst()
+                    .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Programme level not found"))
+                    .levelCode());
+        }
     }
 
     private boolean invalid(BindingResult errors, HttpServletRequest request, HttpServletResponse response,

@@ -59,8 +59,7 @@ class AcademicYearServiceTest {
         LocalDate today = LocalDate.now(ZoneId.of("Asia/Hong_Kong"));
         when(repository.findFirstByStatusOrderByCreationDateDesc(AcademicYearStatus.ACTIVE))
                 .thenReturn(Optional.of(activeYear));
-        when(levels.existsByAcademicYear_IdAndApplicationStartDateLessThanEqualAndApplicationEndDateGreaterThanEqual(
-                1L, today, today)).thenReturn(true);
+        when(levels.existsOpenForApplication(1L, today, hk.edu.sehs4701.cissas.enums.LevelCode.S6)).thenReturn(true);
 
         assertEquals(
                 new AcademicYearResponse(
@@ -78,8 +77,8 @@ class AcademicYearServiceTest {
         when(repository.findFirstByStatusOrderByCreationDateDesc(AcademicYearStatus.ACTIVE))
                 .thenReturn(Optional.of(year));
 
-        when(levels.existsByAcademicYear_IdAndApplicationStartDateLessThanEqualAndApplicationEndDateGreaterThanEqual(
-                1L, today, today)).thenReturn(false, true, true, false);
+        when(levels.existsOpenForApplication(1L, today, hk.edu.sehs4701.cissas.enums.LevelCode.S6))
+                .thenReturn(false, true, true, false);
         assertEquals(HttpStatus.NOT_FOUND, assertThrows(ResponseStatusException.class,
                 service::getCurrentOpenForApplicationAcademicYear).getStatusCode());
         assertEquals(1L, service.getCurrentOpenForApplicationAcademicYear().id());
@@ -112,6 +111,14 @@ class AcademicYearServiceTest {
                         5L, "2028/29", LocalDate.now(ZoneId.of("Asia/Hong_Kong")), null,
                         AcademicYearStatus.PLANNING),
                 service.create(" 2028/29 "));
+        var programmeLevels = org.mockito.ArgumentCaptor.forClass(Iterable.class);
+        verify(levels).saveAll(programmeLevels.capture());
+        var seededLevels = (List<hk.edu.sehs4701.cissas.entity.ProgrammeLevel>) programmeLevels.getValue();
+        assertEquals(6, seededLevels.size());
+        assertTrue(seededLevels.stream().allMatch(level -> level.getSeatQuota() == 150
+                && level.getApplicationStartDate() == null && level.getApplicationEndDate() == null));
+        assertFalse(seededLevels.get(5).isAdmissionOpen());
+        assertTrue(seededLevels.subList(0, 5).stream().allMatch(hk.edu.sehs4701.cissas.entity.ProgrammeLevel::isAdmissionOpen));
         verify(repository).save(argThat(year -> year.getStatus() == AcademicYearStatus.PLANNING
                 && year.getCreationDate().equals(LocalDate.now(ZoneId.of("Asia/Hong_Kong")))));
     }
@@ -155,6 +162,7 @@ class AcademicYearServiceTest {
         AcademicYear year = academicYear(1L, "2026/27");
         when(repository.findById(1L)).thenReturn(Optional.of(year));
         when(repository.save(year)).thenReturn(year);
+        when(levels.findAllByAcademicYear_IdOrderByLevelCodeAsc(1L)).thenReturn(configuredProgrammeLevels());
         for (AcademicYearStatus status : List.of(
                 AcademicYearStatus.PLANNING, AcademicYearStatus.ACTIVE, AcademicYearStatus.ARCHIVED)) {
             assertEquals(status, service.updateLifecycle(1L, status).status());
@@ -164,6 +172,21 @@ class AcademicYearServiceTest {
         assertEquals(HttpStatus.CONFLICT, assertThrows(ResponseStatusException.class,
                 () -> service.updateLifecycle(1L, AcademicYearStatus.PLANNING)).getStatusCode());
         assertEquals(AcademicYearStatus.ARCHIVED, year.getStatus());
+    }
+
+    @Test
+    void refusesActivationUntilAllSixProgrammeWindowsAreConfigured() {
+        AcademicYear year = academicYear(1L, "2026/27");
+        year.setStatus(AcademicYearStatus.PLANNING);
+        when(repository.findById(1L)).thenReturn(Optional.of(year));
+        when(levels.findAllByAcademicYear_IdOrderByLevelCodeAsc(1L)).thenReturn(List.of());
+
+        ResponseStatusException exception = assertThrows(ResponseStatusException.class,
+                () -> service.updateLifecycle(1L, AcademicYearStatus.ACTIVE));
+
+        assertEquals(HttpStatus.CONFLICT, exception.getStatusCode());
+        assertTrue(exception.getReason().contains("every programme level"));
+        verify(repository, never()).save(any());
     }
 
     @Test
@@ -177,6 +200,22 @@ class AcademicYearServiceTest {
                 () -> service.updateLifecycle(1L, AcademicYearStatus.ARCHIVED)).getStatusCode());
         assertEquals(AcademicYearStatus.ACTIVE, year.getStatus());
         assertNull(year.getArchiveDate());
+        verify(repository, never()).save(any());
+    }
+
+    @Test
+    void refusesToArchiveYearWithOffersAwaitingResponse() {
+        AcademicYear year = academicYear(1L, "2026/27");
+        when(repository.findById(1L)).thenReturn(Optional.of(year));
+        when(applications.countByAcademicYear_IdAndStatus(1L,
+                hk.edu.sehs4701.cissas.enums.ApplicationStatus.Success)).thenReturn(1L);
+
+        ResponseStatusException exception = assertThrows(ResponseStatusException.class,
+                () -> service.updateLifecycle(1L, AcademicYearStatus.ARCHIVED));
+
+        assertEquals(HttpStatus.CONFLICT, exception.getStatusCode());
+        assertTrue(exception.getReason().contains("offers are awaiting a response"));
+        assertEquals(AcademicYearStatus.ACTIVE, year.getStatus());
         verify(repository, never()).save(any());
     }
 
@@ -212,5 +251,15 @@ class AcademicYearServiceTest {
         academicYear.setCreationDate(LocalDate.of(2026, 9, 1));
         academicYear.setStatus(AcademicYearStatus.ACTIVE);
         return academicYear;
+    }
+
+    private List<hk.edu.sehs4701.cissas.entity.ProgrammeLevel> configuredProgrammeLevels() {
+        return java.util.Arrays.stream(hk.edu.sehs4701.cissas.enums.LevelCode.values()).map(code -> {
+            var level = new hk.edu.sehs4701.cissas.entity.ProgrammeLevel();
+            level.setLevelCode(code);
+            level.setApplicationStartDate(LocalDate.of(2028, 9, 1));
+            level.setApplicationEndDate(LocalDate.of(2028, 9, 30));
+            return level;
+        }).toList();
     }
 }

@@ -59,6 +59,7 @@ public interface ApplicationRepository extends JpaRepository<Application, Long> 
     @Query("""
         select a from Application a where a.status = hk.edu.sehs4701.cissas.enums.ApplicationStatus.Success
           and a.acceptanceDeadline <= :deadline
+          and a.academicYear.status <> hk.edu.sehs4701.cissas.enums.AcademicYearStatus.ARCHIVED
           and (:afterId is null or a.id > :afterId)
         order by a.id
         """)
@@ -87,12 +88,7 @@ public interface ApplicationRepository extends JpaRepository<Application, Long> 
             ApplicationStatus status, LocalDate dateOfBirth, byte[] nameHash);
 
 
-    Optional<Application>
-    findFirstByApplicant_IdentityDocuments_DocumentNumberHashAndProgrammeLevel_IdAndAcademicYear_IdAndStatusNotOrderBySubmittedAtDesc(
-            String documentNumberHash,
-            Long programmeLevelId,
-            Long academicYearId,
-            ApplicationStatus status
-    );
+    Optional<Application> findFirstByApplicant_IdAndAcademicYear_IdAndStatusNotOrderBySubmittedAtDesc(
+            Long applicantId, Long academicYearId, ApplicationStatus status);
 
 }

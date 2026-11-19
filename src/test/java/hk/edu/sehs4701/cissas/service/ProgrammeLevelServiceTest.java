@@ -46,12 +46,37 @@ class ProgrammeLevelServiceTest {
             level.setId(10L);
             return level;
         });
-        assertEquals(new ProgrammeLevelResponse(10L, 1L, LevelCode.S1, "Secondary", 150,
+        assertEquals(new ProgrammeLevelResponse(10L, 1L, LevelCode.S1, "Secondary", 150, true,
                         applicationStartDate, applicationEndDate),
                 service.create(1L, LevelCode.S1, " Secondary ", 150,
                         applicationStartDate, applicationEndDate));
         verify(lock).acquire();
         verify(levels).save(argThat(level -> level.getAcademicYear() == year));
+    }
+
+    @Test
+    void createsS6ClosedByDefault() {
+        AcademicYear year = year();
+        when(years.findById(1L)).thenReturn(Optional.of(year));
+        when(levels.save(any())).thenAnswer(invocation -> invocation.getArgument(0));
+
+        assertFalse(service.create(1L, LevelCode.S6, "IB DP", 150,
+                applicationStartDate, applicationEndDate).admissionOpen());
+    }
+
+    @Test
+    void updatesS6AdmissionState() {
+        ProgrammeLevel level = new ProgrammeLevel();
+        level.setId(11L);
+        level.setAcademicYear(year());
+        level.setLevelCode(LevelCode.S6);
+        level.setApplicationStartDate(applicationStartDate);
+        level.setApplicationEndDate(applicationEndDate);
+        when(levels.findByIdAndAcademicYear_Id(11L, 1L)).thenReturn(Optional.of(level));
+        when(levels.save(level)).thenReturn(level);
+
+        assertTrue(service.update(1L, 11L, "IB DP", 150, true,
+                applicationStartDate, applicationEndDate).admissionOpen());
     }
 
     @Test
@@ -90,14 +115,14 @@ class ProgrammeLevelServiceTest {
         when(levels.findByIdAndAcademicYear_Id(10L, 1L)).thenReturn(Optional.of(level));
         when(levels.save(level)).thenReturn(level);
         assertEquals(HttpStatus.NOT_FOUND, assertThrows(ResponseStatusException.class,
-                () -> service.update(2L, 10L, "Corrected", 100,
+                () -> service.update(2L, 10L, "Corrected", 100, false,
                         applicationStartDate, applicationEndDate)).getStatusCode());
         assertEquals(HttpStatus.BAD_REQUEST, assertThrows(ResponseStatusException.class,
-                () -> service.update(1L, 10L, "Corrected", 100,
+                () -> service.update(1L, 10L, "Corrected", 100, false,
                         applicationEndDate, applicationStartDate)).getStatusCode());
-        assertEquals(new ProgrammeLevelResponse(10L, 1L, LevelCode.S1, "Corrected", 100,
-                        applicationStartDate, applicationEndDate),
-                service.update(1L, 10L, " Corrected ", 100,
+        assertEquals(new ProgrammeLevelResponse(10L, 1L, LevelCode.S1, "Corrected", 100, true,
+                applicationStartDate, applicationEndDate),
+                service.update(1L, 10L, " Corrected ", 100, false,
                         applicationStartDate, applicationEndDate));
         verify(levels, times(1)).save(level);
     }
@@ -112,7 +137,7 @@ class ProgrammeLevelServiceTest {
         when(levels.findByIdAndAcademicYear_Id(10L, 1L)).thenReturn(Optional.of(level));
 
         assertEquals(HttpStatus.CONFLICT, assertThrows(ResponseStatusException.class,
-                () -> service.update(1L, 10L, "Changed", 150,
+                () -> service.update(1L, 10L, "Changed", 150, false,
                         applicationStartDate, applicationEndDate)).getStatusCode());
         verify(results, never()).expireOffersForLevel(any(), any());
         verify(levels, never()).save(any());
@@ -129,7 +154,7 @@ class ProgrammeLevelServiceTest {
                         hk.edu.sehs4701.cissas.enums.ApplicationStatus.Accepted))).thenReturn(3L);
 
         ResponseStatusException exception = assertThrows(ResponseStatusException.class,
-                () -> service.update(1L, 10L, "Secondary", 2, applicationStartDate, applicationEndDate));
+                () -> service.update(1L, 10L, "Secondary", 2, false, applicationStartDate, applicationEndDate));
 
         assertEquals(HttpStatus.CONFLICT, exception.getStatusCode());
         assertTrue(exception.getReason().contains("3"));
@@ -152,7 +177,7 @@ class ProgrammeLevelServiceTest {
         level.setApplicationEndDate(applicationEndDate);
         when(years.existsById(1L)).thenReturn(true);
         when(levels.findAllByAcademicYear_IdOrderByLevelCodeAsc(1L)).thenReturn(List.of(level));
-        assertEquals(List.of(new ProgrammeLevelResponse(10L, 1L, LevelCode.S1, "Secondary", 150,
+        assertEquals(List.of(new ProgrammeLevelResponse(10L, 1L, LevelCode.S1, "Secondary", 150, true,
                         applicationStartDate, applicationEndDate)),
                 service.list(1L));
         assertEquals(HttpStatus.NOT_FOUND, assertThrows(ResponseStatusException.class,

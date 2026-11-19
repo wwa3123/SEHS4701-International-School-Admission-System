@@ -545,7 +545,7 @@ class IdentityReviewDatabaseTest {
         ProgrammeLevel level = levels.findById(expired.getProgrammeLevel().getId()).orElseThrow();
 
         assertThrows(ResponseStatusException.class, () -> programmeLevels.update(
-                level.getAcademicYear().getId(), level.getId(), level.getProgrammeName(), 0,
+                level.getAcademicYear().getId(), level.getId(), level.getProgrammeName(), 0, false,
                 level.getApplicationStartDate(), level.getApplicationEndDate()));
 
         assertEquals(ApplicationStatus.Rejected, applications.findById(expired.getId()).orElseThrow().getStatus());

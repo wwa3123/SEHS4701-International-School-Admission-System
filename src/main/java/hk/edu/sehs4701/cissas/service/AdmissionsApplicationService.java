@@ -10,6 +10,7 @@ import hk.edu.sehs4701.cissas.entity.Member;
 import hk.edu.sehs4701.cissas.entity.ProgrammeLevel;
 import hk.edu.sehs4701.cissas.enums.AccountStatus;
 import hk.edu.sehs4701.cissas.enums.ApplicationStatus;
+import hk.edu.sehs4701.cissas.enums.LevelCode;
 import hk.edu.sehs4701.cissas.repository.ApplicantRepository;
 import hk.edu.sehs4701.cissas.repository.ApplicationRepository;
 import hk.edu.sehs4701.cissas.repository.MemberRepository;
@@ -78,8 +79,12 @@ public class AdmissionsApplicationService {
                 .orElseThrow(() -> new ResponseStatusException(
                         HttpStatus.CONFLICT, "Programme level is not in the currently open academic year."));
 
+        if (level.getLevelCode() == LevelCode.S6 && !level.isAdmissionOpen()) {
+            throw new ResponseStatusException(HttpStatus.CONFLICT, "S6 is closed for admission.");
+        }
         LocalDate today = LocalDate.now(ZoneId.of("Asia/Hong_Kong"));
-        if (today.isBefore(level.getApplicationStartDate()) || today.isAfter(level.getApplicationEndDate())) {
+        if (level.getApplicationStartDate() == null || level.getApplicationEndDate() == null
+                || today.isBefore(level.getApplicationStartDate()) || today.isAfter(level.getApplicationEndDate())) {
             throw new ResponseStatusException(HttpStatus.CONFLICT, "Application period is closed.");
         }
 
@@ -95,19 +100,11 @@ public class AdmissionsApplicationService {
             if (!Objects.equals(applicant.getMember().getId(), member.getId())) {
                 throw new ResponseStatusException(HttpStatus.CONFLICT, "Identity document is already linked");
             }
-            applicationRepository
-                    .findFirstByApplicant_IdentityDocuments_DocumentNumberHashAndProgrammeLevel_IdAndAcademicYear_IdAndStatusNotOrderBySubmittedAtDesc(
-                            documentNumberHash,
-                            level.getId(),
-                            openAcademicYear.id(),
-                            ApplicationStatus.Cancelled
-                    )
+            applicationRepository.findFirstByApplicant_IdAndAcademicYear_IdAndStatusNotOrderBySubmittedAtDesc(
+                            applicant.getId(), openAcademicYear.id(), ApplicationStatus.Cancelled)
                     .ifPresent(existing -> {
-                        throw new ResponseStatusException(
-                                HttpStatus.CONFLICT,
-                                "An application already exists. Application number: "
-                                        + existing.getApplicationNumber()
-                        );
+                        throw new ResponseStatusException(HttpStatus.CONFLICT,
+                                "An application already exists. Application number: " + existing.getApplicationNumber());
                     });
 
         }
