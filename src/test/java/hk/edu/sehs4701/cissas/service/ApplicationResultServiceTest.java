@@ -7,6 +7,7 @@ import hk.edu.sehs4701.cissas.entity.Application;
 import hk.edu.sehs4701.cissas.entity.Member;
 import hk.edu.sehs4701.cissas.entity.ProgrammeLevel;
 import hk.edu.sehs4701.cissas.entity.StatusHistory;
+import hk.edu.sehs4701.cissas.enums.AcademicYearStatus;
 import hk.edu.sehs4701.cissas.enums.ActorRole;
 import hk.edu.sehs4701.cissas.enums.ApplicationStatus;
 import hk.edu.sehs4701.cissas.enums.IdentityDocumentType;
@@ -66,6 +67,7 @@ class ApplicationResultServiceTest {
         application.setProgrammeLevel(level);
         AcademicYear year = new AcademicYear();
         year.setId(8L);
+        year.setStatus(AcademicYearStatus.ACTIVE);
         application.setAcademicYear(year);
         when(admins.findById(42L)).thenReturn(Optional.of(admin));
         when(applications.findByApplicationNumber("APP-1")).thenReturn(Optional.of(application));
@@ -92,6 +94,16 @@ class ApplicationResultServiceTest {
         }
         verify(history, times(3)).save(any(StatusHistory.class));
         verify(notifications, times(3)).notifyApplicationResult(any(), eq(false), isNull(), eq(false));
+    }
+
+    @Test
+    void refusesToChangeApplicationResultForArchivedYear() {
+        application.getAcademicYear().setStatus(AcademicYearStatus.ARCHIVED);
+
+        assertEquals(HttpStatus.CONFLICT, assertThrows(ResponseStatusException.class,
+                () -> service.setResult(42L, "APP-1", ApplicationStatus.Success, null)).getStatusCode());
+        verify(applications, never()).save(any());
+        verify(history, never()).save(any());
     }
 
     @Test
@@ -184,6 +196,7 @@ class ApplicationResultServiceTest {
     void expiresOverdueOffersBeforeCheckingAvailableSeats() {
         application.setStatus(ApplicationStatus.Wait);
         Application expired = new Application();
+        expired.setAcademicYear(application.getAcademicYear());
         expired.setStatus(ApplicationStatus.Success);
         when(applications.findAllByProgrammeLevel_IdAndStatusAndAcceptanceDeadlineLessThanEqual(
                 eq(7L), eq(ApplicationStatus.Success), any())).thenReturn(List.of(expired));
@@ -364,6 +377,33 @@ class ApplicationResultServiceTest {
         assertEquals(ApplicationStatus.Rejected, application.getStatus());
         verify(history).save(argThat(entry -> entry.getChangedByRole() == ActorRole.ROLE_SYSTEM
                 && entry.getToStatus() == ApplicationStatus.Rejected));
+    }
+
+    @Test
+    void expiryJobDoesNotChangeAnArchivedApplication() {
+        application.getAcademicYear().setStatus(AcademicYearStatus.ARCHIVED);
+        application.setStatus(ApplicationStatus.Success);
+        application.setAcceptanceDeadline(LocalDateTime.now(ZoneId.of("Asia/Hong_Kong")).minusSeconds(1));
+
+        service.expireOffer("APP-1");
+
+        assertEquals(ApplicationStatus.Success, application.getStatus());
+        verify(applications, never()).save(any());
+        verify(history, never()).save(any());
+        verify(duplicateLock).acquire();
+    }
+
+    @Test
+    void memberCanReadAnArchivedOfferWithoutExpiringIt() {
+        application.getAcademicYear().setStatus(AcademicYearStatus.ARCHIVED);
+        application.setStatus(ApplicationStatus.Success);
+        application.setAcceptanceDeadline(LocalDateTime.now(ZoneId.of("Asia/Hong_Kong")).minusSeconds(1));
+
+        var result = service.memberResult(5L, "APP-1");
+
+        assertEquals(ApplicationStatus.Success, result.status());
+        verify(applications, never()).save(any());
+        verify(history, never()).save(any());
     }
 
     @Test

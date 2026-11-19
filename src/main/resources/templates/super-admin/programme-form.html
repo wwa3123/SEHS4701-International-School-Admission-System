@@ -13,6 +13,7 @@
 </select></div>
 <label for="programmeName">Programme name</label><input id="programmeName" th:field="*{programmeName}" maxlength="120" required>
 <label for="seatQuota">Seat quota</label><input id="seatQuota" type="number" th:field="*{seatQuota}" min="0" required>
+<p th:if="${levelId != null and levelCode.name() == 'S6'}"><label for="admissionOpen">Open S6 for admission</label><input id="admissionOpen" type="checkbox" th:field="*{admissionOpen}"></p>
 <label for="applicationStartDate">Application start date</label><input id="applicationStartDate" type="date" th:field="*{applicationStartDate}" required>
 <label for="applicationEndDate">Application end date</label><input id="applicationEndDate" type="date" th:field="*{applicationEndDate}" required>
 <p>The end date must be after the start date. Quota cannot be below the current Success and Accepted count.</p>

@@ -100,15 +100,14 @@ class AdmissionsApplicationServiceTest {
     @Test
     void blocksDuplicateAndReturnsExistingApplicationNumber() {
         Applicant applicant = new Applicant();
+        applicant.setId(1L);
         applicant.setMember(member);
         when(applicantRepository.findByIdentityDocumentHashForUpdate(DOCUMENT_HASH))
                 .thenReturn(Optional.of(applicant));
         Application existingApplication = new Application();
         existingApplication.setApplicationNumber("APP-EXISTING123");
-        when(applicationRepository
-                .findFirstByApplicant_IdentityDocuments_DocumentNumberHashAndProgrammeLevel_IdAndAcademicYear_IdAndStatusNotOrderBySubmittedAtDesc(
-                        DOCUMENT_HASH, PROGRAMME_LEVEL_ID, ACADEMIC_YEAR_ID, ApplicationStatus.Cancelled
-                ))
+        when(applicationRepository.findFirstByApplicant_IdAndAcademicYear_IdAndStatusNotOrderBySubmittedAtDesc(
+                        1L, ACADEMIC_YEAR_ID, ApplicationStatus.Cancelled))
                 .thenReturn(Optional.of(existingApplication));
 
         ResponseStatusException exception = assertThrows(
@@ -154,6 +153,60 @@ class AdmissionsApplicationServiceTest {
         );
 
         assertEquals(HttpStatus.CONFLICT, exception.getStatusCode());
+        verifyNoInteractions(identityDocumentService);
+    }
+
+    @Test
+    void blocksAnotherProgrammeApplicationForApplicantWithinSameYear() {
+        Applicant applicant = new Applicant();
+        applicant.setId(1L);
+        applicant.setMember(member);
+        when(applicantRepository.findByIdentityDocumentHashForUpdate(DOCUMENT_HASH)).thenReturn(Optional.of(applicant));
+        Application existingApplication = new Application();
+        existingApplication.setApplicationNumber("APP-OTHER-LEVEL");
+        when(applicationRepository.findFirstByApplicant_IdAndAcademicYear_IdAndStatusNotOrderBySubmittedAtDesc(
+                1L, ACADEMIC_YEAR_ID, ApplicationStatus.Cancelled)).thenReturn(Optional.of(existingApplication));
+
+        ResponseStatusException exception = assertThrows(ResponseStatusException.class,
+                () -> service.submitApplication(request, MEMBER_ID));
+
+        assertEquals(HttpStatus.CONFLICT, exception.getStatusCode());
+        assertTrue(exception.getReason().contains("APP-OTHER-LEVEL"));
+        verify(applicationRepository, never()).save(any());
+    }
+
+    @Test
+    void allowsNewYearlyApplicationAfterPreviousApplicationWasCancelled() {
+        Applicant applicant = new Applicant();
+        applicant.setId(1L);
+        applicant.setMember(member);
+        when(applicantRepository.findByIdentityDocumentHashForUpdate(DOCUMENT_HASH)).thenReturn(Optional.of(applicant));
+        when(applicationRepository.findFirstByApplicant_IdAndAcademicYear_IdAndStatusNotOrderBySubmittedAtDesc(
+                1L, ACADEMIC_YEAR_ID, ApplicationStatus.Cancelled)).thenReturn(Optional.empty());
+
+        service.submitApplication(request, MEMBER_ID);
+
+        verify(applicationRepository).save(any(Application.class));
+    }
+
+    @Test
+    void blocksSubmissionWhenS6IsClosed() {
+        ProgrammeLevel s6 = new ProgrammeLevel();
+        s6.setLevelCode(LevelCode.S6);
+        s6.setApplicationStartDate(LocalDate.now(ZoneId.of("Asia/Hong_Kong")).minusDays(1));
+        s6.setApplicationEndDate(LocalDate.now(ZoneId.of("Asia/Hong_Kong")).plusDays(1));
+        when(programmeLevelRepository.findByLevelCodeAndAcademicYear_Id(LevelCode.S6, ACADEMIC_YEAR_ID))
+                .thenReturn(Optional.of(s6));
+        request = new ApplicationSubmissionRequest(LevelCode.S6, request.applicantFullName(),
+                request.applicantIdentityDocumentNumber(), request.applicantIdentityDocumentType(),
+                request.applicantIdentityDocumentIssuingCountry(), request.dateOfBirth(), request.gender(),
+                request.phone(), request.previousSchool());
+
+        ResponseStatusException exception = assertThrows(ResponseStatusException.class,
+                () -> service.submitApplication(request, MEMBER_ID));
+
+        assertEquals(HttpStatus.CONFLICT, exception.getStatusCode());
+        assertTrue(exception.getReason().contains("S6 is closed"));
         verifyNoInteractions(identityDocumentService);
     }
 
@@ -235,10 +288,8 @@ class AdmissionsApplicationServiceTest {
         applicant.setMember(member);
         when(applicantRepository.findByIdentityDocumentHashForUpdate(DOCUMENT_HASH))
                 .thenReturn(Optional.of(applicant));
-        when(applicationRepository
-                .findFirstByApplicant_IdentityDocuments_DocumentNumberHashAndProgrammeLevel_IdAndAcademicYear_IdAndStatusNotOrderBySubmittedAtDesc(
-                        DOCUMENT_HASH, PROGRAMME_LEVEL_ID, ACADEMIC_YEAR_ID, ApplicationStatus.Cancelled
-                ))
+        when(applicationRepository.findFirstByApplicant_IdAndAcademicYear_IdAndStatusNotOrderBySubmittedAtDesc(
+                        1L, ACADEMIC_YEAR_ID, ApplicationStatus.Cancelled))
                 .thenReturn(Optional.empty());
 
         service.submitApplication(request, MEMBER_ID);
@@ -416,11 +467,9 @@ class AdmissionsApplicationServiceTest {
     }
 
     @Test
-    void duplicateLookupCanTraverseApplicantDocumentAndAcademicYear() {
+    void duplicateLookupCanTraverseApplicantAndAcademicYear() {
         assertDoesNotThrow(() -> new PartTree(
-                "findFirstByApplicant_IdentityDocuments_DocumentNumberHash"
-                        + "AndProgrammeLevel_IdAndAcademicYear_Id"
-                        + "AndStatusNotOrderBySubmittedAtDesc",
+                "findFirstByApplicant_IdAndAcademicYear_IdAndStatusNotOrderBySubmittedAtDesc",
                 Application.class
         ));
         assertDoesNotThrow(() -> new PartTree(

@@ -1,14 +1,15 @@
 package hk.edu.sehs4701.cissas.service;
 
 import hk.edu.sehs4701.cissas.dto.request.OfferDecisionRequest;
-import hk.edu.sehs4701.cissas.dto.response.ApplicationSummary;
-import hk.edu.sehs4701.cissas.dto.response.OfferConfirmation;
-import hk.edu.sehs4701.cissas.dto.response.MemberApplicationResult;
 import hk.edu.sehs4701.cissas.dto.response.AdminApplication;
+import hk.edu.sehs4701.cissas.dto.response.ApplicationSummary;
 import hk.edu.sehs4701.cissas.dto.response.MemberApplication;
+import hk.edu.sehs4701.cissas.dto.response.MemberApplicationResult;
+import hk.edu.sehs4701.cissas.dto.response.OfferConfirmation;
 import hk.edu.sehs4701.cissas.entity.Admin;
 import hk.edu.sehs4701.cissas.entity.Application;
 import hk.edu.sehs4701.cissas.entity.StatusHistory;
+import hk.edu.sehs4701.cissas.enums.AcademicYearStatus;
 import hk.edu.sehs4701.cissas.enums.ActorRole;
 import hk.edu.sehs4701.cissas.enums.ApplicationStatus;
 import hk.edu.sehs4701.cissas.repository.AdminRepository;
@@ -69,6 +70,7 @@ public class ApplicationResultService {
                 .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Programme level not found"));
         Application application = applications.findLockedByApplicationNumber(applicationNumber)
                 .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Application not found"));
+        ensureApplicationWritable(application);
         ApplicationStatus previous = application.getStatus();
         LocalDateTime now = LocalDateTime.now(HONG_KONG);
         if (previous == ApplicationStatus.Success && application.getRespondedAt() == null
@@ -217,6 +219,7 @@ public class ApplicationResultService {
                 .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Programme level not found"));
         Application application = applications.findLockedByApplicationNumberAndMember_Id(applicationNumber, memberId)
                 .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Application not found"));
+        ensureApplicationWritable(application);
         if (application.getStatus() != ApplicationStatus.Success || application.getRespondedAt() != null) {
             throw new ResponseStatusException(HttpStatus.CONFLICT, "This offer cannot be changed");
         }
@@ -248,6 +251,7 @@ public class ApplicationResultService {
                 .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Programme level not found"));
         Application application = applications.findLockedByApplicationNumber(applicationNumber)
                 .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Application not found"));
+        ensureApplicationWritable(application);
         LocalDateTime now = LocalDateTime.now(HONG_KONG);
         if (application.getStatus() != ApplicationStatus.Success || application.getRespondedAt() != null
                 || application.getAcceptanceDeadline() == null) {
@@ -271,6 +275,7 @@ public class ApplicationResultService {
 
     @Transactional(isolation = Isolation.READ_COMMITTED)
     public void expireOffer(String applicationNumber) {
+        duplicateLock.acquire();
         Long levelId = applications.findProgrammeLevelId(applicationNumber).orElse(null);
         if (levelId == null) return;
         programmeLevels.findLockedById(levelId)
@@ -289,6 +294,7 @@ public class ApplicationResultService {
     }
 
     private void expire(Application application, LocalDateTime now) {
+        if (application.getAcademicYear().getStatus() == AcademicYearStatus.ARCHIVED) return;
         application.setStatus(ApplicationStatus.Rejected);
         application.setRespondedAt(now);
         applications.save(application);
@@ -321,5 +327,11 @@ public class ApplicationResultService {
                 .filter(admin -> admin.getRole() == ActorRole.ROLE_ADMIN
                         || admin.getRole() == ActorRole.ROLE_SUPER_ADMIN)
                 .orElseThrow(() -> new ResponseStatusException(HttpStatus.FORBIDDEN, "Active admin required"));
+    }
+
+    private void ensureApplicationWritable(Application application) {
+        if (application.getAcademicYear().getStatus() == AcademicYearStatus.ARCHIVED) {
+            throw new ResponseStatusException(HttpStatus.CONFLICT, "Archived academic-year records are read-only");
+        }
     }
 }

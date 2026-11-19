@@ -3,6 +3,7 @@ package hk.edu.sehs4701.cissas.service;
 import hk.edu.sehs4701.cissas.dto.response.ProgrammeLevelResponse;
 import hk.edu.sehs4701.cissas.entity.AcademicYear;
 import hk.edu.sehs4701.cissas.entity.ProgrammeLevel;
+import hk.edu.sehs4701.cissas.enums.AcademicYearStatus;
 import hk.edu.sehs4701.cissas.enums.ApplicationStatus;
 import hk.edu.sehs4701.cissas.enums.LevelCode;
 import hk.edu.sehs4701.cissas.exception.SeatQuotaExceededException;
@@ -55,6 +56,7 @@ public class ProgrammeLevelService {
         lock.acquire();
         AcademicYear year = years.findById(yearId)
                 .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Academic year not found"));
+        ensureYearIsWritable(year);
         validateDates(applicationStartDate, applicationEndDate);
         if (levels.existsByLevelCodeAndAcademicYear_Id(code, yearId)) {
             throw new ResponseStatusException(HttpStatus.CONFLICT, "Programme level already exists for academic year");
@@ -62,15 +64,18 @@ public class ProgrammeLevelService {
         ProgrammeLevel level = new ProgrammeLevel();
         level.setAcademicYear(year);
         level.setLevelCode(code);
+        level.setAdmissionOpen(code != LevelCode.S6);
         return save(level, name, quota, applicationStartDate, applicationEndDate);
     }
 
     @Transactional(noRollbackFor = SeatQuotaExceededException.class)
     public ProgrammeLevelResponse update(Long yearId, Long levelId, String name, int quota,
-                                         LocalDate applicationStartDate, LocalDate applicationEndDate) {
+                                         boolean admissionOpen, LocalDate applicationStartDate,
+                                         LocalDate applicationEndDate) {
         lock.acquire();
         ProgrammeLevel level = levels.findByIdAndAcademicYear_Id(levelId, yearId)
                 .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Programme level not found"));
+        ensureYearIsWritable(level.getAcademicYear());
         validateDates(applicationStartDate, applicationEndDate);
         results.expireOffersForLevel(levelId, LocalDateTime.now(ZoneId.of("Asia/Hong_Kong")));
         long offers = applications.countByProgrammeLevel_IdAndStatusIn(levelId,
@@ -78,12 +83,19 @@ public class ProgrammeLevelService {
         if (quota < offers) {
             throw new SeatQuotaExceededException(offers);
         }
+        level.setAdmissionOpen(level.getLevelCode() != LevelCode.S6 || admissionOpen);
         return save(level, name, quota, applicationStartDate, applicationEndDate);
     }
 
     private void validateDates(LocalDate startDate, LocalDate endDate) {
         if (startDate == null || endDate == null || !startDate.isBefore(endDate)) {
             throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Invalid programme application period");
+        }
+    }
+
+    private void ensureYearIsWritable(AcademicYear year) {
+        if (year.getStatus() == AcademicYearStatus.ARCHIVED) {
+            throw new ResponseStatusException(HttpStatus.CONFLICT, "Archived academic years are read-only");
         }
     }
 
@@ -99,6 +111,7 @@ public class ProgrammeLevelService {
 
     private ProgrammeLevelResponse response(ProgrammeLevel level, Long yearId) {
         return new ProgrammeLevelResponse(level.getId(), yearId, level.getLevelCode(), level.getProgrammeName(),
-                level.getSeatQuota(), level.getApplicationStartDate(), level.getApplicationEndDate());
+                level.getSeatQuota(), level.getLevelCode() != LevelCode.S6 || level.isAdmissionOpen(),
+                level.getApplicationStartDate(), level.getApplicationEndDate());
     }
 }

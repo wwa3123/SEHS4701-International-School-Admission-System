@@ -14,7 +14,7 @@
             <select id="levelCode" th:field="*{levelCode}" required>
                 <option value="">Select a level</option>
                 <option th:each="level : ${programmeLevels}" th:value="${level.levelCode}"
-                        th:text="${level.programmeName}"></option>
+                        th:text="${level.levelCode + ' - ' + level.programmeName}"></option>
             </select></p>
         <p><label for="applicantFullName">Applicant full name</label>
             <input id="applicantFullName" th:field="*{applicantFullName}" required maxlength="120"></p>

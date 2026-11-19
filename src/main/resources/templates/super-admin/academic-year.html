@@ -15,13 +15,13 @@
 </select><button type="submit">Update status</button>
 </form>
 <h2>Programme levels</h2>
-<a th:href="@{/super-admin/academic-years/{id}/programme-levels/new(id=${year.id})}">Create programme level</a>
+<p>Configure an opening and closing date for all six levels before activating this year. S6 is closed unless opened here.</p>
 <table>
 <caption>Programmes and admission periods</caption>
-<thead><tr><th scope="col">Level</th><th scope="col">Programme</th><th scope="col">Quota</th><th scope="col">Start</th><th scope="col">End</th><th scope="col">Actions</th></tr></thead>
+<thead><tr><th scope="col">Level</th><th scope="col">Programme</th><th scope="col">Quota</th><th scope="col">Admission</th><th scope="col">Start</th><th scope="col">End</th><th scope="col">Actions</th></tr></thead>
 <tbody><tr th:each="level : ${levels}">
 <td th:text="${level.levelCode}"></td><td th:text="${level.programmeName}"></td><td th:text="${level.seatQuota}"></td>
-<td th:text="${level.applicationStartDate}"></td><td th:text="${level.applicationEndDate}"></td>
+<td th:text="${level.admissionOpen ? 'Open' : 'Closed'}"></td><td th:text="${level.applicationStartDate}"></td><td th:text="${level.applicationEndDate}"></td>
 <td><a th:href="@{/super-admin/academic-years/{yearId}/programme-levels/{levelId}/edit(yearId=${year.id},levelId=${level.id})}" th:attr="aria-label=${'Edit ' + level.programmeName}">Edit</a></td>
 </tr></tbody></table>
 <a th:href="@{/super-admin/academic-years}">All academic years</a>
