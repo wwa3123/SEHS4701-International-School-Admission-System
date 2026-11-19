@@ -3,12 +3,24 @@
 <head><meta charset="UTF-8"><title>Application result</title></head>
 <body>
 <main>
-    <h1>Application result</h1>
+    <h1>Application details</h1>
     <p role="status" th:if="${message}" th:text="${message}"></p>
     <p role="alert" th:if="${error}" th:text="${error}"></p>
     <dl>
         <dt>Application number</dt><dd th:text="${result.applicationNumber}"></dd>
+        <dt>Academic year</dt><dd th:text="${result.academicYear}"></dd>
         <dt>Programme level</dt><dd th:text="${result.programmeLevel}"></dd>
+        <dt>Applicant name</dt><dd th:text="${result.applicantName}"></dd>
+        <dt>Date of birth</dt><dd th:text="${result.dateOfBirth}"></dd>
+        <dt>Gender</dt><dd th:text="${result.gender}"></dd>
+        <dt>Phone</dt><dd th:text="${result.phone}"></dd>
+        <dt>Previous school</dt><dd th:text="${result.previousSchool}"></dd>
+        <dt>Identity document type</dt><dd th:text="${result.identityDocumentType}"></dd>
+        <dt>Identity document number</dt><dd th:text="${result.identityDocumentNumber}"></dd>
+        <dt th:if="${result.issuingCountry}">Issuing country</dt>
+        <dd th:if="${result.issuingCountry}" th:text="${result.issuingCountry}"></dd>
+        <dt>Submitted</dt><dd th:text="${result.submittedAt}"></dd>
+        <dt>Declarations accepted (Hong Kong time)</dt><dd th:text="${result.declarationsAcceptedAt}"></dd>
         <dt>Status</dt><dd th:text="${result.status}"></dd>
         <dt th:if="${result.resultReleasedAt}">Result released (Hong Kong time)</dt>
         <dd th:if="${result.resultReleasedAt}" th:text="${result.resultReleasedAt}"></dd>
@@ -20,6 +32,17 @@
         <p>You will review and confirm your decision before it is saved.</p>
         <a th:href="@{/member/applications/{number}/offer(number=${result.applicationNumber},decision='Accept')}">Accept offer</a>
         <a th:href="@{/member/applications/{number}/offer(number=${result.applicationNumber},decision='Reject')}">Reject offer</a>
+    </section>
+    <section>
+        <h2>Status history</h2>
+        <ol>
+            <li th:each="change : ${result.statusHistory}">
+                <strong th:text="${change.toStatus}"></strong>
+                <span th:if="${change.fromStatus}" th:text="| (from ${change.fromStatus})|"></span>
+                <span th:text="| — ${change.changedAt} (${change.changedByRole.name().substring(5).replace('_', ' ')})|"></span>
+                <p th:if="${change.remarks}" th:text="${change.remarks}"></p>
+            </li>
+        </ol>
     </section>
     <form th:if="${result.cancellationAllowed}" method="post"
           th:action="@{/member/applications/{number}/cancel(number=${result.applicationNumber})}">

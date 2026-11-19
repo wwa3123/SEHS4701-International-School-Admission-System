@@ -57,6 +57,8 @@ class ApplicationResultServiceTest {
         application.setApplicationNumber("APP-1");
         application.setStatus(ApplicationStatus.Pending);
         application.setMember(member);
+        application.setSubmittedAt(LocalDateTime.of(2026, 9, 1, 10, 0));
+        application.setDeclarationsAcceptedAt(LocalDateTime.of(2026, 9, 1, 9, 59));
         application.setApplicantSnapshot(new hk.edu.sehs4701.cissas.entity.ApplicantSnapshot(
                 "Example", LocalDate.of(2018, 1, 1), "Unspecified", "123", "School",
                 IdentityDocumentType.HKID, "123456", null));
@@ -67,6 +69,7 @@ class ApplicationResultServiceTest {
         application.setProgrammeLevel(level);
         AcademicYear year = new AcademicYear();
         year.setId(8L);
+        year.setName("2026/27");
         year.setStatus(AcademicYearStatus.ACTIVE);
         application.setAcademicYear(year);
         when(admins.findById(42L)).thenReturn(Optional.of(admin));
@@ -279,6 +282,30 @@ class ApplicationResultServiceTest {
 
         assertEquals(HttpStatus.NOT_FOUND, assertThrows(ResponseStatusException.class,
                 () -> service.memberResult(6L, "APP-1")).getStatusCode());
+    }
+
+    @Test
+    void memberResultIncludesSubmittedSnapshotAndOrderedStatusHistory() {
+        StatusHistory transition = new StatusHistory();
+        transition.setFromStatus(ApplicationStatus.Pending);
+        transition.setToStatus(ApplicationStatus.Wait);
+        transition.setChangedByRole(ActorRole.ROLE_ADMIN);
+        transition.setRemarks("Waiting list");
+        transition.setChangedAt(LocalDateTime.of(2026, 10, 1, 12, 0));
+        when(history.findAllByApplication_IdOrderByChangedAtAsc(1L)).thenReturn(List.of(transition));
+
+        var result = service.memberResult(5L, "APP-1");
+
+        assertEquals("Example", result.applicantName());
+        assertEquals("2026/27", result.academicYear());
+        assertEquals("123", result.phone());
+        assertEquals(IdentityDocumentType.HKID, result.identityDocumentType());
+        assertEquals("123456", result.identityDocumentNumber());
+        assertEquals(LocalDateTime.of(2026, 9, 1, 10, 0), result.submittedAt());
+        assertEquals(2, result.statusHistory().size());
+        assertEquals(ApplicationStatus.Pending, result.statusHistory().getFirst().toStatus());
+        assertEquals(ApplicationStatus.Wait, result.statusHistory().get(1).toStatus());
+        assertEquals("Waiting list", result.statusHistory().get(1).remarks());
     }
 
     @Test
