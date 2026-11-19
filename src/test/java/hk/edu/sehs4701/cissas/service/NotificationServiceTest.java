@@ -85,6 +85,50 @@ class NotificationServiceTest {
     }
 
     @Test
+    void sendsApplicationAcknowledgementWithApplicantNameAndNumber() {
+        EmailService emailService = mock(EmailService.class);
+        NotificationService service = new NotificationService(emailService);
+        Member member = new Member();
+        member.setFirstName("Member");
+        Application application = new Application();
+        application.setApplicationNumber("APP-ACK");
+        application.setMember(member);
+        application.setApplicantSnapshot(new ApplicantSnapshot("Applicant Name", LocalDate.of(2018, 1, 1),
+                "Unspecified", "12345678", "School", IdentityDocumentType.HKID, "A123456(3)", null));
+
+        service.notifyApplicationAcknowledged(member, application);
+
+        ArgumentCaptor<EmailDispatchRequest> captured = ArgumentCaptor.forClass(EmailDispatchRequest.class);
+        verify(emailService).sendAndLogEmail(captured.capture());
+        assertEquals(EmailTemplateType.APPLICATION_ACKNOWLEDGEMENT, captured.getValue().templateType());
+        assertEquals("Applicant Name", captured.getValue().applicantName());
+        assertEquals("APP-ACK", captured.getValue().applicationNumber());
+        assertTrue(captured.getValue().body().contains("Applicant Name"));
+        assertTrue(captured.getValue().body().contains("APP-ACK"));
+    }
+
+    @Test
+    void memberCancellationEmailUsesTheRecoverableCancellationTemplate() {
+        EmailService emailService = mock(EmailService.class);
+        NotificationService service = new NotificationService(emailService);
+        Member member = new Member();
+        member.setFirstName("Member");
+        Application application = new Application();
+        application.setMember(member);
+        application.setApplicationNumber("APP-CANCEL");
+        application.setApplicantSnapshot(new ApplicantSnapshot("Applicant Name", LocalDate.of(2018, 1, 1),
+                "Unspecified", "12345678", "School", IdentityDocumentType.HKID, "A123456(3)", null));
+
+        service.notifyMemberApplicationCancelled(application);
+
+        ArgumentCaptor<EmailDispatchRequest> captured = ArgumentCaptor.forClass(EmailDispatchRequest.class);
+        verify(emailService).sendAndLogEmail(captured.capture());
+        assertEquals(EmailTemplateType.APPLICATION_CANCELLATION, captured.getValue().templateType());
+        assertTrue(captured.getValue().body().contains("at your request"));
+        assertTrue(captured.getValue().body().contains("APP-CANCEL"));
+    }
+
+    @Test
     void sendsOfferWithAcceptanceDeadlineAndCorrectedResultReason() {
         EmailService emailService = mock(EmailService.class);
         NotificationService service = new NotificationService(emailService);

@@ -21,6 +21,10 @@
         <a th:href="@{/member/applications/{number}/offer(number=${result.applicationNumber},decision='Accept')}">Accept offer</a>
         <a th:href="@{/member/applications/{number}/offer(number=${result.applicationNumber},decision='Reject')}">Reject offer</a>
     </section>
+    <form th:if="${result.cancellationAllowed}" method="post"
+          th:action="@{/member/applications/{number}/cancel(number=${result.applicationNumber})}">
+        <button type="submit">Cancel application</button>
+    </form>
     <a th:href="@{/member/applications}">Back to applications</a>
 </main>
 </body>

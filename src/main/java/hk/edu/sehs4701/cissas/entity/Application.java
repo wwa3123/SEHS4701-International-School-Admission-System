@@ -65,6 +65,9 @@ public class Application {
     @Column(name = "submitted_at", nullable = false, updatable = false)
     private LocalDateTime submittedAt = LocalDateTime.now();
 
+    @Column(name = "declarations_accepted_at")
+    private LocalDateTime declarationsAcceptedAt;
+
     @Column(name = "result_released_at")
     private LocalDateTime resultReleasedAt;
 

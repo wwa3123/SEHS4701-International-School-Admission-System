@@ -170,9 +170,6 @@ public class IdentityReviewService {
         Long firstId = flagged.getApplicant().getId();
         Long secondId = candidate.getApplicant().getId();
 
-        if (candidate.getStatus() == ApplicationStatus.Cancelled) {
-            throw new ResponseStatusException(HttpStatus.CONFLICT, "The matching application is cancelled");
-        }
         if (firstId.equals(secondId)) {
             throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Applications belong to the same applicant");
         }
@@ -228,8 +225,8 @@ public class IdentityReviewService {
 
     boolean hasPossibleDuplicate(Application application) {
         var snapshot = application.getApplicantSnapshot();
-        return applications.findAllByStatusNotAndApplicantSnapshot_DateOfBirthAndApplicantSnapshot_NameHash(
-                        ApplicationStatus.Cancelled, snapshot.getDateOfBirth(), snapshot.getNameHash()).stream()
+        return applications.findAllByApplicantSnapshot_DateOfBirthAndApplicantSnapshot_NameHash(
+                        snapshot.getDateOfBirth(), snapshot.getNameHash()).stream()
                 .anyMatch(candidate -> matches(application, candidate)
                         && lacksDifferentDecision(application.getApplicant().getId(), candidate.getApplicant().getId()));
     }

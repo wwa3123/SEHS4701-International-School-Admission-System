@@ -5,6 +5,7 @@ import hk.edu.sehs4701.cissas.enums.LevelCode;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.NotNull;
 import jakarta.validation.constraints.Size;
+import jakarta.validation.constraints.AssertTrue;
 import org.springframework.format.annotation.DateTimeFormat;
 
 import java.time.LocalDate;
@@ -28,5 +29,11 @@ public record ApplicationSubmissionRequest(
         @NotBlank @Size(max = 25)
         String phone,
         @NotBlank @Size(max = 150)
-        String previousSchool
+        String previousSchool,
+        @AssertTrue(message = "You must accept the truth declaration")
+        boolean truthDeclarationAccepted,
+        @AssertTrue(message = "You must accept the data privacy declaration")
+        boolean dataPrivacyDeclarationAccepted,
+        @AssertTrue(message = "You must accept the parent or guardian declaration")
+        boolean parentGuardianDeclarationAccepted
 ) {}

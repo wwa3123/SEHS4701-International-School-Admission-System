@@ -59,7 +59,9 @@ public class EmailService {
     @Transactional
     public void manualResend(Long emailLogId) {
         Long applicationId = emailLogRepository.findApplicationId(emailLogId).orElse(null);
-        if (applicationId != null) {
+        boolean ordered = applicationId != null && emailLogRepository.findTemplateType(emailLogId)
+                .map(EmailSendAttemptService.APPLICATION_RESULTS::contains).orElse(false);
+        if (ordered) {
             emailLogRepository.findFirstApplicationEmailId(applicationId, EmailSendAttemptService.APPLICATION_RESULTS)
                     .ifPresent(id -> emailLogRepository.findLockedById(id)
                             .orElseThrow(() -> new IllegalStateException("Email log not found: " + id)));
@@ -136,7 +138,7 @@ public class EmailService {
     @Transactional(readOnly = true)
     public Long retryUnsentApplicationEmails(Long afterId) {
         Slice<Long> emails = emailLogRepository.findUnsentApplicationEmailHeads(
-                EmailSendAttemptService.UNSENT, EmailSendAttemptService.APPLICATION_RESULTS, afterId, PageRequest.of(0, 100));
+                EmailSendAttemptService.UNSENT, EmailSendAttemptService.APPLICATION_EMAILS, afterId, PageRequest.of(0, 100));
         emails.forEach(id -> eventPublisher.publishEvent(new EmailSendRequestedEvent(id, null)));
         return emails.hasNext() ? emails.getContent().getLast() : null;
     }

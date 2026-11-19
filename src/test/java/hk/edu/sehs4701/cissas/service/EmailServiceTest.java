@@ -15,10 +15,20 @@ import org.springframework.data.domain.SliceImpl;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
+import static org.junit.jupiter.api.Assertions.assertFalse;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.*;
 
 class EmailServiceTest {
+    @Test
+    void acknowledgementEmailIsRecoverableButNotPartOfTheOrderedResultQueue() {
+        assertFalse(EmailSendAttemptService.APPLICATION_RESULTS.contains(EmailTemplateType.APPLICATION_ACKNOWLEDGEMENT));
+        assertTrue(EmailSendAttemptService.APPLICATION_EMAILS.contains(EmailTemplateType.APPLICATION_ACKNOWLEDGEMENT));
+        assertTrue(EmailSendAttemptService.RECOVERABLE_APPLICATION_EMAILS
+                .contains(EmailTemplateType.APPLICATION_ACKNOWLEDGEMENT));
+    }
+
     @Test
     void storesRedactedBodyAndPublishesCodeOnlyForDelivery() {
         EmailLogRepository repository = mock(EmailLogRepository.class);
@@ -103,7 +113,7 @@ class EmailServiceTest {
         ApplicationEventPublisher events = mock(ApplicationEventPublisher.class);
         when(repository.findUnsentApplicationEmailHeads(
                 eq(java.util.List.of(EmailDeliveryStatus.PENDING, EmailDeliveryStatus.FAILED)),
-                eq(EmailSendAttemptService.APPLICATION_RESULTS), eq(0L), eq(PageRequest.of(0, 100))))
+                eq(EmailSendAttemptService.APPLICATION_EMAILS), eq(0L), eq(PageRequest.of(0, 100))))
                 .thenReturn(new SliceImpl<>(java.util.List.of(14L, 15L), PageRequest.of(0, 100), true));
 
         assertEquals(15L, new EmailService(repository, events).retryUnsentApplicationEmails(0L));
@@ -171,9 +181,31 @@ class EmailServiceTest {
         skipped.setStatus(EmailDeliveryStatus.SKIPPED);
         skipped.setTemplateType(EmailTemplateType.RESULT_ANNOUNCEMENT);
         when(repository.findApplicationId(1L)).thenReturn(java.util.Optional.of(7L));
+        when(repository.findTemplateType(1L)).thenReturn(java.util.Optional.of(EmailTemplateType.RESULT_ANNOUNCEMENT));
         when(repository.findLockedById(1L)).thenReturn(java.util.Optional.of(skipped));
         assertThrows(IllegalStateException.class,
                 () -> new EmailService(repository, mock(ApplicationEventPublisher.class)).manualResend(1L));
+    }
+
+    @Test
+    void manualAcknowledgementResendDoesNotLockResultQueue() {
+        EmailLogRepository repository = mock(EmailLogRepository.class);
+        ApplicationEventPublisher events = mock(ApplicationEventPublisher.class);
+        EmailLog acknowledgement = new EmailLog();
+        acknowledgement.setId(2L);
+        acknowledgement.setStatus(EmailDeliveryStatus.FAILED);
+        acknowledgement.setTemplateType(EmailTemplateType.APPLICATION_ACKNOWLEDGEMENT);
+        when(repository.findApplicationId(2L)).thenReturn(java.util.Optional.of(7L));
+        when(repository.findTemplateType(2L)).thenReturn(
+                java.util.Optional.of(EmailTemplateType.APPLICATION_ACKNOWLEDGEMENT));
+        when(repository.findLockedById(2L)).thenReturn(java.util.Optional.of(acknowledgement));
+        when(repository.save(acknowledgement)).thenReturn(acknowledgement);
+
+        new EmailService(repository, events).manualResend(2L);
+
+        assertEquals(EmailDeliveryStatus.PENDING, acknowledgement.getStatus());
+        verify(repository, never()).findFirstApplicationEmailId(anyLong(), anyCollection());
+        verify(events).publishEvent(new EmailSendRequestedEvent(2L, null));
     }
 
     @Test

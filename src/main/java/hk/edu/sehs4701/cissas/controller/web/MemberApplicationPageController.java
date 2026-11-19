@@ -58,7 +58,7 @@ public class MemberApplicationPageController {
     public String application(HttpServletRequest request, Model model) {
         sessions.memberId(request);
         model.addAttribute("applicationForm", new ApplicationSubmissionRequest(null, "", "", null, "",
-                null, "", "", ""));
+                null, "", "", "", false, false, false));
         formOptions(model);
         return "member/application-form";
     }
@@ -91,6 +91,18 @@ public class MemberApplicationPageController {
     public String result(@PathVariable String number, HttpServletRequest request, Model model) {
         model.addAttribute("result", results.memberResult(sessions.memberId(request), number));
         return "member/application-result";
+    }
+
+    @PostMapping("/{number}/cancel")
+    public String cancel(@PathVariable String number, HttpServletRequest request, RedirectAttributes redirect) {
+        try {
+            results.cancelPendingApplication(sessions.memberId(request), number);
+            redirect.addFlashAttribute("message", "Your application has been cancelled and cannot be restored.");
+        } catch (ResponseStatusException ex) {
+            if (ex.getStatusCode().value() != 404 && ex.getStatusCode().value() != 409) throw ex;
+            redirect.addFlashAttribute("error", ex.getReason());
+        }
+        return resultRedirect(number, redirect);
     }
 
     @GetMapping("/{number}/offer")

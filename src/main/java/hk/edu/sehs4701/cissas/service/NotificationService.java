@@ -85,7 +85,7 @@ public class NotificationService {
                 applicant.getFullName(),
                 application.getApplicationNumber(),
                 actionRequired,
-                "A possible duplicate was flagged because another non-cancelled application has the "
+                "A possible duplicate was flagged because another application has the "
                         + "same applicant name and date of birth."
                         + "\nAcademic Year: " + academicYearName
                         + "\nProgramme Level: " + application.getProgrammeLevel().getLevelCode()
@@ -105,6 +105,19 @@ public class NotificationService {
                 body,
                 recipient
         ));
+    }
+
+    @Transactional
+    public void notifyApplicationAcknowledged(Member member, Application application) {
+        ApplicantSnapshot applicant = application.getApplicantSnapshot();
+        String actionRequired = "Log in to SAS to track your application status.";
+        String body = formatStandardBody(member.getFirstName(), applicant.getFullName(),
+                application.getApplicationNumber(), actionRequired,
+                "Your application has been received successfully.");
+        emailService.sendAndLogEmail(new EmailDispatchRequest(member, application,
+                EmailTemplateType.APPLICATION_ACKNOWLEDGEMENT, applicant.getFullName(),
+                application.getApplicationNumber(), actionRequired,
+                "[CIS SAS] Application Acknowledgement", body));
     }
 
     @Transactional
@@ -152,11 +165,22 @@ public class NotificationService {
 
     @Transactional
     public void notifyApplicationCancelled(Application application) {
+        notifyApplicationCancelled(application,
+                "Your application has been cancelled after an administrator confirmed that it is a duplicate.");
+    }
+
+    @Transactional
+    public void notifyMemberApplicationCancelled(Application application) {
+        notifyApplicationCancelled(application,
+                "Your application has been cancelled at your request. This cancellation cannot be reversed.");
+    }
+
+    private void notifyApplicationCancelled(Application application, String message) {
         ApplicantSnapshot applicant = application.getApplicantSnapshot();
         String actionRequired = "No further action is required.";
         String body = formatStandardBody(application.getMember().getFirstName(), applicant.getFullName(),
                 application.getApplicationNumber(), actionRequired,
-                "Your application has been cancelled after an administrator confirmed that it is a duplicate.");
+                message);
         emailService.sendAndLogEmail(new EmailDispatchRequest(
                 application.getMember(), application, EmailTemplateType.APPLICATION_CANCELLATION,
                 applicant.getFullName(), application.getApplicationNumber(), actionRequired,

@@ -34,8 +34,10 @@ public class EmailSendAttemptService {
             EmailTemplateType.RESULT_ANNOUNCEMENT, EmailTemplateType.WAIT_TO_SUCCESS,
             EmailTemplateType.CORRECTED_RESULT_ANNOUNCEMENT, EmailTemplateType.APPLICATION_CANCELLATION,
             EmailTemplateType.OFFER_DEADLINE_EXTENSION);
+    static final List<EmailTemplateType> APPLICATION_EMAILS = Stream.concat(
+            Stream.of(EmailTemplateType.APPLICATION_ACKNOWLEDGEMENT), APPLICATION_RESULTS.stream()).toList();
     static final List<EmailTemplateType> RECOVERABLE_APPLICATION_EMAILS =
-            Stream.concat(APPLICATION_RESULTS.stream(), Stream.of(EmailTemplateType.APPLICATION_DUPLICATE_ALERT)).toList();
+            Stream.concat(APPLICATION_EMAILS.stream(), Stream.of(EmailTemplateType.APPLICATION_DUPLICATE_ALERT)).toList();
     static final List<EmailDeliveryStatus> UNSENT = List.of(EmailDeliveryStatus.PENDING, EmailDeliveryStatus.FAILED);
 
     private final EmailLogRepository emailLogRepository;
@@ -67,14 +69,19 @@ public class EmailSendAttemptService {
     public void attemptSmtpSend(EmailSendRequestedEvent event) {
         Long emailLogId = event.emailLogId();
         Long applicationId = emailLogRepository.findApplicationId(emailLogId).orElse(null);
+        boolean ordered = false;
         if (applicationId != null) {
+            EmailTemplateType templateType = emailLogRepository.findTemplateType(emailLogId)
+                    .orElseThrow(() -> new IllegalArgumentException("Email log not found: " + emailLogId));
+            ordered = APPLICATION_RESULTS.contains(templateType);
+        }
+        if (ordered) {
             emailLogRepository.findFirstApplicationEmailId(applicationId, APPLICATION_RESULTS)
                     .ifPresent(id -> emailLogRepository.findLockedById(id)
                             .orElseThrow(() -> new IllegalStateException("Email log not found: " + id)));
         }
         EmailLog emailLog = emailLogRepository.findLockedById(emailLogId)
                 .orElseThrow(() -> new IllegalArgumentException("Email log not found: " + emailLogId));
-        boolean ordered = applicationId != null && APPLICATION_RESULTS.contains(emailLog.getTemplateType());
         if (emailLog.getStatus() != EmailDeliveryStatus.PENDING
                 && !(emailLog.getStatus() == EmailDeliveryStatus.FAILED
                 && RECOVERABLE_APPLICATION_EMAILS.contains(emailLog.getTemplateType()))) return;
