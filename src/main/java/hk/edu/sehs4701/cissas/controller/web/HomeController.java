@@ -7,18 +7,17 @@ import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.ui.Model;
 
 @Controller
-public class DummyHomeController {
+public class HomeController {
     private final AcademicYearService academicYearService;
 
     @Autowired
-    public DummyHomeController(AcademicYearService academicYearService) {
+    public HomeController(AcademicYearService academicYearService) {
         this.academicYearService = academicYearService;
     }
 
     @GetMapping("/")
     public String index(Model model) {
-        model.addAttribute("appName", "My Spring Boot App");
-        model.addAttribute("username", "Developer");
+        model.addAttribute("appName", "CIS Admissions");
         model.addAttribute("academicYears", academicYearService.list());
         return "index";
     }
