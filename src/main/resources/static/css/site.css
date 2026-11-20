@@ -1,0 +1,154 @@
+:root {
+    color-scheme: light;
+    --cis-navy: #18324b;
+    --cis-blue: #0d6efd;
+    --cis-border: #dee3e9;
+    --cis-background: #f3f5f8;
+}
+
+body {
+    min-height: 100vh;
+    background: var(--cis-background);
+    color: #263445;
+    font-family: system-ui, -apple-system, "Segoe UI", sans-serif;
+}
+
+nav.navbar,
+nav:not(.navbar) {
+    background-color: var(--cis-navy) !important;
+}
+
+nav:not(.navbar) {
+    padding: 0.75rem 1rem;
+    border-radius: 0.5rem;
+    color: #fff;
+}
+
+nav.navbar a,
+nav:not(.navbar) a {
+    color: #fff;
+}
+
+main {
+    width: min(100% - 2rem, 1140px);
+    margin: 2rem auto;
+    padding: clamp(1.25rem, 4vw, 2.5rem);
+    border: 1px solid var(--cis-border);
+    border-radius: 0.75rem;
+    background: #fff;
+    box-shadow: 0 0.25rem 1rem rgb(24 50 75 / 7%);
+}
+
+h1,
+h2,
+h3,
+h4,
+h5 {
+    color: var(--cis-navy);
+}
+
+a {
+    color: #0759bd;
+}
+
+a:hover {
+    color: #064a9e;
+}
+
+form {
+    margin-block: 1rem;
+}
+
+label {
+    display: inline-block;
+    margin-bottom: 0.35rem;
+    font-weight: 600;
+}
+
+input:not([type="checkbox"]):not([type="radio"]):not([type="hidden"]),
+select,
+textarea {
+    width: min(100%, 32rem);
+    max-width: 100%;
+    padding: 0.55rem 0.75rem;
+    border: 1px solid #b9c3cf;
+    border-radius: 0.4rem;
+    background-color: #fff;
+    color: inherit;
+}
+
+input:focus,
+select:focus,
+textarea:focus {
+    border-color: var(--cis-blue);
+    outline: 0;
+    box-shadow: 0 0 0 0.2rem rgb(13 110 253 / 18%);
+}
+
+button,
+input[type="submit"],
+.btn {
+    border-radius: 0.4rem;
+}
+
+button:not(.navbar-toggler),
+input[type="submit"] {
+    padding: 0.55rem 1rem;
+    border: 1px solid var(--cis-blue);
+    background: var(--cis-blue);
+    color: #fff;
+    cursor: pointer;
+}
+
+button:not(.navbar-toggler):hover,
+input[type="submit"]:hover {
+    background: #0b5ed7;
+}
+
+table {
+    width: 100%;
+    border-collapse: collapse;
+    background: #fff;
+}
+
+th,
+td {
+    padding: 0.7rem;
+    border: 1px solid var(--cis-border);
+    text-align: left;
+    vertical-align: top;
+}
+
+th {
+    background: #eaf0f6;
+    color: var(--cis-navy);
+}
+
+footer {
+    padding: 1.25rem;
+    border-top: 1px solid var(--cis-border);
+    color: #667487;
+    text-align: center;
+}
+
+[role="alert"],
+.alert {
+    padding: 0.8rem 1rem;
+    border: 1px solid #f1b6bb;
+    border-radius: 0.4rem;
+    background: #fff1f2;
+    color: #842029;
+}
+
+@media (max-width: 600px) {
+    nav:not(.navbar) a {
+        display: inline-block;
+        margin: 0.25rem 0.5rem 0.25rem 0;
+    }
+
+    table {
+        display: block;
+        overflow-x: auto;
+        white-space: nowrap;
+    }
+}

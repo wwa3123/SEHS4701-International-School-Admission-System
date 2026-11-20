@@ -1,6 +1,8 @@
 <!DOCTYPE html>
 <html lang="en" xmlns:th="http://www.thymeleaf.org">
-<head><meta charset="UTF-8"><title>Duplicate review history</title></head>
+<head><meta charset="UTF-8"><title>Duplicate review history</title>    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link th:href="@{/css/site.css}" rel="stylesheet">
+</head>
 <body><main><h1>Duplicate review history</h1>
 <table><thead><tr><th>First application</th><th>Second application</th><th>Same person</th><th>Reviewer</th><th>Reviewed at</th><th>Current</th></tr></thead>
 <tbody><tr th:each="item : ${history.items}">
