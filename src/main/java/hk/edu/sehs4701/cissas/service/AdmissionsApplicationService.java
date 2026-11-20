@@ -142,7 +142,9 @@ public class AdmissionsApplicationService {
                 applicationSubmissionRequest.dateOfBirth(),
                 applicationSubmissionRequest.gender().trim(),
                 applicationSubmissionRequest.phone().trim(),
-                applicationSubmissionRequest.previousSchool().trim(),
+                applicationSubmissionRequest.previousSchool() == null
+                        || applicationSubmissionRequest.previousSchool().isBlank()
+                        ? null : applicationSubmissionRequest.previousSchool().trim(),
                 applicationSubmissionRequest.applicantIdentityDocumentType(),
                 applicationSubmissionRequest.applicantIdentityDocumentNumber(),
                 applicationSubmissionRequest.applicantIdentityDocumentIssuingCountry() == null

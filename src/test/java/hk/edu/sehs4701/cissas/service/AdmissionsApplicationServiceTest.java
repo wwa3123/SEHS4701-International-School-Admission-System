@@ -441,6 +441,31 @@ class AdmissionsApplicationServiceTest {
     }
 
     @Test
+    void acceptsMissingAndBlankPreviousSchool() {
+        request = new ApplicationSubmissionRequest(
+                LevelCode.S1, "Applicant Name", "A123456(3)", IdentityDocumentType.HKID, null,
+                LocalDate.of(2018, 1, 1), "Unspecified", "12345678", null, true, true, true);
+        when(applicantRepository.findByIdentityDocumentHashForUpdate(DOCUMENT_HASH))
+                .thenReturn(Optional.empty());
+        when(identityDocumentService.createIdentityDocument(
+                IdentityDocumentType.HKID, "A123456(3)", null
+        )).thenAnswer(invocation -> new IdentityDocument(
+                IdentityDocumentType.HKID, "A123456(3)", "HK", DOCUMENT_HASH));
+        when(applicantRepository.save(any(Applicant.class))).thenAnswer(invocation -> invocation.getArgument(0));
+
+        service.submitApplication(request, MEMBER_ID);
+        request = new ApplicationSubmissionRequest(
+                LevelCode.S1, "Applicant Name", "A123456(3)", IdentityDocumentType.HKID, null,
+                LocalDate.of(2018, 1, 1), "Unspecified", "12345678", "   ", true, true, true);
+        service.submitApplication(request, MEMBER_ID);
+
+        ArgumentCaptor<Application> applications = ArgumentCaptor.forClass(Application.class);
+        verify(applicationRepository, times(2)).save(applications.capture());
+        assertTrue(applications.getAllValues().stream()
+                .allMatch(application -> application.getApplicantSnapshot().getPreviousSchool() == null));
+    }
+
+    @Test
     void cannotSubmitUsingAnotherMembersIdentityDocument() {
         Member anotherMember = new Member();
         anotherMember.setId(99L);

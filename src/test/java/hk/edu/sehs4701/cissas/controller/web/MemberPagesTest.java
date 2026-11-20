@@ -191,11 +191,12 @@ class MemberPagesTest {
                         .param("applicantIdentityDocumentNumber", "P123456")
                         .param("applicantIdentityDocumentType", "PASSPORT")
                         .param("applicantIdentityDocumentIssuingCountry", "HK").param("dateOfBirth", "2018-01-01")
-                        .param("gender", "Unspecified").param("phone", "12345678").param("previousSchool", "School")
+                        .param("gender", "Unspecified").param("phone", "12345678")
                         .param("truthDeclarationAccepted", "true").param("dataPrivacyDeclarationAccepted", "true")
                         .param("parentGuardianDeclarationAccepted", "true"))
                 .andExpect(redirectedUrl("/member/applications"));
-        verify(admissions).submitApplication(argThat(form -> form.dateOfBirth().equals(LocalDate.of(2018, 1, 1))), eq(1L));
+        verify(admissions).submitApplication(argThat(form -> form.dateOfBirth().equals(LocalDate.of(2018, 1, 1))
+                && form.previousSchool() == null), eq(1L));
         mvc.perform(post("/member/applications").session(session).with(csrf()).param("dateOfBirth", "not-a-date"))
                 .andExpect(status().isBadRequest()).andExpect(view().name("member/application-form"))
                 .andExpect(model().attributeHasFieldErrors("applicationForm", "dateOfBirth"));

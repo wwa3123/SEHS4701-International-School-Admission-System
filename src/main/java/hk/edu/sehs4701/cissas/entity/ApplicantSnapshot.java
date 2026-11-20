@@ -36,7 +36,7 @@ public class ApplicantSnapshot {
     @Column(name = "submitted_phone", nullable = false, updatable = false, length = 25)
     private String phone;
 
-    @Column(name = "submitted_previous_school", nullable = false, updatable = false, length = 150)
+    @Column(name = "submitted_previous_school", updatable = false, length = 150)
     private String previousSchool;
 
     @Enumerated(EnumType.STRING)
