@@ -47,7 +47,9 @@ public class SecurityConfiguration {
                                 "/password-reset",
                                 "/academic-years", "/academic-years/open-for-application",
                                 "/academic-years/{id}", "/academic-years/{id}/programme-levels",
-                                "/css/**", "/js/**", "/images/**", "/favicon.ico").permitAll()
+                                "/css/**", "/js/**", "/images/**", "/favicon.ico",
+                                "/programmes", "/course", "/facilities",
+                                "/admission-requirements").permitAll()
                         .requestMatchers(HttpMethod.POST, "/login", "/logout",
                                 "/membership/register", "/membership/verify-email",
                                 "/membership/complete-registration", "/membership/resend-verification",
