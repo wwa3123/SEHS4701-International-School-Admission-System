@@ -28,6 +28,7 @@
     </scm>
     <properties>
         <java.version>25</java.version>
+        <maven.compiler.proc>full</maven.compiler.proc>
         <logback.version>1.6.3</logback.version>
         <jackson-bom.version>3.1.8</jackson-bom.version>
     </properties>
