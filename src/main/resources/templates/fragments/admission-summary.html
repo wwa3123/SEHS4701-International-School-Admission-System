@@ -1,0 +1,107 @@
+<!--
+  "Admission at a glance" band, included on every public information page (BR-39).
+
+  DEMO CONTENT: the figures below are placeholders so the wireframes can be
+  drawn before the database is ready. Every value in the <tbody> is hard-coded.
+
+  When the database work is finished, replace the six <tr> rows with a loop over
+  the model attributes supplied by PublicPageModelAdvice:
+
+      <tr th:each="level : ${levels}">
+        <th scope="row" th:text="${level.levelCode}">S1</th>
+        <td th:text="${level.levelCode le 'S4' ? 'IB MYP' : 'IB DP'}">IB MYP</td>
+        <td th:text="${level.seatQuota}">150</td>
+        <td th:text="${#temporals.format(level.applicationStartDate, 'd MMM yyyy')}">1 Sep 2026</td>
+        <td th:text="${#temporals.format(level.applicationEndDate, 'd MMM yyyy')}">31 Mar 2027</td>
+        <td th:text="${level.admissionOpen ? 'Open' : 'Closed'}">Open</td>
+      </tr>
+
+  and drop the demo banner from each page.
+-->
+<section th:fragment="compact" class="glance glance--compact" aria-label="Admission summary">
+    <div class="intro-container">
+        <p>
+            <strong>2027/28 intake:</strong> S1 to S5 open &middot; 150 seats per level &middot;
+            applications close 31 Mar 2027.
+            <a th:href="@{/admission-info}">Full admission table</a>
+        </p>
+    </div>
+</section>
+
+<section th:fragment="summary" class="glance" aria-labelledby="glance-title">
+    <div class="intro-container">
+        <div class="glance-head">
+            <h2 id="glance-title">Admission at a glance</h2>
+            <p class="glance-note">Demonstration figures &mdash; final values will be read from the admission database.</p>
+        </div>
+
+        <table>
+            <caption>Admission year 2027/28</caption>
+            <thead>
+            <tr>
+                <th scope="col">Level</th>
+                <th scope="col">Programme</th>
+                <th scope="col">Seat quota</th>
+                <th scope="col">Applications open</th>
+                <th scope="col">Applications close</th>
+                <th scope="col">Status</th>
+            </tr>
+            </thead>
+            <tbody>
+            <tr>
+                <th scope="row">S1</th>
+                <td>IB MYP</td>
+                <td>150</td>
+                <td>1 Sep 2026</td>
+                <td>31 Mar 2027</td>
+                <td><span class="status-badge status-accepted">Open</span></td>
+            </tr>
+            <tr>
+                <th scope="row">S2</th>
+                <td>IB MYP</td>
+                <td>150</td>
+                <td>1 Sep 2026</td>
+                <td>31 Mar 2027</td>
+                <td><span class="status-badge status-accepted">Open</span></td>
+            </tr>
+            <tr>
+                <th scope="row">S3</th>
+                <td>IB MYP</td>
+                <td>150</td>
+                <td>1 Sep 2026</td>
+                <td>31 Mar 2027</td>
+                <td><span class="status-badge status-accepted">Open</span></td>
+            </tr>
+            <tr>
+                <th scope="row">S4</th>
+                <td>IB MYP</td>
+                <td>150</td>
+                <td>1 Sep 2026</td>
+                <td>31 Mar 2027</td>
+                <td><span class="status-badge status-accepted">Open</span></td>
+            </tr>
+            <tr>
+                <th scope="row">S5</th>
+                <td>IB DP</td>
+                <td>150</td>
+                <td>1 Sep 2026</td>
+                <td>31 Mar 2027</td>
+                <td><span class="status-badge status-accepted">Open</span></td>
+            </tr>
+            <tr>
+                <th scope="row">S6</th>
+                <td>IB DP</td>
+                <td>150</td>
+                <td>&mdash;</td>
+                <td>&mdash;</td>
+                <td><span class="status-badge">Closed &mdash; reserved for S5 students</span></td>
+            </tr>
+            </tbody>
+        </table>
+
+        <p class="glance-foot">
+            Applications close at 23:59 Hong Kong time on the closing date.
+            <a th:href="@{/admission-requirements}">Read the admission requirements</a>.
+        </p>
+    </div>
+</section>

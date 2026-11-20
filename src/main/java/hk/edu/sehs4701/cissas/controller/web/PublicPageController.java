@@ -37,4 +37,24 @@ public class PublicPageController {
         }
         return "admission-info";
     }
+
+    @GetMapping("/programmes")
+    public String programmes() {
+        return "programmes";
+    }
+
+    @GetMapping("/course")
+    public String course() {
+        return "course";
+    }
+
+    @GetMapping("/facilities")
+    public String facilities() {
+        return "facilities";
+    }
+
+    @GetMapping("/admission-requirements")
+    public String admissionRequirements() {
+        return "admission-requirements";
+    }
 }

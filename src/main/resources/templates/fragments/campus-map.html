@@ -1,0 +1,98 @@
+<!--
+  Illustrative campus map (BR-37: "location map").
+
+  The school is fictional, so this is a deliberately schematic drawing rather
+  than a Google Maps embed: no real address is implied, nothing loads from the
+  network, and the page still works offline. Replace the whole <svg> with a
+  real map embed if the school ever gets a physical location.
+-->
+<figure th:fragment="map" class="campus-map" xmlns:th="http://www.thymeleaf.org">
+    <svg viewBox="0 0 800 460" role="img" aria-labelledby="campus-map-title campus-map-desc">
+        <title id="campus-map-title">Illustrative campus map</title>
+        <desc id="campus-map-desc">
+            Schematic plan showing the main building, science wing, library, arts studio,
+            sports hall and student commons, with the main entrance and the walking route
+            from Kowloon Tong MTR station.
+        </desc>
+
+        <rect x="0" y="0" width="800" height="460" fill="#faf7f2"/>
+
+        <!-- faint grid -->
+        <g stroke="#efe6d7" stroke-width="1">
+            <line x1="0" y1="115" x2="800" y2="115"/>
+            <line x1="0" y1="230" x2="800" y2="230"/>
+            <line x1="0" y1="345" x2="800" y2="345"/>
+            <line x1="160" y1="0" x2="160" y2="460"/>
+            <line x1="320" y1="0" x2="320" y2="460"/>
+            <line x1="480" y1="0" x2="480" y2="460"/>
+            <line x1="640" y1="0" x2="640" y2="460"/>
+        </g>
+
+        <!-- campus boundary -->
+        <rect x="60" y="70" width="680" height="340" rx="10"
+              fill="none" stroke="#d9cbb6" stroke-width="2" stroke-dasharray="10 6"/>
+        <text x="76" y="58" font-family="Georgia, serif" font-size="13" fill="#8a6d1f"
+              letter-spacing="2">CIS CAMPUS</text>
+
+        <!-- walking route -->
+        <path d="M712 438 L470 438 L430 414" fill="none" stroke="#c9a227"
+              stroke-width="2.5" stroke-dasharray="7 5" marker-end="url(#campusArrow)"/>
+        <text x="470" y="456" font-family="system-ui, sans-serif" font-size="12" fill="#6b6257">
+            Kowloon Tong MTR - 8 min walk
+        </text>
+
+        <!-- buildings -->
+        <g stroke="#7a1f2b" stroke-width="1.5">
+            <rect x="300" y="150" width="200" height="110" rx="3" fill="#f3ece2"/>
+            <rect x="520" y="120" width="140" height="90" rx="3" fill="#f3ece2"/>
+            <rect x="520" y="240" width="140" height="80" rx="3" fill="#f3ece2"/>
+            <rect x="120" y="120" width="150" height="100" rx="3" fill="#f3ece2"/>
+            <rect x="120" y="250" width="150" height="110" rx="3" fill="#f3ece2"/>
+            <rect x="300" y="290" width="200" height="70" rx="3" fill="#f3ece2"/>
+        </g>
+
+        <!-- labels -->
+        <g font-family="Georgia, serif" text-anchor="middle" fill="#3f342a">
+            <text x="400" y="196" font-size="15">Main Building</text>
+            <text x="400" y="216" font-size="12" fill="#6b6257">Admissions office</text>
+
+            <text x="590" y="152" font-size="13">Science Wing</text>
+            <text x="590" y="170" font-size="11" fill="#6b6257">3 laboratories</text>
+
+            <text x="590" y="272" font-size="13">Library</text>
+            <text x="590" y="290" font-size="11" fill="#6b6257">Media centre</text>
+
+            <text x="195" y="162" font-size="13">Arts Studio</text>
+            <text x="195" y="180" font-size="11" fill="#6b6257">Music and drama</text>
+
+            <text x="195" y="297" font-size="13">Sports Hall</text>
+            <text x="195" y="315" font-size="11" fill="#6b6257">Indoor courts</text>
+
+            <text x="400" y="320" font-size="13">Student Commons</text>
+            <text x="400" y="338" font-size="11" fill="#6b6257">Canteen and courtyard</text>
+        </g>
+
+        <!-- main entrance -->
+        <rect x="368" y="404" width="64" height="12" fill="#c9a227"/>
+        <text x="400" y="394" font-family="system-ui, sans-serif" font-size="11"
+              text-anchor="middle" fill="#6b6257">Main entrance</text>
+
+        <!-- north arrow -->
+        <g stroke="#7a1f2b" stroke-width="1.5" fill="#7a1f2b">
+            <line x1="724" y1="96" x2="724" y2="48"/>
+            <path d="M724 40 L718 54 L730 54 Z" stroke="none"/>
+        </g>
+        <text x="724" y="112" font-family="Georgia, serif" font-size="12"
+              text-anchor="middle" fill="#7a1f2b">N</text>
+
+        <defs>
+            <marker id="campusArrow" viewBox="0 0 10 10" refX="8" refY="5"
+                    markerWidth="7" markerHeight="7" orient="auto-start-reverse">
+                <path d="M0 0 L10 5 L0 10 Z" fill="#c9a227"/>
+            </marker>
+        </defs>
+    </svg>
+    <figcaption>
+        Illustrative campus plan, not to scale. The school is fictional; no real address is implied.
+    </figcaption>
+</figure>

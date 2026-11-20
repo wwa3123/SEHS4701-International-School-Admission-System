@@ -1,15 +1,20 @@
 :root {
     color-scheme: light;
-    --cis-navy: #18324b;
-    --cis-blue: #0d6efd;
-    --cis-border: #dee3e9;
-    --cis-background: #f3f5f8;
+    --cis-navy: #7a1f2b;
+    --cis-blue: #7a1f2b;
+    --cis-gold: #c9a227;
+    --cis-green: #1f4d3a;
+    --cis-cream: #faf7f2;
+    --cis-ink: #2b2b2b;
+    --cis-muted: #6b6257;
+    --cis-border: #e3dccf;
+    --cis-background: #faf7f2;
 }
 
 body {
     min-height: 100vh;
     background: var(--cis-background);
-    color: #263445;
+    color: var(--cis-ink);
     font-family: system-ui, -apple-system, "Segoe UI", sans-serif;
 }
 
@@ -73,6 +78,59 @@ body {
 
 .site-signout:hover {
     background: rgb(255 255 255 / 12%);
+}
+
+/* "Explore" disclosure in the main navigation (native <details>, no JS needed). */
+.site-nav-links .nav-more {
+    position: relative;
+}
+
+.site-nav-links .nav-more > summary {
+    padding-block: 0.25rem;
+    color: #fff;
+    cursor: pointer;
+    list-style: none;
+}
+
+.site-nav-links .nav-more > summary::-webkit-details-marker {
+    display: none;
+}
+
+.site-nav-links .nav-more > summary::after {
+    content: "\25BE";
+    margin-left: 0.35rem;
+    font-size: 0.7rem;
+}
+
+.site-nav-links .nav-more[open] > summary::after {
+    content: "\25B4";
+}
+
+.site-nav-links .nav-more-panel {
+    position: absolute;
+    top: calc(100% + 0.5rem);
+    left: 0;
+    z-index: 1000;
+    display: grid;
+    gap: 0.15rem;
+    min-width: 13rem;
+    padding: 0.5rem;
+    border-radius: 0.5rem;
+    background: #fff;
+    box-shadow: 0 0.5rem 1.5rem rgb(24 50 75 / 18%);
+}
+
+.site-nav-links .nav-more-panel a {
+    padding: 0.35rem 0.6rem;
+    border-radius: 0.35rem;
+    color: #18324b;
+    font-size: 0.95rem;
+}
+
+.site-nav-links .nav-more-panel a:hover {
+    background: #eaf0f6;
+    color: #18324b;
+    text-decoration: none;
 }
 
 main {
@@ -347,6 +405,16 @@ nav[aria-label$="pages"] {
         gap: 0.6rem 1rem;
     }
 
+    .site-nav-links .nav-more {
+        position: static;
+    }
+
+    .site-nav-links .nav-more-panel {
+        position: static;
+        margin-top: 0.5rem;
+        box-shadow: none;
+    }
+
     table {
         display: block;
         overflow-x: auto;
@@ -361,4 +429,103 @@ nav[aria-label$="pages"] {
     dd {
         margin-bottom: 0.65rem;
     }
+}
+
+/* =========================================================
+   Formal palette overrides (wine / cream / gold)
+   Kept at the end so the original rules stay readable.
+   ========================================================= */
+
+h1,
+h2,
+h3,
+h4,
+h5 {
+    font-family: Georgia, "Noto Serif TC", "Songti TC", "PMingLiU", "Times New Roman", serif;
+    font-weight: 600;
+    letter-spacing: 0.01em;
+}
+
+a {
+    color: #8a2430;
+}
+
+a:hover {
+    color: var(--cis-navy);
+}
+
+main {
+    border-color: var(--cis-border);
+    box-shadow: none;
+}
+
+th {
+    background: #f3ece2;
+    color: var(--cis-navy);
+}
+
+tbody tr:nth-child(even) {
+    background: #fbf8f3;
+}
+
+tbody tr:hover {
+    background: #f7f0e6;
+}
+
+.site-nav-links a:hover,
+.site-brand:hover {
+    color: var(--cis-gold);
+    text-decoration: none;
+}
+
+.site-nav-links .nav-more-panel a {
+    color: var(--cis-navy);
+}
+
+.site-nav-links .nav-more-panel a:hover {
+    background: #f7f0e6;
+    color: var(--cis-navy);
+}
+
+.site-signout {
+    border-color: rgb(201 162 39 / 65%);
+    color: var(--cis-cream);
+}
+
+.site-signout:hover {
+    background: rgb(201 162 39 / 18%);
+}
+
+button:not([class]):not(.navbar-toggler),
+input[type="submit"] {
+    border-color: var(--cis-navy);
+    background: var(--cis-navy);
+}
+
+button:not([class]):not(.navbar-toggler):hover,
+input[type="submit"]:hover {
+    background: #5c1620;
+}
+
+.status-pending,
+.status-success {
+    background: #f5e9d0;
+    color: #6b4e16;
+}
+
+.status-accepted {
+    background: #e3efe6;
+    color: #1f4d3a;
+}
+
+.status-fail,
+.status-rejected,
+.status-cancelled {
+    background: #efe8e2;
+    color: #4a4038;
+}
+
+footer {
+    border-top-color: var(--cis-border);
+    color: var(--cis-muted);
 }

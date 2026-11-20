@@ -2,6 +2,16 @@
     <div class="site-nav-inner">
         <a class="site-brand" th:href="@{/}">CIS Admissions</a>
         <div class="site-nav-links">
+            <details class="nav-more">
+                <summary>Explore</summary>
+                <div class="nav-more-panel">
+                    <a th:href="@{/about}">About the school</a>
+                    <a th:href="@{/programmes}">Programmes</a>
+                    <a th:href="@{/course}">Course descriptions</a>
+                    <a th:href="@{/facilities}">Facilities &amp; laboratories</a>
+                    <a th:href="@{/admission-requirements}">Admission requirements</a>
+                </div>
+            </details>
             <a th:href="@{/admission-info}">Admissions</a>
             <a th:href="@{/academic-years}">Academic years</a>
             <a th:if="${session.authenticatedUserRole == null}" th:href="@{/login}">Sign in</a>

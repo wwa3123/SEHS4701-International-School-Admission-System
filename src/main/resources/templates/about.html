@@ -3,31 +3,172 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>About - Christian International School</title>
+    <title>School Background - Christian International School</title>
     <link th:href="@{/vendor/bootstrap/5.3.2/bootstrap.min.css}" rel="stylesheet">
     <link th:href="@{/css/site.css}" rel="stylesheet">
+    <th:block th:replace="~{fragments/intro-style :: introStyle}"></th:block>
 </head>
 <body class="bg-light">
-    <header th:replace="~{fragments/navigation :: navigation}"></header>
 
+<!--
+  BR-37 - Information page 1 of 5: school background with location map and
+  teacher information.
 
+  This page deliberately uses the editorial hero variant and the compact
+  admission strip, so it reads differently from the admissions landing page.
 
-<div class="container my-5">
-    <h2>School Background</h2>
-    <p class="lead">Christian International School provides quality international education through the IB MYP and IB DP programmes.</p>
+  DEMO CONTENT: every figure, address and staff name below is a placeholder.
+  Search for "TODO(demo)" before release.
+-->
 
-    <div class="row mt-4">
-        <div class="col-md-6">
-            <h4>Location</h4>
-            <p>Hong Kong</p>
-            <!-- You can embed a map here later -->
-        </div>
-        <div class="col-md-6">
-            <h4>Teacher Information</h4>
-            <p>Our teachers are experienced educators dedicated to student growth.</p>
-        </div>
-    </div>
+<div class="demo-banner">
+    Demo content for wireframe review - replace with approved copy before release.
 </div>
 
+<header th:replace="~{fragments/navigation :: navigation}"></header>
+
+<main class="intro-main">
+
+    <section class="intro-hero intro-hero--editorial">
+        <div class="intro-container split">
+            <div>
+                <span class="eyebrow">About us</span>
+                <h1>A school built around the IB continuum</h1>
+                <p class="hero-lead">
+                    Christian International School is an IB World School in Hong Kong. We teach
+                    the Middle Years Programme to S1 to S4 and the Diploma Programme to S5 and S6,
+                    on a single campus in Kowloon Tong.
+                </p>
+                <p class="mb-0"><a th:href="@{/programmes}">Explore our programmes</a></p>
+            </div>
+            <div class="fact-stack">
+                <!-- TODO(demo): replace these four figures. -->
+                <div class="fact"><strong>1998</strong><span>Year founded</span></div>
+                <div class="fact"><strong>900</strong><span>Students across S1 to S6</span></div>
+                <div class="fact"><strong>IB MYP &amp; IB DP</strong><span>Programmes offered</span></div>
+                <div class="fact"><strong>1 campus</strong><span>Single-site secondary school</span></div>
+            </div>
+        </div>
+    </section>
+
+    <div th:replace="~{fragments/admission-summary :: compact}"></div>
+
+    <section class="intro-section">
+        <div class="intro-container">
+            <div class="prose">
+                <h2>Our story</h2>
+                <p>
+                    <!-- TODO(demo): replace with the school's approved history. -->
+                    Founded in 1998, Christian International School has grown from a small
+                    secondary school into a full IB continuum school serving families across
+                    Hong Kong. Our approach combines academic rigour with pastoral care:
+                    every student is known by name, and every family has a named point of contact.
+                </p>
+                <p>
+                    Learning is inquiry-based. Students are expected to ask questions, gather
+                    evidence and defend conclusions - skills that carry directly into the IB
+                    Middle Years Programme and the Diploma Programme.
+                </p>
+                <p class="mb-0">
+                    We are a community of approximately 900 students and 80 teaching staff,
+                    supported by specialist laboratories, studios, a media library and a
+                    sports hall on a single campus.
+                </p>
+            </div>
+        </div>
+    </section>
+
+    <section class="intro-section intro-section--alt">
+        <div class="intro-container">
+            <div class="section-head">
+                <h2>Where to find us</h2>
+                <p>
+                    <!-- TODO(demo): insert the real campus address. -->
+                    Our campus is located in Kowloon Tong, within walking distance of public
+                    transport. Visitors are welcome by appointment during term time.
+                </p>
+            </div>
+            <div class="split">
+                <div th:replace="~{fragments/campus-map :: map}"></div>
+                <div class="fact-stack">
+                    <div class="fact">
+                        <strong>Address</strong>
+                        <span>1 Example Road, Kowloon Tong, Hong Kong</span>
+                    </div>
+                    <div class="fact">
+                        <strong>Getting here</strong>
+                        <span>8 minutes on foot from Kowloon Tong MTR station; visitor parking by prior arrangement.</span>
+                    </div>
+                    <div class="fact">
+                        <strong>Enquiries</strong>
+                        <span>admissions@example.edu.hk &middot; +852 0000 0000</span>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <section class="intro-section">
+        <div class="intro-container">
+            <div class="section-head">
+                <h2>Our teachers</h2>
+                <p>
+                    <!-- TODO(demo): replace with the real faculty list, photographs and bios. -->
+                    Our faculty are subject specialists with international teaching experience.
+                    The four colleagues below lead the areas that admissions families ask about most.
+                </p>
+            </div>
+            <div class="intro-grid">
+                <article class="intro-card">
+                    <div class="avatar" aria-hidden="true">AC</div>
+                    <h3>Dr. A. Chan</h3>
+                    <p class="teacher-role">Principal</p>
+                    <p>Leads academic strategy and the school's IB authorisation, with 20 years in international education.</p>
+                </article>
+                <article class="intro-card">
+                    <div class="avatar" aria-hidden="true">BL</div>
+                    <h3>Ms. B. Lee</h3>
+                    <p class="teacher-role">MYP Coordinator</p>
+                    <p>Oversees S1 to S4 curriculum, assessment and the personal project.</p>
+                </article>
+                <article class="intro-card">
+                    <div class="avatar" aria-hidden="true">CW</div>
+                    <h3>Mr. C. Wong</h3>
+                    <p class="teacher-role">DP Coordinator</p>
+                    <p>Advises on subject choices, university pathways and the DP core.</p>
+                </article>
+                <article class="intro-card">
+                    <div class="avatar" aria-hidden="true">DN</div>
+                    <h3>Ms. D. Ng</h3>
+                    <p class="teacher-role">Head of Admissions</p>
+                    <p>Your first contact for applications, campus visits and document checks.</p>
+                </article>
+            </div>
+        </div>
+    </section>
+
+    <section class="cta-band">
+        <div class="intro-container">
+            <h2>Next: what students study</h2>
+            <p>See how the IB MYP and IB DP are structured, and what each level requires.</p>
+            <div class="hero-actions" style="justify-content:center">
+                <a class="btn-solid" th:href="@{/programmes}">Programme introduction</a>
+                <a class="btn-ghost" th:href="@{/admission-requirements}">Admission requirements</a>
+            </div>
+        </div>
+    </section>
+
+</main>
+
+<footer class="site-footer">
+    <div class="intro-container">
+        &copy; 2026 Christian International School &middot;
+        <a th:href="@{/about}">About</a> &middot;
+        <a th:href="@{/admission-requirements}">Admission requirements</a> &middot;
+        <a th:href="@{/login}">Sign in</a>
+    </div>
+</footer>
+
+<script th:src="@{/vendor/bootstrap/5.3.2/bootstrap.bundle.min.js}"></script>
 </body>
 </html>
