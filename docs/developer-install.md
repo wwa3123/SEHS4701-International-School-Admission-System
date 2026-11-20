@@ -7,6 +7,7 @@ This guide covers a fresh local setup. It does not use or require another develo
 - JDK 25 (ensure `java -version` uses it)
 - MySQL 8.0.16 or later, running locally or reachable from your machine
 - Git
+- OpenSSL for the random-key commands below
 
 The Maven wrapper downloads the project’s Maven version and dependencies. A separate Maven installation is not required.
 
@@ -35,7 +36,7 @@ The default JDBC URL targets `jdbc:mysql://localhost:3306/cissas`. Set `SPRING_D
 
 The application requires encryption settings and, on a fresh database, super-administrator bootstrap details. Keep these values private; do not commit them or reuse production keys in development.
 
-Generate and set values in your current terminal session. The examples use OpenSSL to produce hex-encoded random values.
+Generate these values once for a new local database, store them privately, and reuse them in later terminal sessions. Changing the encryption values or peppers while reusing the database can make stored data unreadable or prevent hashes from matching. The examples use OpenSSL to produce hex-encoded random values.
 
 PowerShell:
 
@@ -73,16 +74,23 @@ export SPRING_DATASOURCE_PASSWORD='replace-with-a-local-password'
 
 Choose a bootstrap password of at least 8 characters and no more than 72 UTF-8 bytes. The super administrator is provisioned only when no super-administrator account exists. Keep the same identity encryption secret and salt for any database whose encrypted identity documents must remain readable; keep the hash peppers stable so existing hashes continue to match.
 
-### Optional dev profile configuration
+### Create the dev profile file
 
-You may create `src\main\resources\application-dev.properties` for local, non-secret Spring property overrides. This file is Git-ignored, so it is absent from a fresh clone and must not be shared as a source of credentials. Spring loads it when the `dev` profile is active; values defined there override the corresponding defaults in `application.properties`. For example:
+Copy the supplied example to `src\main\resources\application-dev.properties` before running with the `dev` profile. The file is Git-ignored and is absent from a fresh clone. If you already have your own file, keep it instead of overwriting it.
 
-```properties
-spring.jpa.hibernate.ddl-auto=validate
-spring.jpa.show-sql=false
+PowerShell:
+
+```powershell
+Copy-Item .\src\main\resources\application-dev.properties.example .\src\main\resources\application-dev.properties
 ```
 
-Prefer the environment variables above for credentials and keys. If your local file directly sets an identity secret, salt, hash pepper, or bootstrap property, that value overrides the base property's environment-variable placeholder; remove the direct value to use the documented variable. Do not regenerate keys on every startup when reusing a database.
+macOS/Linux:
+
+```sh
+cp src/main/resources/application-dev.properties.example src/main/resources/application-dev.properties
+```
+
+The example reads the database credentials, encryption values, peppers, and first super-administrator details from the environment variables above. Spring loads the copied file only with the `dev` profile; its settings override the defaults in `application.properties`. You may instead put your own local values in the ignored copy, but never commit or share credentials. Direct values in this file override the base property's environment-variable placeholders.
 
 Git ignoring the file does **not** prevent Maven from packaging it as a resource. Remove local secret-bearing profile files from the build input before creating a distributable JAR; never ship development credentials.
 

@@ -50,7 +50,7 @@ Flyway applies versioned schema migrations from `src/main/resources/db/migration
 
 For local development only, activate the `dev` Spring profile to seed a fictional academic year and three programme levels. The seed is idempotent and creates no user accounts, applicants, or identity documents. Do not enable this profile in production.
 
-An optional `src\main\resources\application-dev.properties` can hold local `dev` profile overrides. It is Git-ignored and is not included in a fresh clone; create it yourself only if needed. See the [Developer installation guide](docs/developer-install.md) for configuration and packaging precautions.
+For assessment or local development, copy the supplied `src\main\resources\application-dev.properties.example` to `application-dev.properties` in the same directory. The copy is Git-ignored and uses the local settings described in the [Developer installation guide](docs/developer-install.md); it contains no working credentials by default.
 
 ## Project layout
 

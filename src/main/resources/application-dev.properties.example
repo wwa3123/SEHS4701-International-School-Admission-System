@@ -1,0 +1,18 @@
+# Copy to application-dev.properties and activate the dev profile.
+# Set the variables below as described in docs/developer-install.md.
+spring.datasource.url=${SPRING_DATASOURCE_URL:jdbc:mysql://localhost:3306/cissas?useSSL=false&serverTimezone=UTC}
+spring.datasource.username=${SPRING_DATASOURCE_USERNAME}
+spring.datasource.password=${SPRING_DATASOURCE_PASSWORD}
+spring.jpa.hibernate.ddl-auto=validate
+spring.jpa.show-sql=false
+
+identity-document.encryption.secret=${IDENTITY_DOCUMENT_SECRET}
+identity-document.encryption.salt=${IDENTITY_DOCUMENT_SALT}
+identity-document.hash.pepper=${IDENTITY_DOCUMENT_HASH_PEPPER}
+otc.code.hash.pepper=${OTC_CODE_HASH_PEPPER}
+
+# Used to create the first super administrator on an empty database.
+cissas.super-admin.email=${CISSAS_SUPER_ADMIN_EMAIL:}
+cissas.super-admin.first-name=${CISSAS_SUPER_ADMIN_FIRST_NAME:}
+cissas.super-admin.last-name=${CISSAS_SUPER_ADMIN_LAST_NAME:}
+cissas.super-admin.password=${CISSAS_SUPER_ADMIN_PASSWORD:}
