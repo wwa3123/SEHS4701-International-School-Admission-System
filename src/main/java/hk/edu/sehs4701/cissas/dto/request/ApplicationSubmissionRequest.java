@@ -28,7 +28,7 @@ public record ApplicationSubmissionRequest(
         String gender,
         @NotBlank @Size(max = 25)
         String phone,
-        @NotBlank @Size(max = 150)
+        @Size(max = 150)
         String previousSchool,
         @AssertTrue(message = "You must accept the truth declaration")
         boolean truthDeclarationAccepted,
