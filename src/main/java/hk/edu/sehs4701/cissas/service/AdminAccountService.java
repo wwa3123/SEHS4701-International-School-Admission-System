@@ -179,6 +179,7 @@ public class AdminAccountService {
         admin.setPasswordHash(hashService.hashPassword(password));
         admin.setCredentialVersion(admin.getCredentialVersion() + 1);
         admin.setPasswordChangeRequired(changeRequired);
+        admin.resetLoginFailures();
         admins.save(admin);
     }
 

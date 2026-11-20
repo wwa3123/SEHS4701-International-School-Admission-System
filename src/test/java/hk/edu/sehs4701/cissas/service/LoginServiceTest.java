@@ -53,7 +53,7 @@ class LoginServiceTest {
         admin.setPasswordHash("admin-hash");
         admin.setRole(ActorRole.ROLE_SUPER_ADMIN);
         admin.setPasswordChangeRequired(true);
-        when(adminRepository.findByEmailIgnoreCase("admin@example.com")).thenReturn(Optional.of(admin));
+        when(adminRepository.findLockedByEmailIgnoreCase("admin@example.com")).thenReturn(Optional.of(admin));
         when(hashService.verifyPassword("valid-password", "admin-hash")).thenReturn(true);
 
         assertEquals(ActorRole.ROLE_SUPER_ADMIN,
@@ -112,7 +112,7 @@ class LoginServiceTest {
         Admin admin = new Admin();
         admin.setActive(false);
         admin.setPasswordHash("admin-hash");
-        when(adminRepository.findByEmailIgnoreCase("officer@example.com")).thenReturn(Optional.of(admin));
+        when(adminRepository.findLockedByEmailIgnoreCase("officer@example.com")).thenReturn(Optional.of(admin));
         when(hashService.verifyPassword("valid-password", "admin-hash")).thenReturn(true);
 
         assertUnauthorized(() -> service.login("officer@example.com", "valid-password", LoginAccountType.ADMIN));
@@ -160,6 +160,29 @@ class LoginServiceTest {
                 "unknown@example.com", "valid-password", LoginAccountType.MEMBER
         ));
         verify(hashService).verifyPassword("valid-password", null);
+    }
+
+    @Test
+    void locksAdminAfterFiveFailuresAndSuccessfulLoginClearsLockout() {
+        Admin admin = new Admin();
+        admin.setId(2L);
+        admin.setEmail("admin@example.com");
+        admin.setActive(true);
+        admin.setPasswordHash("admin-hash");
+        when(adminRepository.findLockedByEmailIgnoreCase("admin@example.com")).thenReturn(Optional.of(admin));
+        when(hashService.verifyPassword("wrong-password", "admin-hash")).thenReturn(false);
+        when(hashService.verifyPassword("valid-password", "admin-hash")).thenReturn(true);
+        admin.setFailedLoginAttempts(4);
+
+        assertUnauthorized(() -> service.login("admin@example.com", "wrong-password", LoginAccountType.ADMIN));
+        assertEquals(5, admin.getFailedLoginAttempts());
+        assertTrue(admin.getLoginLockedUntil().isAfter(java.time.LocalDateTime.now().plusMinutes(14)));
+        assertUnauthorized(() -> service.login("admin@example.com", "valid-password", LoginAccountType.ADMIN));
+
+        admin.setLoginLockedUntil(java.time.LocalDateTime.now().minusSeconds(1));
+        service.login("admin@example.com", "valid-password", LoginAccountType.ADMIN);
+        assertEquals(0, admin.getFailedLoginAttempts());
+        assertNull(admin.getLoginLockedUntil());
     }
 
     @Test

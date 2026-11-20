@@ -121,6 +121,7 @@ class EmailSendAttemptServiceTest {
     void ignoresStaleSendEventForSkippedEmail() {
         EmailLogRepository emails = mock(EmailLogRepository.class);
         JavaMailSender sender = mock(JavaMailSender.class);
+        stubApplicationLock(emails);
         EmailLog skipped = new EmailLog();
         skipped.setStatus(EmailDeliveryStatus.SKIPPED);
         skipped.setTemplateType(EmailTemplateType.RESULT_ANNOUNCEMENT);
@@ -149,6 +150,7 @@ class EmailSendAttemptServiceTest {
     void laterResultWaitsForEarlierResult() {
         EmailLogRepository emails = mock(EmailLogRepository.class);
         JavaMailSender sender = mock(JavaMailSender.class);
+        stubApplicationLock(emails);
         EmailLog older = new EmailLog();
         older.setId(1L);
         older.setTemplateType(EmailTemplateType.RESULT_ANNOUNCEMENT);
@@ -209,6 +211,7 @@ class EmailSendAttemptServiceTest {
     void failedAcknowledgementDoesNotBlockLaterResultEmail() {
         EmailLogRepository emails = mock(EmailLogRepository.class);
         JavaMailSender sender = mock(JavaMailSender.class);
+        stubApplicationLock(emails);
         EmailLog result = new EmailLog();
         result.setId(2L);
         result.setStatus(EmailDeliveryStatus.PENDING);
@@ -240,6 +243,7 @@ class EmailSendAttemptServiceTest {
         EmailLogRepository emails = mock(EmailLogRepository.class);
         JavaMailSender sender = mock(JavaMailSender.class);
         ApplicationEventPublisher events = mock(ApplicationEventPublisher.class);
+        stubApplicationLock(emails);
         EmailLog older = new EmailLog();
         older.setId(1L);
         older.setTemplateType(EmailTemplateType.RESULT_ANNOUNCEMENT);
@@ -269,6 +273,7 @@ class EmailSendAttemptServiceTest {
     void recoveredPendingEmailIsSentOnlyOnceWhenEventIsRepeated() {
         EmailLogRepository emails = mock(EmailLogRepository.class);
         JavaMailSender sender = mock(JavaMailSender.class);
+        stubApplicationLock(emails);
         EmailLog pending = new EmailLog();
         pending.setId(1L);
         pending.setTemplateType(EmailTemplateType.RESULT_ANNOUNCEMENT);
@@ -322,6 +327,7 @@ class EmailSendAttemptServiceTest {
     void failedEarlierResultBlocksLaterUntilResent() {
         EmailLogRepository emails = mock(EmailLogRepository.class);
         JavaMailSender sender = mock(JavaMailSender.class);
+        stubApplicationLock(emails);
         EmailLog failed = new EmailLog();
         failed.setId(1L);
         failed.setStatus(EmailDeliveryStatus.FAILED);
@@ -348,6 +354,7 @@ class EmailSendAttemptServiceTest {
         EmailLogRepository emails = mock(EmailLogRepository.class);
         JavaMailSender sender = mock(JavaMailSender.class);
         ApplicationEventPublisher events = mock(ApplicationEventPublisher.class);
+        stubApplicationLock(emails);
         EmailLog failed = new EmailLog();
         failed.setId(1L);
         failed.setStatus(EmailDeliveryStatus.FAILED);
@@ -401,6 +408,10 @@ class EmailSendAttemptServiceTest {
         verify(sender, times(1)).send(any(org.springframework.mail.SimpleMailMessage.class));
         verify(emails, never()).findFirstByApplication_IdAndTemplateTypeInAndStatusInOrderByIdAsc(
                 anyLong(), anyCollection(), anyCollection());
+    }
+
+    private void stubApplicationLock(EmailLogRepository emails) {
+        when(emails.findLockedApplicationForEmailLog(anyLong())).thenReturn(Optional.of(new Application()));
     }
 
     @Test

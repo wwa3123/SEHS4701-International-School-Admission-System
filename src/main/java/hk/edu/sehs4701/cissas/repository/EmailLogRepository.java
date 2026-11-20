@@ -62,6 +62,18 @@ public interface EmailLogRepository extends JpaRepository<EmailLog, Long> {
     Optional<EmailLog> findFirstByApplication_IdAndTemplateTypeInAndStatusInOrderByIdAsc(
             Long applicationId, Collection<EmailTemplateType> types, Collection<EmailDeliveryStatus> statuses);
 
+    @Modifying
+    @Query("""
+            update EmailLog e set e.status = :skippedStatus, e.errorMessage = :reason
+            where e.application.id = :applicationId and e.templateType in :types and e.status in :statuses
+            """)
+    int skipUnsentResultEmails(
+            @Param("applicationId") Long applicationId,
+            @Param("types") Collection<EmailTemplateType> types,
+            @Param("statuses") Collection<EmailDeliveryStatus> statuses,
+            @Param("skippedStatus") EmailDeliveryStatus skippedStatus,
+            @Param("reason") String reason);
+
     boolean existsByApplication_IdAndIdGreaterThanAndTemplateTypeInAndStatus(
             Long applicationId, Long id, Collection<EmailTemplateType> types, EmailDeliveryStatus status);
 

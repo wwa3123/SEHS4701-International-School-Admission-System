@@ -43,6 +43,12 @@ public class Admin {
     @Column(name = "credential_version", nullable = false)
     private long credentialVersion = 0;
 
+    @Column(name = "failed_login_attempts", nullable = false, columnDefinition = "int not null default 0")
+    private int failedLoginAttempts = 0;
+
+    @Column(name = "login_locked_until")
+    private LocalDateTime loginLockedUntil;
+
     @Column(name = "password_change_required", nullable = false)
     private boolean passwordChangeRequired = false;
 
@@ -57,5 +63,10 @@ public class Admin {
     @UpdateTimestamp
     @Column(name = "updated_at")
     private LocalDateTime updatedAt;
+
+    public void resetLoginFailures() {
+        failedLoginAttempts = 0;
+        loginLockedUntil = null;
+    }
 
 }

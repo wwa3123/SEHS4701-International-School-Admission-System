@@ -41,6 +41,16 @@ class EmailServiceTest {
     }
 
     @Test
+    void supersedesOnlyUnsentResultNotificationTypes() {
+        EmailLogRepository repository = mock(EmailLogRepository.class);
+        new EmailService(repository, mock(ApplicationEventPublisher.class)).supersedeUnsentResultEmails(7L);
+
+        verify(repository).skipUnsentResultEmails(eq(7L),
+                eq(EmailSendAttemptService.RESULT_NOTIFICATIONS), eq(EmailSendAttemptService.UNSENT),
+                eq(EmailDeliveryStatus.SKIPPED), anyString());
+    }
+
+    @Test
     void acknowledgementEmailIsRecoverableButNotPartOfTheOrderedResultQueue() {
         assertFalse(EmailSendAttemptService.APPLICATION_RESULTS.contains(EmailTemplateType.APPLICATION_ACKNOWLEDGEMENT));
         assertTrue(EmailSendAttemptService.APPLICATION_EMAILS.contains(EmailTemplateType.APPLICATION_ACKNOWLEDGEMENT));

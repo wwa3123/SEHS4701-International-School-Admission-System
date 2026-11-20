@@ -16,10 +16,13 @@ import org.springframework.transaction.annotation.Transactional;
 
 import java.time.LocalDateTime;
 import java.time.ZoneId;
+import java.util.List;
 
 @Service
 public class EmailService {
     private static final String REDACTED_CODE_BODY = "[One-time code email body redacted]";
+    private static final String SUPERSEDED_RESULT_MESSAGE = "Superseded by a newer application result.";
+
     private final EmailLogRepository emailLogRepository;
     private final ApplicationEventPublisher eventPublisher;
 
@@ -58,6 +61,11 @@ public class EmailService {
                 savedLog.getId(),
                 containsOneTimeCode ? request.body() : null
         ));
+    }
+
+    public void supersedeUnsentResultEmails(Long applicationId) {
+        emailLogRepository.skipUnsentResultEmails(applicationId, EmailSendAttemptService.RESULT_NOTIFICATIONS,
+                EmailSendAttemptService.UNSENT, EmailDeliveryStatus.SKIPPED, SUPERSEDED_RESULT_MESSAGE);
     }
 
     @Transactional

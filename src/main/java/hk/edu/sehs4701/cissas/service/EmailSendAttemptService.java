@@ -40,6 +40,9 @@ public class EmailSendAttemptService {
             EmailTemplateType.RESULT_ANNOUNCEMENT, EmailTemplateType.WAIT_TO_SUCCESS,
             EmailTemplateType.CORRECTED_RESULT_ANNOUNCEMENT, EmailTemplateType.APPLICATION_CANCELLATION,
             EmailTemplateType.OFFER_DEADLINE_EXTENSION);
+    static final List<EmailTemplateType> RESULT_NOTIFICATIONS = List.of(
+            EmailTemplateType.RESULT_ANNOUNCEMENT, EmailTemplateType.WAIT_TO_SUCCESS,
+            EmailTemplateType.CORRECTED_RESULT_ANNOUNCEMENT);
     static final List<EmailTemplateType> INDEPENDENT_APPLICATION_EMAILS = List.of(
             EmailTemplateType.APPLICATION_ACKNOWLEDGEMENT, EmailTemplateType.OFFER_48_HOUR_REMINDER);
     static final List<EmailTemplateType> APPLICATION_EMAILS = Stream.concat(
@@ -78,10 +81,15 @@ public class EmailSendAttemptService {
         Long emailLogId = event.emailLogId();
         Long applicationId = emailLogRepository.findApplicationId(emailLogId).orElse(null);
         boolean ordered = false;
+        EmailTemplateType templateType = null;
         if (applicationId != null) {
-            EmailTemplateType templateType = emailLogRepository.findTemplateType(emailLogId)
+            templateType = emailLogRepository.findTemplateType(emailLogId)
                     .orElseThrow(() -> new IllegalArgumentException("Email log not found: " + emailLogId));
             ordered = APPLICATION_RESULTS.contains(templateType);
+        }
+        if (templateType != null && RESULT_NOTIFICATIONS.contains(templateType)) {
+            emailLogRepository.findLockedApplicationForEmailLog(emailLogId)
+                    .orElseThrow(() -> new IllegalStateException("Application not found for email: " + emailLogId));
         }
         if (ordered) {
             emailLogRepository.findFirstApplicationEmailId(applicationId, APPLICATION_RESULTS)
