@@ -1,12 +1,17 @@
 <!DOCTYPE html>
 <html lang="en" xmlns:th="http://www.thymeleaf.org">
-<head><meta charset="UTF-8"><title>My applications</title></head>
+<head><meta charset="UTF-8"><title>My applications</title>    <link th:href="@{/vendor/bootstrap/5.3.2/bootstrap.min.css}" rel="stylesheet">
+    <link th:href="@{/css/site.css}" rel="stylesheet">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+</head>
 <body>
+    <header th:replace="~{fragments/navigation :: navigation}"></header>
+
 <main>
     <h1>My applications</h1>
     <p role="status" th:if="${message}" th:text="${message}"></p>
-    <a th:href="@{/member/applications/new}">New application</a>
-    <a th:href="@{/member/identity-documents}">Manage identity documents</a>
+    <a class="btn btn-primary" th:href="@{/member/applications/new}">New application</a>
+    <a class="btn btn-outline-primary" th:href="@{/member/identity-documents}">Manage identity documents</a>
     <p th:if="${applications.empty}">No applications on this page.</p>
     <ul>
         <li th:each="item : ${applications.content}">
@@ -19,7 +24,6 @@
         <a th:if="${applications.hasPrevious()}" th:href="@{/member/applications(page=${applications.number - 1})}">Previous</a>
         <a th:if="${applications.hasNext()}" th:href="@{/member/applications(page=${applications.number + 1})}">Next</a>
     </nav>
-    <form th:action="@{/logout}" method="post"><button type="submit">Sign out</button></form>
 </main>
 </body>
 </html>

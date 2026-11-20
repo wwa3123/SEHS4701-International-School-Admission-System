@@ -1,0 +1,30 @@
+<nav class="site-nav" aria-label="Main navigation" th:fragment="navigation" xmlns:th="http://www.thymeleaf.org">
+    <div class="site-nav-inner">
+        <a class="site-brand" th:href="@{/}">CIS Admissions</a>
+        <div class="site-nav-links">
+            <a th:href="@{/admission-info}">Admissions</a>
+            <a th:href="@{/academic-years}">Academic years</a>
+            <a th:if="${session.authenticatedUserRole == null}" th:href="@{/login}">Sign in</a>
+            <a th:if="${session.authenticatedUserRole == null}" th:href="@{/membership/register}">Register</a>
+            <a th:if="${session.authenticatedUserRole == 'ROLE_MEMBER'}" th:href="@{/member/applications}">My applications</a>
+            <a th:if="${session.authenticatedUserRole == 'ROLE_MEMBER'}" th:href="@{/member/identity-documents}">Identity documents</a>
+            <a th:if="${session.authenticatedUserRole == 'ROLE_ADMIN' or session.authenticatedUserRole == 'ROLE_SUPER_ADMIN'}"
+               th:href="@{/admin/applications}">Manage applications</a>
+            <a th:if="${session.authenticatedUserRole == 'ROLE_ADMIN' or session.authenticatedUserRole == 'ROLE_SUPER_ADMIN'}"
+               th:href="@{/admin/applications/possible-duplicates}">Possible duplicates</a>
+            <a th:if="${session.authenticatedUserRole == 'ROLE_ADMIN' or session.authenticatedUserRole == 'ROLE_SUPER_ADMIN'}"
+               th:href="@{/admin/emails/failed}">Failed emails</a>
+            <a th:if="${session.authenticatedUserRole == 'ROLE_ADMIN' or session.authenticatedUserRole == 'ROLE_SUPER_ADMIN'}"
+               th:href="@{/admin/password}">Change password</a>
+            <a th:if="${session.authenticatedUserRole == 'ROLE_SUPER_ADMIN'}"
+               th:href="@{/super-admin/admissions-officers}">Admissions officers</a>
+            <a th:if="${session.authenticatedUserRole == 'ROLE_SUPER_ADMIN'}"
+               th:href="@{/super-admin/members}">Manage members</a>
+            <a th:if="${session.authenticatedUserRole == 'ROLE_SUPER_ADMIN'}"
+               th:href="@{/super-admin/academic-years}">Manage academic years</a>
+            <form th:if="${session.authenticatedUserRole != null}" th:action="@{/logout}" method="post">
+                <button class="site-signout" type="submit">Sign out</button>
+            </form>
+        </div>
+    </div>
+</nav>

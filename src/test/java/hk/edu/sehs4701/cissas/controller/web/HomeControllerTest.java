@@ -13,9 +13,9 @@ import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
 
-class DummyHomeControllerTest {
+class HomeControllerTest {
     private final AcademicYearService academicYearService = mock(AcademicYearService.class);
-    private final DummyHomeController controller = new DummyHomeController(academicYearService);
+    private final HomeController controller = new HomeController(academicYearService);
 
     @Test
     void addsAcademicYearsToHomePageModel() {
@@ -30,6 +30,7 @@ class DummyHomeControllerTest {
         ExtendedModelMap model = new ExtendedModelMap();
 
         assertEquals("index", controller.index(model));
+        assertEquals("CIS Admissions", model.getAttribute("appName"));
         assertEquals(academicYears, model.getAttribute("academicYears"));
     }
 }

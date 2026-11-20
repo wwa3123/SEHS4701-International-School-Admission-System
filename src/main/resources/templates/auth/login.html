@@ -1,7 +1,12 @@
 <!DOCTYPE html>
 <html lang="en" xmlns:th="http://www.thymeleaf.org">
-<head><meta charset="UTF-8"><title>Sign in</title></head>
+<head><meta charset="UTF-8"><title>Sign in</title>    <link th:href="@{/vendor/bootstrap/5.3.2/bootstrap.min.css}" rel="stylesheet">
+    <link th:href="@{/css/site.css}" rel="stylesheet">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+</head>
 <body>
+    <header th:replace="~{fragments/navigation :: navigation}"></header>
+
 <main>
     <h1>Sign in</h1>
     <p th:if="${param.logout}">You have signed out.</p>

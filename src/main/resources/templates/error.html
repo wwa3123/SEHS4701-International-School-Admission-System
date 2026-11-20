@@ -1,7 +1,12 @@
 <!DOCTYPE html>
 <html lang="en" xmlns:th="http://www.thymeleaf.org">
-<head><meta charset="UTF-8"><title>Request not completed</title></head>
-<body><main>
+<head><meta charset="UTF-8"><title>Request not completed</title>    <link th:href="@{/vendor/bootstrap/5.3.2/bootstrap.min.css}" rel="stylesheet">
+    <link th:href="@{/css/site.css}" rel="stylesheet">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+</head>
+<body>
+    <header th:replace="~{fragments/navigation :: navigation}"></header>
+    <main>
 <h1>Request not completed</h1>
 <p>Status: <span th:text="${status}"></span></p>
 <p th:if="${status == 403}">Access is not allowed, or your form expired. Reload the page and check that you are signed in with the correct account.</p>

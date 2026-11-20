@@ -45,9 +45,10 @@ public class AdminApplicationPageController {
 
     @GetMapping("/{number}/result")
     public String result(@PathVariable String number, HttpServletRequest request, Model model) {
-        accounts.requireAdminForUpdate(request);
+        Long adminId = accounts.requireAdminForUpdate(request);
         model.addAttribute("resultForm", new SetApplicationResultRequest(null, ""));
         model.addAttribute("number", number);
+        model.addAttribute("availableResults", results.availableResults(adminId, number));
         return "admin/result-form";
     }
 
@@ -58,10 +59,12 @@ public class AdminApplicationPageController {
         Long adminId = accounts.requireAdminForUpdate(request);
         model.addAttribute("number", number);
         if (errors.hasErrors()) {
+            model.addAttribute("availableResults", results.availableResults(adminId, number));
             response.setStatus(400);
             return "admin/result-form";
         }
         if (!results.setResult(adminId, number, form.result(), form.reason())) {
+            model.addAttribute("availableResults", results.availableResults(adminId, number));
             response.setStatus(409);
             model.addAttribute("error", "Result not saved: the seat quota is full or the offer has expired. Check the current application status.");
             return "admin/result-form";

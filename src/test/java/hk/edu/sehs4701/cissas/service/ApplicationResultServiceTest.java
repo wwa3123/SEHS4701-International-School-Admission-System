@@ -100,6 +100,27 @@ class ApplicationResultServiceTest {
     }
 
     @Test
+    void availableResultChoicesFollowRoleStatusAndOfferDeadline() {
+        assertEquals(List.of(ApplicationStatus.Success, ApplicationStatus.Wait, ApplicationStatus.Fail),
+                service.availableResults(42L, "APP-1"));
+
+        application.setStatus(ApplicationStatus.Wait);
+        assertEquals(List.of(ApplicationStatus.Success), service.availableResults(42L, "APP-1"));
+        admin.setRole(ActorRole.ROLE_SUPER_ADMIN);
+        assertEquals(List.of(ApplicationStatus.Success, ApplicationStatus.Fail), service.availableResults(42L, "APP-1"));
+
+        application.setStatus(ApplicationStatus.Success);
+        application.setAcceptanceDeadline(LocalDateTime.now(ZoneId.of("Asia/Hong_Kong")).plusHours(1));
+        assertEquals(List.of(ApplicationStatus.Wait, ApplicationStatus.Fail), service.availableResults(42L, "APP-1"));
+        application.setRespondedAt(LocalDateTime.now(ZoneId.of("Asia/Hong_Kong")));
+        assertTrue(service.availableResults(42L, "APP-1").isEmpty());
+
+        application.setRespondedAt(null);
+        application.setStatus(ApplicationStatus.Accepted);
+        assertTrue(service.availableResults(42L, "APP-1").isEmpty());
+    }
+
+    @Test
     void refusesToChangeApplicationResultForArchivedYear() {
         application.getAcademicYear().setStatus(AcademicYearStatus.ARCHIVED);
 

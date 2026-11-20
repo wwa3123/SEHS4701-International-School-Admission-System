@@ -1,16 +1,30 @@
 <!DOCTYPE html>
 <html lang="en" xmlns:th="http://www.thymeleaf.org">
-<head><meta charset="UTF-8"><title>Set application result</title></head>
-<body><main>
+<head><meta charset="UTF-8"><title>Set application result</title>    <link th:href="@{/vendor/bootstrap/5.3.2/bootstrap.min.css}" rel="stylesheet">
+    <link th:href="@{/css/site.css}" rel="stylesheet">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+</head>
+<body>
+    <header th:replace="~{fragments/navigation :: navigation}"></header>
+    <main>
 <h1>Set or correct result</h1><p>Application: <span th:text="${number}"></span></p>
-<p>Results are released immediately. Corrections require a super administrator and a reason.</p>
+<p class="page-intro">Administrator use only. Set an initial result after this programme level's closing date. Saving releases the result immediately and queues its email.</p>
+<div class="policy-note">
+    <p>Admissions Officers and Super Administrators may change Pending to Success, Wait or Fail. A Wait application may become Success only when a seat is available; the administrator chooses who receives it.</p>
+    <p>Changing a released result is a correction: only a Super Administrator may do this before the member responds. Enter a reason; the previous result is kept and a corrected-result email is sent.</p>
+</div>
 <p role="alert" th:if="${error}" th:text="${error}"></p>
 <form th:action="@{/admin/applications/{number}/result(number=${number})}" th:object="${resultForm}" method="post">
     <ul role="alert" th:if="${#fields.hasAnyErrors()}"><li th:each="error : ${#fields.allErrors()}" th:text="${error}"></li></ul>
-    <label for="result">Result</label><select id="result" th:field="*{result}" required>
-        <option value="">Select a result</option><option value="Success">Success</option><option value="Wait">Wait</option><option value="Fail">Fail</option>
-    </select>
-    <label for="reason">Correction reason (if correcting a result)</label><textarea id="reason" th:field="*{reason}" maxlength="255"></textarea>
-    <button type="submit">Save and release result</button>
+    <div th:if="${!#lists.isEmpty(availableResults)}">
+        <label for="result">Result</label><select id="result" th:field="*{result}" required>
+            <option value="">Select a result</option>
+            <option th:each="option : ${availableResults}" th:value="${option}" th:text="${option}"></option>
+        </select>
+        <label for="reason">Correction reason (required for a correction)</label><textarea id="reason" th:field="*{reason}" maxlength="255" aria-describedby="reason-help"></textarea>
+        <small id="reason-help">Leave blank for a first result. Corrections require a reason and are limited to unresponded offers.</small>
+        <button type="submit">Save and release result</button>
+    </div>
+    <p th:if="${#lists.isEmpty(availableResults)}">No result changes are available for this application.</p>
 </form><a th:href="@{/admin/applications}">Back to applications</a>
 </main></body></html>

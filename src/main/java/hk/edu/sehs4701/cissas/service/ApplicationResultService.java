@@ -158,6 +158,29 @@ public class ApplicationResultService {
     }
 
     @Transactional(readOnly = true)
+    public List<ApplicationStatus> availableResults(Long adminId, String applicationNumber) {
+        Admin admin = activeAdmin(adminId);
+        Application application = applications.findByApplicationNumber(applicationNumber)
+                .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Application not found"));
+        if (application.getAcademicYear().getStatus() == AcademicYearStatus.ARCHIVED) return List.of();
+
+        ApplicationStatus status = application.effectiveStatus(LocalDateTime.now(HONG_KONG));
+        if (status == ApplicationStatus.Pending) {
+            return List.of(ApplicationStatus.Success, ApplicationStatus.Wait, ApplicationStatus.Fail);
+        }
+        if (status == ApplicationStatus.Wait) {
+            return admin.getRole() == ActorRole.ROLE_SUPER_ADMIN
+                    ? List.of(ApplicationStatus.Success, ApplicationStatus.Fail)
+                    : List.of(ApplicationStatus.Success);
+        }
+        if (admin.getRole() == ActorRole.ROLE_SUPER_ADMIN && application.getRespondedAt() == null) {
+            if (status == ApplicationStatus.Success) return List.of(ApplicationStatus.Wait, ApplicationStatus.Fail);
+            if (status == ApplicationStatus.Fail) return List.of(ApplicationStatus.Success, ApplicationStatus.Wait);
+        }
+        return List.of();
+    }
+
+    @Transactional(readOnly = true)
     public Slice<MemberApplication> memberApplications(Long memberId, int page, int size) {
         return applications.findAllByMember_IdOrderByIdAsc(memberId, pageRequest(page, size))
                 .map(application -> new MemberApplication(application.getApplicationNumber(),

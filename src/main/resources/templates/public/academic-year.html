@@ -1,7 +1,12 @@
 <!DOCTYPE html>
 <html lang="en" xmlns:th="http://www.thymeleaf.org">
-<head><meta charset="UTF-8"><title>Academic year programmes</title></head>
-<body><main><h1 th:text="${year.name}"></h1>
+<head><meta charset="UTF-8"><title>Academic year programmes</title>    <link th:href="@{/vendor/bootstrap/5.3.2/bootstrap.min.css}" rel="stylesheet">
+    <link th:href="@{/css/site.css}" rel="stylesheet">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+</head>
+<body>
+    <header th:replace="~{fragments/navigation :: navigation}"></header>
+    <main><h1 th:text="${year.name}"></h1>
 <p>Status: <span th:text="${year.status}"></span></p>
 <h2>Programme levels</h2>
 <p th:if="${#lists.isEmpty(levels)}">No programme levels are available.</p>

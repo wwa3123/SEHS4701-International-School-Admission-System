@@ -1,7 +1,12 @@
 <!DOCTYPE html>
 <html lang="en" xmlns:th="http://www.thymeleaf.org">
-<head><meta charset="UTF-8"><title>Create academic year</title></head>
-<body><main><h1>Create academic year</h1>
+<head><meta charset="UTF-8"><title>Create academic year</title>    <link th:href="@{/vendor/bootstrap/5.3.2/bootstrap.min.css}" rel="stylesheet">
+    <link th:href="@{/css/site.css}" rel="stylesheet">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+</head>
+<body>
+    <header th:replace="~{fragments/navigation :: navigation}"></header>
+    <main><h1>Create academic year</h1>
 <p role="alert" th:if="${error}" th:text="${error}"></p>
 <form method="post" th:action="@{/super-admin/academic-years}" th:object="${yearForm}">
 <p role="alert" th:if="${#fields.hasAnyErrors()}">Enter an academic year name, at most 20 characters.</p>

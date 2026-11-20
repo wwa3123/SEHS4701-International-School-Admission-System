@@ -1,8 +1,12 @@
 <!DOCTYPE html>
 <html lang="en" xmlns:th="http://www.thymeleaf.org">
-<head><meta charset="UTF-8"><title>Admissions officers</title></head>
+<head><meta charset="UTF-8"><title>Admissions officers</title>    <link th:href="@{/vendor/bootstrap/5.3.2/bootstrap.min.css}" rel="stylesheet">
+    <link th:href="@{/css/site.css}" rel="stylesheet">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+</head>
 <body>
-<nav><a th:href="@{/}">Home</a> <a th:href="@{/super-admin/academic-years}">Academic years</a></nav>
+    <header th:replace="~{fragments/navigation :: navigation}"></header>
+
 <main>
 <h1>Admissions officers</h1>
 <p role="status" th:if="${message}" th:text="${message}"></p>

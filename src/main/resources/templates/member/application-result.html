@@ -1,7 +1,12 @@
 <!DOCTYPE html>
 <html lang="en" xmlns:th="http://www.thymeleaf.org">
-<head><meta charset="UTF-8"><title>Application result</title></head>
+<head><meta charset="UTF-8"><title>Application result</title>    <link th:href="@{/vendor/bootstrap/5.3.2/bootstrap.min.css}" rel="stylesheet">
+    <link th:href="@{/css/site.css}" rel="stylesheet">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+</head>
 <body>
+    <header th:replace="~{fragments/navigation :: navigation}"></header>
+
 <main>
     <h1>Application details</h1>
     <p role="status" th:if="${message}" th:text="${message}"></p>
@@ -21,7 +26,7 @@
         <dd th:if="${result.issuingCountry}" th:text="${result.issuingCountry}"></dd>
         <dt>Submitted</dt><dd th:text="${result.submittedAt}"></dd>
         <dt>Declarations accepted (Hong Kong time)</dt><dd th:text="${result.declarationsAcceptedAt}"></dd>
-        <dt>Status</dt><dd th:text="${result.status}"></dd>
+        <dt>Status</dt><dd><span class="status-badge" th:classappend="|status-${result.status.name().toLowerCase()}|" th:text="${result.status}"></span></dd>
         <dt th:if="${result.resultReleasedAt}">Result released (Hong Kong time)</dt>
         <dd th:if="${result.resultReleasedAt}" th:text="${result.resultReleasedAt}"></dd>
         <dt th:if="${result.acceptanceDeadline}">Acceptance deadline (Hong Kong time)</dt>
@@ -29,10 +34,14 @@
     </dl>
     <section th:if="${result.status.name() == 'Success'}">
         <h2>Offer decision</h2>
-        <p>You will review and confirm your decision before it is saved.</p>
-        <a th:href="@{/member/applications/{number}/offer(number=${result.applicationNumber},decision='Accept')}">Accept offer</a>
-        <a th:href="@{/member/applications/{number}/offer(number=${result.applicationNumber},decision='Reject')}">Reject offer</a>
+        <p>You have 168 hours from the result release to respond. The deadline is shown above in Hong Kong time. If you do not respond, the offer will be rejected automatically.</p>
+        <p>Your decision is final. Rejecting releases the seat.</p>
+        <a class="btn btn-success" th:href="@{/member/applications/{number}/offer(number=${result.applicationNumber},decision='Accept')}">Accept offer</a>
+        <a class="btn btn-outline-danger" th:href="@{/member/applications/{number}/offer(number=${result.applicationNumber},decision='Reject')}">Reject offer</a>
     </section>
+    <p class="policy-note" th:if="${result.status.name() == 'Accepted' or result.status.name() == 'Rejected' or result.status.name() == 'Cancelled'}">
+        This is a final status and cannot be changed.
+    </p>
     <section>
         <h2>Status history</h2>
         <ol>
@@ -46,7 +55,7 @@
     </section>
     <form th:if="${result.cancellationAllowed}" method="post"
           th:action="@{/member/applications/{number}/cancel(number=${result.applicationNumber})}">
-        <button type="submit">Cancel application</button>
+        <button type="submit" onclick="return confirm('Cancel this application? This cannot be undone.');">Cancel application</button>
     </form>
     <a th:href="@{/member/applications}">Back to applications</a>
 </main>

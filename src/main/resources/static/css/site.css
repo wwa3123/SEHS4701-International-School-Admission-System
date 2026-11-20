@@ -1,0 +1,364 @@
+:root {
+    color-scheme: light;
+    --cis-navy: #18324b;
+    --cis-blue: #0d6efd;
+    --cis-border: #dee3e9;
+    --cis-background: #f3f5f8;
+}
+
+body {
+    min-height: 100vh;
+    background: var(--cis-background);
+    color: #263445;
+    font-family: system-ui, -apple-system, "Segoe UI", sans-serif;
+}
+
+.site-nav {
+    background: var(--cis-navy);
+    color: #fff;
+}
+
+.site-nav-inner {
+    width: min(100% - 2rem, 1140px);
+    min-height: 4rem;
+    margin-inline: auto;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 1rem;
+}
+
+.site-brand,
+.site-nav-links a {
+    color: #fff;
+}
+
+.site-brand {
+    flex-shrink: 0;
+    font-size: 1.15rem;
+    font-weight: 700;
+    text-decoration: none;
+}
+
+.site-nav-links {
+    display: flex;
+    align-items: center;
+    justify-content: flex-end;
+    flex-wrap: wrap;
+    gap: 0.25rem 1rem;
+}
+
+.site-nav-links a {
+    text-decoration: none;
+}
+
+.site-nav-links a:hover,
+.site-brand:hover {
+    color: #cfe2ff;
+    text-decoration: underline;
+}
+
+.site-nav-links form {
+    margin: 0;
+}
+
+.site-signout {
+    padding: 0.35rem 0.65rem;
+    border: 1px solid rgb(255 255 255 / 55%);
+    border-radius: 0.35rem;
+    background: transparent;
+    color: #fff;
+    cursor: pointer;
+}
+
+.site-signout:hover {
+    background: rgb(255 255 255 / 12%);
+}
+
+main {
+    width: min(100% - 2rem, 1140px);
+    margin: 2rem auto;
+    padding: clamp(1.25rem, 4vw, 2.5rem);
+    border: 1px solid var(--cis-border);
+    border-radius: 0.75rem;
+    background: #fff;
+    box-shadow: 0 0.25rem 1rem rgb(24 50 75 / 7%);
+}
+
+h1,
+h2,
+h3,
+h4,
+h5 {
+    color: var(--cis-navy);
+}
+
+h1 {
+    margin-bottom: 1rem;
+    font-size: clamp(1.7rem, 4vw, 2.25rem);
+}
+
+h2 {
+    margin-top: 1.75rem;
+    font-size: 1.3rem;
+}
+
+a {
+    color: #0759bd;
+}
+
+a:hover {
+    color: #064a9e;
+}
+
+form {
+    margin-block: 1rem;
+}
+
+main > p {
+    line-height: 1.6;
+}
+
+.page-intro {
+    color: #516174;
+    font-size: 1.05rem;
+}
+
+.policy-note {
+    margin-block: 1rem;
+    padding: 1rem;
+    border-left: 4px solid var(--cis-blue);
+    border-radius: 0.35rem;
+    background: #eef5fc;
+}
+
+.policy-note p:last-child {
+    margin-bottom: 0;
+}
+
+.field-help {
+    color: #516174;
+    font-size: 0.925rem;
+}
+
+label {
+    display: block;
+    margin-bottom: 0.35rem;
+    font-weight: 600;
+}
+
+fieldset {
+    margin-block: 1.25rem;
+    padding: 1rem;
+    border: 1px solid var(--cis-border);
+    border-radius: 0.5rem;
+}
+
+legend {
+    float: none;
+    width: auto;
+    padding-inline: 0.35rem;
+    color: var(--cis-navy);
+    font-size: 1rem;
+    font-weight: 700;
+}
+
+input:not([type="checkbox"]):not([type="radio"]):not([type="hidden"]),
+select,
+textarea {
+    width: min(100%, 32rem);
+    max-width: 100%;
+    padding: 0.55rem 0.75rem;
+    border: 1px solid #b9c3cf;
+    border-radius: 0.4rem;
+    background-color: #fff;
+    color: inherit;
+}
+
+input:focus,
+select:focus,
+textarea:focus {
+    border-color: var(--cis-blue);
+    outline: 0;
+    box-shadow: 0 0 0 0.2rem rgb(13 110 253 / 18%);
+}
+
+input[type="checkbox"],
+input[type="radio"] {
+    accent-color: var(--cis-blue);
+}
+
+button,
+input[type="submit"],
+.btn {
+    border-radius: 0.4rem;
+}
+
+button:not([class]):not(.navbar-toggler),
+input[type="submit"] {
+    padding: 0.55rem 1rem;
+    border: 1px solid var(--cis-blue);
+    background: var(--cis-blue);
+    color: #fff;
+    cursor: pointer;
+}
+
+button:not([class]):not(.navbar-toggler):hover,
+input[type="submit"]:hover {
+    background: #0b5ed7;
+}
+
+button:disabled,
+input:disabled {
+    cursor: not-allowed;
+    opacity: 0.65;
+}
+
+button:focus-visible,
+a:focus-visible,
+input:focus-visible,
+select:focus-visible,
+textarea:focus-visible {
+    outline: 3px solid #ffbf47;
+    outline-offset: 2px;
+}
+
+table {
+    width: 100%;
+    border-collapse: collapse;
+    background: #fff;
+}
+
+caption {
+    padding: 0.5rem 0;
+    color: #516174;
+    text-align: left;
+}
+
+th,
+td {
+    padding: 0.7rem;
+    border: 1px solid var(--cis-border);
+    text-align: left;
+    vertical-align: top;
+}
+
+th {
+    background: #eaf0f6;
+    color: var(--cis-navy);
+}
+
+tbody tr:nth-child(even) {
+    background: #f8fafc;
+}
+
+tbody tr:hover {
+    background: #eef5fc;
+}
+
+dl {
+    display: grid;
+    grid-template-columns: minmax(10rem, 1fr) 2fr;
+    gap: 0.5rem 1rem;
+}
+
+dt {
+    color: #516174;
+    font-weight: 600;
+}
+
+dd {
+    margin: 0;
+}
+
+.status-badge {
+    display: inline-block;
+    padding: 0.25rem 0.65rem;
+    border-radius: 999px;
+    background: #eaf0f6;
+    color: #263445;
+    font-size: 0.875rem;
+    font-weight: 700;
+    white-space: nowrap;
+}
+
+.status-pending,
+.status-success {
+    background: #e7f1ff;
+    color: #084298;
+}
+
+.status-wait {
+    background: #fff3cd;
+    color: #664d03;
+}
+
+.status-accepted {
+    background: #d1e7dd;
+    color: #0f5132;
+}
+
+.status-fail,
+.status-rejected,
+.status-cancelled {
+    background: #e9ecef;
+    color: #41464b;
+}
+
+[role="status"] {
+    padding: 0.8rem 1rem;
+    border: 1px solid #a3cfbb;
+    border-radius: 0.4rem;
+    background: #d1e7dd;
+    color: #0f5132;
+}
+
+footer {
+    padding: 1.25rem;
+    border-top: 1px solid var(--cis-border);
+    color: #667487;
+    text-align: center;
+}
+
+[role="alert"],
+.alert {
+    padding: 0.8rem 1rem;
+    border: 1px solid #f1b6bb;
+    border-radius: 0.4rem;
+    background: #fff1f2;
+    color: #842029;
+}
+
+nav[aria-label$="pages"] {
+    display: flex;
+    gap: 1rem;
+    margin-block: 1rem;
+}
+
+@media (max-width: 600px) {
+    .site-nav-inner {
+        align-items: flex-start;
+        flex-direction: column;
+        padding-block: 0.75rem;
+    }
+
+    .site-nav-links {
+        justify-content: flex-start;
+        gap: 0.6rem 1rem;
+    }
+
+    table {
+        display: block;
+        overflow-x: auto;
+        white-space: nowrap;
+    }
+
+    dl {
+        grid-template-columns: 1fr;
+        gap: 0.15rem;
+    }
+
+    dd {
+        margin-bottom: 0.65rem;
+    }
+}
