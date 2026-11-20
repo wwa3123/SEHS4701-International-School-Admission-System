@@ -34,3 +34,6 @@ build/
 .vscode/
 
 src/main/resources/application-dev.properties
+
+### Local run logs ###
+run.log
