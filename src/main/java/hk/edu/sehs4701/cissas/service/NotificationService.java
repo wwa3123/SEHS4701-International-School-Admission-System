@@ -123,6 +123,7 @@ public class NotificationService {
     @Transactional
     public void notifyApplicationResult(Application application, boolean corrected, String reason,
                                         boolean promotedFromWait) {
+        emailService.supersedeUnsentResultEmails(application.getId());
         ApplicantSnapshot applicant = application.getApplicantSnapshot();
         ApplicationStatus result = application.getStatus();
         String actionRequired = "Log in to SAS to check your current application status and any action required.";

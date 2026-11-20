@@ -67,11 +67,25 @@ public class LoginService {
                     member.getLastName(), ActorRole.ROLE_MEMBER, false), member.getCredentialVersion());
         }
 
-        Admin admin = adminRepository.findByEmailIgnoreCase(normalizedEmail).orElse(null);
+        Admin admin = adminRepository.findLockedByEmailIgnoreCase(normalizedEmail).orElse(null);
         boolean passwordMatches = hashService.verifyPassword(password, admin == null ? null : admin.getPasswordHash());
-        if (admin == null || !admin.isActive() || !passwordMatches) {
+        if (admin == null || !admin.isActive()) {
             throw invalidCredentials();
         }
+        LocalDateTime now = LocalDateTime.now();
+        if (admin.getLoginLockedUntil() != null && admin.getLoginLockedUntil().isAfter(now)) {
+            throw invalidCredentials();
+        }
+        if (admin.getLoginLockedUntil() != null) admin.resetLoginFailures();
+        if (!passwordMatches) {
+            int failures = admin.getFailedLoginAttempts() + 1;
+            admin.setFailedLoginAttempts(failures);
+            if (failures >= 5) admin.setLoginLockedUntil(now.plusMinutes(15));
+            adminRepository.save(admin);
+            throw invalidCredentials();
+        }
+        admin.resetLoginFailures();
+        adminRepository.save(admin);
         return new LoginResult(new LoginResponse(admin.getId(), admin.getEmail(), admin.getFirstName(),
                 admin.getLastName(), admin.getRole(), admin.isPasswordChangeRequired()), admin.getCredentialVersion());
     }
