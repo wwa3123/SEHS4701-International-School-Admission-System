@@ -2,10 +2,14 @@
 <html lang="en" xmlns:th="http://www.thymeleaf.org">
 <head><meta charset="UTF-8"><title>New application</title>    <link th:href="@{/vendor/bootstrap/5.3.2/bootstrap.min.css}" rel="stylesheet">
     <link th:href="@{/css/site.css}" rel="stylesheet">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
 </head>
 <body>
+    <header th:replace="~{fragments/navigation :: navigation}"></header>
+
 <main>
     <h1>New application</h1>
+    <p class="page-intro">Choose an open programme level, enter the applicant's details and accept all three declarations before submitting.</p>
     <p role="alert" th:if="${error}" th:text="${error}"></p>
     <p th:if="${#lists.isEmpty(programmeLevels)}">No programme levels are currently open for applications.</p>
     <form th:action="@{/member/applications}" th:object="${applicationForm}" method="post">

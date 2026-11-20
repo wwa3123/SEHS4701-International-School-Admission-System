@@ -152,6 +152,7 @@ class MemberPagesTest {
                 .andExpect(content().string(org.hamcrest.Matchers.containsString("Jane Doe")))
                 .andExpect(content().string(org.hamcrest.Matchers.containsString("P123456")))
                 .andExpect(content().string(org.hamcrest.Matchers.containsString("Example School")))
+                .andExpect(content().string(org.hamcrest.Matchers.containsString("status-badge")))
                 .andExpect(content().string(org.hamcrest.Matchers.containsString("Status history")))
                 .andExpect(content().string(org.hamcrest.Matchers.containsString("Result released")));
     }
@@ -259,6 +260,7 @@ class MemberPagesTest {
                 .andExpect(content().string(org.hamcrest.Matchers.containsString("Accept offer")));
         var page = mvc.perform(get("/member/applications/APP-1/offer").session(session).param("decision", "Accept"))
                 .andExpect(status().isOk()).andExpect(content().string(org.hamcrest.Matchers.containsString("cannot be changed")))
+                .andExpect(content().string(org.hamcrest.Matchers.containsString("168 hours")))
                 .andReturn();
         String token = hidden(page.getResponse().getContentAsString(), "confirmationToken");
         mvc.perform(post("/member/applications/APP-1/offer-response").session(session).with(csrf())

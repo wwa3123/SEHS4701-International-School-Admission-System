@@ -2,8 +2,11 @@
 <html lang="en" xmlns:th="http://www.thymeleaf.org">
 <head><meta charset="UTF-8"><title>Programme level</title>    <link th:href="@{/vendor/bootstrap/5.3.2/bootstrap.min.css}" rel="stylesheet">
     <link th:href="@{/css/site.css}" rel="stylesheet">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
 </head>
-<body><main>
+<body>
+    <header th:replace="~{fragments/navigation :: navigation}"></header>
+    <main>
 <h1 th:text="${levelId == null ? 'Create programme level' : 'Edit programme level'}"></h1>
 <p th:text="${year.name}"></p>
 <p role="alert" th:if="${error}" th:text="${error}"></p>
@@ -18,7 +21,7 @@
 <p th:if="${levelId != null and levelCode.name() == 'S6'}"><label for="admissionOpen">Open S6 for admission</label><input id="admissionOpen" type="checkbox" th:field="*{admissionOpen}"></p>
 <label for="applicationStartDate">Application start date</label><input id="applicationStartDate" type="date" th:field="*{applicationStartDate}" required>
 <label for="applicationEndDate">Application end date</label><input id="applicationEndDate" type="date" th:field="*{applicationEndDate}" required>
-<p>The end date must be after the start date. Quota cannot be below the current Success and Accepted count.</p>
+<p class="field-help">The end date must be after the start date. Quota cannot be below the number of Success and Accepted applications; if refused, the current count is shown here.</p>
 <button type="submit">Save programme level</button>
 </form>
 <a th:href="@{/super-admin/academic-years/{id}(id=${year.id})}">Cancel</a>

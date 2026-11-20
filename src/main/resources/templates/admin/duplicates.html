@@ -2,11 +2,15 @@
 <html lang="en" xmlns:th="http://www.thymeleaf.org">
 <head><meta charset="UTF-8"><title>Possible duplicates</title>    <link th:href="@{/vendor/bootstrap/5.3.2/bootstrap.min.css}" rel="stylesheet">
     <link th:href="@{/css/site.css}" rel="stylesheet">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
 </head>
-<body><main><h1>Possible duplicates</h1>
+<body>
+    <header th:replace="~{fragments/navigation :: navigation}"></header>
+    <main><h1>Possible duplicates</h1>
 <p role="status" th:if="${message}" th:text="${message}"></p>
+<p class="page-intro">Matching applicant names and dates of birth are flagged across all identity-document types. Flagged applications stay Pending until reviewed.</p>
 <p>Contact the member by email or phone before deciding whether the records are the same person.</p>
-<table><thead><tr><th>Flagged application</th><th>Possible match</th><th>Action</th></tr></thead>
+<table><caption>Possible duplicate pairs</caption><thead><tr><th scope="col">Flagged application</th><th scope="col">Possible match</th><th scope="col">Action</th></tr></thead>
 <tbody><tr th:each="pair : ${candidates.items}">
     <td><a th:href="@{/admin/applications/possible-duplicates/applications/{number}(number=${pair.flagged.applicationNumber})}"
            th:text="${pair.flagged.applicationNumber}"></a><span th:text="${pair.flagged.fullName}"></span></td>

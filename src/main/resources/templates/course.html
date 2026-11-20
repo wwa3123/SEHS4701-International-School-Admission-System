@@ -8,18 +8,9 @@
     <link th:href="@{/css/site.css}" rel="stylesheet">
 </head>
 <body class="bg-light">
+    <header th:replace="~{fragments/navigation :: navigation}"></header>
 
-<nav class="navbar navbar-expand-lg navbar-dark bg-dark">
-    <div class="container">
-        <a class="navbar-brand" href="/">CIS Admission System</a>
-        <div class="navbar-nav ms-auto">
-            <a class="nav-link" href="/about">About</a>
-            <a class="nav-link" href="/admission-info">Admission Info</a>
-            <a class="nav-link" href="/login">Login</a>
-            <a class="nav-link" href="/register">Register</a>
-        </div>
-    </div>
-</nav>
+
 
 <div class="container my-5">
     <h1 class="mb-3">Course Description</h1>

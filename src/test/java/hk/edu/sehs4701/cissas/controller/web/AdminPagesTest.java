@@ -76,6 +76,8 @@ class AdminPagesTest {
                 PageRequest.of(0, 25), true));
         when(results.waitingList(42L, 1L)).thenReturn(List.of(
                 new ApplicationSummary("APP-1", "Applicant", LocalDate.of(2010, 1, 1), IdentityDocumentType.PASSPORT, "Wait")));
+        when(results.availableResults(42L, "APP-1")).thenReturn(List.of(
+                ApplicationStatus.Success, ApplicationStatus.Wait, ApplicationStatus.Fail));
         var summary = new ApplicationSummary("APP-1", "Applicant", LocalDate.of(2010, 1, 1), IdentityDocumentType.PASSPORT, "Pending");
         when(duplicates.pending(42L, null, 25)).thenReturn(new CandidatePage(List.of(new Candidate(summary, summary)), "1:2"));
         when(duplicates.history(42L, null, 25)).thenReturn(new HistoryPage(List.of(
@@ -98,11 +100,52 @@ class AdminPagesTest {
                     .andExpect(header().string("Cache-Control", containsString("no-store")));
         }
 
+        mvc.perform(get("/admin/applications").session(session))
+                .andExpect(content().string(containsString("Possible duplicates")));
+        mvc.perform(get("/admin/applications/APP-1/result").session(session))
+                .andExpect(content().string(containsString("closing date")))
+                .andExpect(content().string(containsString("corrected-result email")));
+        mvc.perform(get("/admin/applications/possible-duplicates").session(session))
+                .andExpect(content().string(containsString("stay Pending")));
         mvc.perform(get("/admin/applications/waiting-list").session(session).param("programmeLevelId", "1"))
                 .andExpect(status().isOk()).andExpect(content().string(containsString("not ranked")));
         mvc.perform(get("/admin/applications/possible-duplicates/review").session(session)
                         .param("duplicateApplicationNumber", "APP-1").param("matchingApplicationNumber", "APP-2"))
                 .andExpect(status().isOk()).andExpect(content().string(containsString("_csrf")));
+    }
+
+    @Test
+    void resultChoicesAndActionsRespectCurrentStatusAndRole() throws Exception {
+        mvc.perform(get("/admin/applications/APP-1/result").session(session))
+                .andExpect(content().string(containsString("value=\"Success\"")))
+                .andExpect(content().string(containsString("value=\"Wait\"")))
+                .andExpect(content().string(containsString("value=\"Fail\"")));
+
+        when(results.availableResults(42L, "APP-1")).thenReturn(List.of(ApplicationStatus.Success));
+        mvc.perform(get("/admin/applications/APP-1/result").session(session))
+                .andExpect(content().string(containsString("value=\"Success\"")))
+                .andExpect(content().string(org.hamcrest.Matchers.not(containsString("value=\"Fail\""))));
+
+        when(results.listApplications(42L, null, null, 0, 25)).thenReturn(new SliceImpl<>(List.of(
+                adminApplication(ApplicationStatus.Pending), adminApplication(ApplicationStatus.Wait),
+                adminApplication(ApplicationStatus.Success), adminApplication(ApplicationStatus.Fail),
+                adminApplication(ApplicationStatus.Accepted), adminApplication(ApplicationStatus.Rejected),
+                adminApplication(ApplicationStatus.Cancelled)), PageRequest.of(0, 25), false));
+        mvc.perform(get("/admin/applications").session(session))
+                .andExpect(content().string(org.hamcrest.Matchers.containsString("Set or correct result")))
+                .andExpect(result -> assertEquals(2, occurrences(result.getResponse().getContentAsString(), "Set or correct result")));
+
+        session.setAttribute("authenticatedUserRole", "ROLE_SUPER_ADMIN");
+        mvc.perform(get("/admin/applications").session(session))
+                .andExpect(result -> assertEquals(4, occurrences(result.getResponse().getContentAsString(), "Set or correct result")));
+    }
+
+    private AdminApplication adminApplication(ApplicationStatus status) {
+        return new AdminApplication("APP-1", 1L, "Secondary 1", "Applicant", status);
+    }
+
+    private int occurrences(String text, String value) {
+        return text.split(java.util.regex.Pattern.quote(value), -1).length - 1;
     }
 
     @Test

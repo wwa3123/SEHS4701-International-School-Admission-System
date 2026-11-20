@@ -2,8 +2,11 @@
 <html lang="en" xmlns:th="http://www.thymeleaf.org">
 <head><meta charset="UTF-8"><title>Identity documents</title>    <link th:href="@{/vendor/bootstrap/5.3.2/bootstrap.min.css}" rel="stylesheet">
     <link th:href="@{/css/site.css}" rel="stylesheet">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
 </head>
-<body><main>
+<body>
+    <header th:replace="~{fragments/navigation :: navigation}"></header>
+    <main>
     <h1>Identity documents</h1>
     <p role="status" th:if="${message}" th:text="${message}"></p>
     <p role="alert" th:if="${error}" th:text="${error}"></p>

@@ -4,35 +4,15 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title th:text="${appName}">CIS Admissions</title>
-    <!-- Bootstrap 5 CSS CDN -->
     <link th:href="@{/vendor/bootstrap/5.3.2/bootstrap.min.css}" rel="stylesheet">
     <link th:href="@{/css/site.css}" rel="stylesheet">
 </head>
 <body class="bg-light">
+    <header th:replace="~{fragments/navigation :: navigation}"></header>
 
-<nav class="navbar navbar-expand-lg navbar-dark bg-dark">
-    <div class="container">
-        <a class="navbar-brand" th:href="@{/}" th:text="${appName}">CIS Admissions</a>
-    </div>
-</nav>
+
 
 <div class="container my-5">
-    <nav aria-label="Admissions navigation" class="mb-4">
-        <a th:href="@{/login}">Sign in</a>
-        <a th:href="@{/membership/register}">Register as a member</a>
-        <a th:href="@{/about}">About the school</a>
-        <a th:href="@{/admission-info}">Admission information</a>
-        <a th:href="@{/academic-years}">Academic years and programme levels</a>
-        <a th:if="${session.authenticatedUserRole == 'ROLE_MEMBER'}" th:href="@{/member/applications}">My applications</a>
-        <a th:if="${session.authenticatedUserRole == 'ROLE_ADMIN' or session.authenticatedUserRole == 'ROLE_SUPER_ADMIN'}"
-           th:href="@{/admin/applications}">Manage applications</a>
-        <a th:if="${session.authenticatedUserRole == 'ROLE_SUPER_ADMIN'}"
-           th:href="@{/super-admin/admissions-officers}">Admissions officers</a>
-        <a th:if="${session.authenticatedUserRole == 'ROLE_SUPER_ADMIN'}"
-           th:href="@{/super-admin/members}">Manage members</a>
-        <a th:if="${session.authenticatedUserRole == 'ROLE_SUPER_ADMIN'}"
-           th:href="@{/super-admin/academic-years}">Manage academic years</a>
-    </nav>
     <div class="p-5 mb-4 bg-white rounded-3 shadow-sm border">
         <div class="container-fluid py-3">
             <h1 class="display-5 fw-bold text-primary">Welcome to CIS Admissions</h1>
@@ -79,7 +59,6 @@
     <p class="mb-0">&copy; 2026 Christian International School. All rights reserved.</p>
 </footer>
 
-<!-- Bootstrap 5 JS Bundle CDN -->
 <script th:src="@{/vendor/bootstrap/5.3.2/bootstrap.bundle.min.js}"></script>
 </body>
 </html>
