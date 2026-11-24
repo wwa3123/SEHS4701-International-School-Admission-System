@@ -42,6 +42,8 @@ import org.springframework.web.server.ResponseStatusException;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.RestController;
 import org.springframework.web.servlet.config.annotation.EnableWebMvc;
+import org.springframework.web.servlet.config.annotation.ResourceHandlerRegistry;
+import org.springframework.web.servlet.config.annotation.WebMvcConfigurer;
 import org.thymeleaf.spring6.SpringTemplateEngine;
 import org.thymeleaf.spring6.templateresolver.SpringResourceTemplateResolver;
 import org.thymeleaf.spring6.view.ThymeleafViewResolver;
@@ -49,6 +51,7 @@ import org.thymeleaf.spring6.view.ThymeleafViewResolver;
 import java.sql.SQLException;
 import java.time.Instant;
 import java.time.LocalDate;
+import java.time.ZoneId;
 import java.util.List;
 import java.util.Optional;
 import java.util.regex.Pattern;
@@ -72,7 +75,12 @@ class MembershipPagesTest {
             MemberPasswordResetPageController.class,
             MemberIdentityDocumentPageController.class, PasswordResetController.class, PublicPageController.class,
             SecurityConfiguration.class, MemberSecurityProbe.class})
-    static class TestConfiguration {
+    static class TestConfiguration implements WebMvcConfigurer {
+        @Override
+        public void addResourceHandlers(ResourceHandlerRegistry registry) {
+            registry.addResourceHandler("/vendor/**").addResourceLocations("classpath:/static/vendor/");
+        }
+
         @Bean MembershipRegistrationService registrations() { return mock(MembershipRegistrationService.class); }
         @Bean RateLimitService limits() { return mock(RateLimitService.class); }
         @Bean MemberRepository members() { return mock(MemberRepository.class); }
@@ -148,7 +156,7 @@ class MembershipPagesTest {
                 new ResponseStatusException(HttpStatus.NOT_FOUND, "No academic year open for applications found"));
         mvc.perform(get("/about")).andExpect(status().isOk());
         mvc.perform(get("/admission-info")).andExpect(status().isOk())
-                .andExpect(content().string(containsString("There is currently no open admission year.")));
+                .andExpect(content().string(containsString("There is currently no admission year open for applications.")));
         var year = new AcademicYearResponse(1L, "2028/29", LocalDate.of(2028, 1, 1), null,
                 AcademicYearStatus.ACTIVE);
         doReturn(year).when(years).getCurrentOpenForApplicationAcademicYear();
@@ -156,7 +164,81 @@ class MembershipPagesTest {
                 "Secondary 1", 20, true, LocalDate.of(2028, 9, 1), LocalDate.of(2028, 9, 30))));
         mvc.perform(get("/admission-info")).andExpect(status().isOk())
                 .andExpect(content().string(containsString("2028/29")))
-                .andExpect(content().string(containsString("Secondary 1")));
+                .andExpect(content().string(containsString("IB MYP")));
+    }
+
+    @Test
+    void homeAndAdmissionInfoRenderTheSameLiveAdmissionData() throws Exception {
+        LocalDate today = LocalDate.now(ZoneId.of("Asia/Hong_Kong"));
+        when(years.getCurrentOpenForApplicationAcademicYear()).thenReturn(
+                new AcademicYearResponse(3L, "Live intake", today, null, AcademicYearStatus.ACTIVE));
+        when(levels.list(3L)).thenReturn(List.of(
+                new ProgrammeLevelResponse(1L, 3L, LevelCode.S1, "Live programme", 30, true, today, today),
+                new ProgrammeLevelResponse(2L, 3L, LevelCode.S2, "Future", 12, true, today.plusDays(1), today.plusDays(2)),
+                new ProgrammeLevelResponse(3L, 3L, LevelCode.S3, "Expired", 13, true, today.minusDays(2), today.minusDays(1)),
+                new ProgrammeLevelResponse(4L, 3L, LevelCode.S4, "Disabled", 14, false, today, today),
+                new ProgrammeLevelResponse(5L, 3L, LevelCode.S6, "Unscheduled", 15, true, null, null)));
+
+        for (String route : List.of("/", "/admission-info")) {
+            String html = mvc.perform(get(route)).andExpect(status().isOk())
+                    .andExpect(content().string(containsString("Admission year Live intake")))
+                    .andExpect(content().string(containsString("IB MYP")))
+                    .andExpect(content().string(not(containsString("2027/28"))))
+                    .andReturn().getResponse().getContentAsString();
+            assertTrue(admissionRow(html, "S1").contains("<td>30</td>"));
+            assertTrue(admissionRow(html, "S1").contains("<td>IB MYP</td>"));
+            assertTrue(admissionRow(html, "S6").contains("<td>IB DP</td>"));
+            assertTrue(admissionRow(html, "S1").contains("<td>" + today + "</td>"));
+            assertTrue(admissionRow(html, "S1").contains(">Open</span>"));
+            for (String level : List.of("S2", "S3", "S4", "S6")) {
+                assertTrue(admissionRow(html, level).contains(">Closed</span>"), level);
+            }
+            assertTrue(admissionRow(html, "S6").contains("<td>-</td>"));
+        }
+        verify(years, never()).list();
+    }
+
+    @Test
+    void publicPagesLinkToAdmissionsAndDescribeTheActualApplication() throws Exception {
+        when(years.getCurrentOpenForApplicationAcademicYear()).thenThrow(
+                new ResponseStatusException(HttpStatus.NOT_FOUND, "No academic year open for applications found"));
+        for (String route : List.of("/", "/admission-info")) {
+            mvc.perform(get(route)).andExpect(status().isOk())
+                    .andExpect(content().string(containsString("There is currently no admission year open for applications.")))
+                    .andExpect(content().string(not(containsString("2027/28"))));
+        }
+        for (String route : List.of("/about", "/programmes", "/course", "/facilities", "/admission-requirements")) {
+            mvc.perform(get(route)).andExpect(status().isOk())
+                    .andExpect(content().string(containsString("View current admission dates and seat quotas")))
+                    .andExpect(content().string(not(containsString("2027/28"))));
+        }
+        mvc.perform(get("/admission-requirements")).andExpect(status().isOk())
+                .andExpect(content().string(containsString("Document files and photographs cannot be uploaded")))
+                .andExpect(content().string(containsString("168 hours")))
+                .andExpect(content().string(containsString("IB MYP")))
+                .andExpect(content().string(containsString("IB DP")))
+                .andExpect(content().string(not(containsString("strong results"))))
+                .andExpect(content().string(not(containsString("English proficiency"))))
+                .andExpect(content().string(not(containsString("TODO(demo)"))))
+                .andExpect(content().string(not(containsString("scanned copies or clear photographs are accepted"))));
+    }
+
+    @Test
+    void anonymousVisitorsCanLoadTheLocallyHostedBootstrapAssets() throws Exception {
+        for (String asset : List.of("bootstrap.min.css", "bootstrap.bundle.min.js")) {
+            mvc.perform(get("/vendor/bootstrap/5.3.2/" + asset)).andExpect(status().isOk())
+                    .andExpect(content().string(containsString("Bootstrap")));
+        }
+    }
+
+    @Test
+    void admissionDataErrorsAreNotReportedAsNoOpenYear() throws Exception {
+        when(years.getCurrentOpenForApplicationAcademicYear()).thenReturn(
+                new AcademicYearResponse(3L, "Live intake", LocalDate.now(), null, AcademicYearStatus.ACTIVE));
+        when(levels.list(3L)).thenThrow(new ResponseStatusException(HttpStatus.NOT_FOUND, "Year not found"));
+        for (String route : List.of("/", "/admission-info")) {
+            mvc.perform(get(route)).andExpect(status().isNotFound());
+        }
     }
 
     @Test
@@ -496,6 +578,13 @@ class MembershipPagesTest {
 
     private String accepted() {
         return "If this email can be registered, verification instructions will be sent";
+    }
+
+    private String admissionRow(String html, String level) {
+        var matcher = Pattern.compile("<tr[^>]*>\\s*<th scope=\"row\">" + level + "</th>(.*?)</tr>",
+                Pattern.DOTALL).matcher(html);
+        assertTrue(matcher.find(), "Missing admission row for " + level);
+        return matcher.group(1);
     }
 
     private String hidden(String html, String name) {

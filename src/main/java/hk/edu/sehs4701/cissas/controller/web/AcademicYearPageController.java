@@ -7,6 +7,9 @@ import org.springframework.ui.Model;
 import org.springframework.web.bind.annotation.*;
 import org.springframework.web.server.ResponseStatusException;
 
+import java.time.LocalDate;
+import java.time.ZoneId;
+
 /** Public DTO discovery pages replace /api/public/academic-years. */
 @Controller
 @RequestMapping("/academic-years")
@@ -40,6 +43,7 @@ public class AcademicYearPageController {
     public String detail(@PathVariable Long id, Model model) {
         model.addAttribute("year", years.get(id));
         model.addAttribute("levels", levels.list(id));
+        model.addAttribute("today", LocalDate.now(ZoneId.of("Asia/Hong_Kong")));
         return "public/academic-year";
     }
 }

@@ -3,60 +3,230 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Course Description - Christian International School</title>
+    <title>Course Descriptions - Christian International School</title>
     <link th:href="@{/vendor/bootstrap/5.3.2/bootstrap.min.css}" rel="stylesheet">
     <link th:href="@{/css/site.css}" rel="stylesheet">
+    <th:block th:replace="~{fragments/intro-style :: introStyle}"></th:block>
 </head>
 <body class="bg-light">
-    <header th:replace="~{fragments/navigation :: navigation}"></header>
 
+<!--
+  BR-37 &mdash; Information page 4 of 5: course description of each programme.
 
+  DEMO CONTENT: subject offerings and lesson allocations are illustrative.
+  Search for "TODO(demo)" before release.
+-->
 
-<div class="container my-5">
-    <h1 class="mb-3">Course Description</h1>
-    <p class="lead text-muted mb-4">Overview of the curriculum offered at each programme level.</p>
+<div th:replace="~{fragments/public-chrome :: demoBanner}"></div>
 
-    <div class="card shadow-sm mb-4">
-        <div class="card-header bg-primary text-white">
-            <strong>S1 – S4 (IB MYP)</strong>
+<header th:replace="~{fragments/navigation :: navigation}"></header>
+
+<main class="intro-main">
+
+    <section class="intro-hero">
+        <div class="intro-container">
+            <span class="eyebrow">Curriculum</span>
+            <h1>Course descriptions</h1>
+            <p class="hero-lead">
+                What students actually study in each programme, subject group by subject group,
+                and how the timetable changes as they move from S1 to S6.
+            </p>
+            <div class="hero-actions">
+                <a class="btn-solid" th:href="@{/programmes}">Programme introduction</a>
+                <a class="btn-ghost" th:href="@{/admission-requirements}">Admission requirements</a>
+            </div>
         </div>
-        <div class="card-body">
-            <p>Students study a broad and balanced curriculum that includes:</p>
-            <ul>
-                <li>Language & Literature</li>
-                <li>Language Acquisition</li>
-                <li>Individuals and Societies</li>
-                <li>Sciences</li>
-                <li>Mathematics</li>
-                <li>Arts</li>
-                <li>Physical and Health Education</li>
-                <li>Design</li>
-            </ul>
-        </div>
-    </div>
+    </section>
 
-    <div class="card shadow-sm">
-        <div class="card-header bg-success text-white">
-            <strong>S5 – S6 (IB DP)</strong>
-        </div>
-        <div class="card-body">
-            <p>Students take six subjects (three at Higher Level and three at Standard Level) from the following groups:</p>
-            <ul>
-                <li>Studies in Language and Literature</li>
-                <li>Language Acquisition</li>
-                <li>Individuals and Societies</li>
-                <li>Sciences</li>
-                <li>Mathematics</li>
-                <li>The Arts</li>
-            </ul>
-            <p class="mb-0">In addition, all DP students complete the Core: <strong>Theory of Knowledge (TOK)</strong>, <strong>Extended Essay (EE)</strong> and <strong>Creativity, Activity, Service (CAS)</strong>.</p>
-        </div>
-    </div>
-</div>
+    <div th:replace="~{fragments/admission-summary :: compact}"></div>
 
-<footer class="text-center py-4 text-muted border-top bg-white mt-5">
-    <p class="mb-0">&copy; 2026 Christian International School. All rights reserved.</p>
-</footer>
+    <section class="intro-section">
+        <div class="intro-container">
+            <div class="section-head">
+                <span class="card-kicker">S1 &ndash; S4</span>
+                <h2 class="mt-2">IB MYP course groups</h2>
+                <p>
+                    Every MYP student studies all eight subject groups each year. The emphasis
+                    shifts from breadth in S1 towards deeper disciplinary work by S4.
+                </p>
+            </div>
+            <div class="table-wrap">
+                <table>
+                    <caption>MYP subject groups, S1 to S4</caption>
+                    <thead>
+                    <tr>
+                        <th scope="col">Subject group</th>
+                        <th scope="col">What students learn</th>
+                        <th scope="col">Notes</th>
+                    </tr>
+                    </thead>
+                    <tbody>
+                    <tr>
+                        <th scope="row">Language and literature</th>
+                        <td>Close reading, analytical and creative writing in the student's strongest language.</td>
+                        <td>English or Chinese</td>
+                    </tr>
+                    <tr>
+                        <th scope="row">Language acquisition</th>
+                        <td>An additional language, from beginner to advanced phase.</td>
+                        <td>Chinese, French or Spanish</td>
+                    </tr>
+                    <tr>
+                        <th scope="row">Individuals and societies</th>
+                        <td>History, geography and the social sciences through inquiry into people and places.</td>
+                        <td>Integrated in S1&ndash;S3</td>
+                    </tr>
+                    <tr>
+                        <th scope="row">Sciences</th>
+                        <td>Integrated biology, chemistry and physics with practical work in the laboratories.</td>
+                        <td>Three laboratory rooms</td>
+                    </tr>
+                    <tr>
+                        <th scope="row">Mathematics</th>
+                        <td>Number, algebra, geometry and statistics, with extended and standard routes.</td>
+                        <td>Set by readiness</td>
+                    </tr>
+                    <tr>
+                        <th scope="row">Arts</th>
+                        <td>Visual art, music and drama, rotating across the year.</td>
+                        <td>Studio and performance spaces</td>
+                    </tr>
+                    <tr>
+                        <th scope="row">Physical and health education</th>
+                        <td>Movement, team sport, fitness and health literacy.</td>
+                        <td>Sports hall and courts</td>
+                    </tr>
+                    <tr>
+                        <th scope="row">Design</th>
+                        <td>Product, digital and systems design, taught in the workshop and computer labs.</td>
+                        <td>Personal project in the final year</td>
+                    </tr>
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </section>
 
+    <section class="intro-section intro-section--alt">
+        <div class="intro-container">
+            <div class="section-head">
+                <span class="card-kicker">S5 &ndash; S6</span>
+                <h2 class="mt-2">IB DP subjects and core</h2>
+                <p>
+                    DP students choose one subject from each of the six groups, with three taken
+                    at Higher Level and three at Standard Level. The core runs alongside.
+                </p>
+            </div>
+            <div class="table-wrap">
+                <table>
+                    <caption>DP subject groups, S5 and S6</caption>
+                    <thead>
+                    <tr>
+                        <th scope="col">Group</th>
+                        <th scope="col">Courses offered</th>
+                        <th scope="col">Levels</th>
+                    </tr>
+                    </thead>
+                    <tbody>
+                    <tr>
+                        <th scope="row">1. Studies in language and literature</th>
+                        <td>English A: Literature; Chinese A: Literature</td>
+                        <td>HL / SL</td>
+                    </tr>
+                    <tr>
+                        <th scope="row">2. Language acquisition</th>
+                        <td>English B; Chinese B; French ab initio</td>
+                        <td>HL / SL</td>
+                    </tr>
+                    <tr>
+                        <th scope="row">3. Individuals and societies</th>
+                        <td>History; Economics; Psychology</td>
+                        <td>HL / SL</td>
+                    </tr>
+                    <tr>
+                        <th scope="row">4. Sciences</th>
+                        <td>Biology; Chemistry; Physics; Computer Science</td>
+                        <td>HL / SL</td>
+                    </tr>
+                    <tr>
+                        <th scope="row">5. Mathematics</th>
+                        <td>Mathematics: Analysis and Approaches; Applications and Interpretation</td>
+                        <td>HL / SL</td>
+                    </tr>
+                    <tr>
+                        <th scope="row">6. The arts <em>(or a second subject from groups 2&ndash;4)</em></th>
+                        <td>Visual Arts; Music</td>
+                        <td>HL / SL</td>
+                    </tr>
+                    </tbody>
+                </table>
+            </div>
+
+            <div class="intro-grid mt-4">
+                <article class="intro-card">
+                    <span class="card-kicker">Core</span>
+                    <h3>Theory of Knowledge</h3>
+                    <p>Critical inquiry into how knowledge is produced, with an assessed exhibition and essay.</p>
+                </article>
+                <article class="intro-card">
+                    <span class="card-kicker">Core</span>
+                    <h3>Extended Essay</h3>
+                    <p>A 4,000-word independent research project supervised by a subject specialist.</p>
+                </article>
+                <article class="intro-card">
+                    <span class="card-kicker">Core</span>
+                    <h3>Creativity, Activity, Service</h3>
+                    <p>A planned programme of activities beyond the timetable, evidenced in a portfolio.</p>
+                </article>
+            </div>
+        </div>
+    </section>
+
+    <section class="intro-section">
+        <div class="intro-container">
+            <div class="section-head">
+                <h2>How the timetable changes by level</h2>
+                <p>An illustrative weekly allocation; the final timetable is published each August.</p>
+            </div>
+            <div class="table-wrap">
+                <table>
+                    <caption>Indicative weekly periods by level</caption>
+                    <thead>
+                    <tr>
+                        <th scope="col">Level</th>
+                        <th scope="col">Programme</th>
+                        <th scope="col">Subject breadth</th>
+                        <th scope="col">Distinctive element</th>
+                    </tr>
+                    </thead>
+                    <tbody>
+                    <tr><th scope="row">S1</th><td>IB MYP</td><td>All eight groups</td><td>Transition to secondary study</td></tr>
+                    <tr><th scope="row">S2</th><td>IB MYP</td><td>All eight groups</td><td>Language pathways confirmed</td></tr>
+                    <tr><th scope="row">S3</th><td>IB MYP</td><td>All eight groups</td><td>Community project</td></tr>
+                    <tr><th scope="row">S4</th><td>IB MYP</td><td>All eight groups</td><td>Personal project; DP transition</td></tr>
+                    <tr><th scope="row">S5</th><td>IB DP</td><td>Six subjects + core</td><td>Higher Level choices begin</td></tr>
+                    <tr><th scope="row">S6</th><td>IB DP</td><td>Six subjects + core</td><td>Extended Essay and examinations</td></tr>
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </section>
+
+    <section class="cta-band">
+        <div class="intro-container">
+            <h2>Questions about subject choices?</h2>
+            <p>Admissions can put you in touch with the relevant programme coordinator.</p>
+            <div class="hero-actions" style="justify-content:center">
+                <a class="btn-solid" th:href="@{/membership/register}">Create an account</a>
+                <a class="btn-ghost" th:href="@{/admission-requirements}">Admission requirements</a>
+            </div>
+        </div>
+    </section>
+
+</main>
+
+<footer th:replace="~{fragments/public-chrome :: footer}"></footer>
+
+<script th:src="@{/vendor/bootstrap/5.3.2/bootstrap.bundle.min.js}"></script>
 </body>
 </html>

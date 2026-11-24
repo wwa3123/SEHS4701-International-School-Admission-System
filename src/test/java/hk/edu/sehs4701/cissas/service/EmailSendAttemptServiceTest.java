@@ -389,7 +389,7 @@ class EmailSendAttemptServiceTest {
         alert.setId(2L);
         alert.setTemplateType(EmailTemplateType.APPLICATION_DUPLICATE_ALERT);
         alert.setStatus(EmailDeliveryStatus.FAILED);
-        alert.setRecipientEmail("admin@example.test");
+        alert.setRecipientEmail("");
         alert.setSubject("Possible duplicate");
         alert.setBody("Please review");
         when(emails.findApplicationId(2L)).thenReturn(Optional.of(7L));
@@ -402,10 +402,17 @@ class EmailSendAttemptServiceTest {
         ReflectionTestUtils.setField(service, "fromAddress", "school@example.test");
 
         service.attemptSmtpSend(new EmailSendRequestedEvent(2L, null));
+        assertEquals(EmailDeliveryStatus.FAILED, alert.getStatus());
+        assertEquals(EmailService.MISSING_ADMISSIONS_MAILBOX, alert.getErrorMessage());
+        verifyNoInteractions(sender);
+
+        ReflectionTestUtils.setField(service, "adminNotificationEmail", " Admissions@Example.test ");
+        service.attemptSmtpSend(new EmailSendRequestedEvent(2L, null));
         service.attemptSmtpSend(new EmailSendRequestedEvent(2L, null));
 
         assertEquals(EmailDeliveryStatus.SENT, alert.getStatus());
-        verify(sender, times(1)).send(any(org.springframework.mail.SimpleMailMessage.class));
+        verify(sender, times(1)).send(argThat((org.springframework.mail.SimpleMailMessage message) ->
+                java.util.Arrays.equals(new String[]{"admissions@example.test"}, message.getTo())));
         verify(emails, never()).findFirstByApplication_IdAndTemplateTypeInAndStatusInOrderByIdAsc(
                 anyLong(), anyCollection(), anyCollection());
     }

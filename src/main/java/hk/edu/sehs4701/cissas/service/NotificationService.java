@@ -74,10 +74,9 @@ public class NotificationService {
         if (adminNotificationEmail == null || adminNotificationEmail.isBlank()) {
             log.error("Cannot notify admin about possible duplicate {}: cissas.admin.notification-email is not configured",
                     application.getApplicationNumber());
-            return;
         }
 
-        String recipient = adminNotificationEmail.trim().toLowerCase(Locale.ROOT);
+        String recipient = adminNotificationEmail == null ? "" : adminNotificationEmail.trim().toLowerCase(Locale.ROOT);
         String actionRequired = "Contact the member to establish whether the records are the same person.";
         ApplicantSnapshot applicant = application.getApplicantSnapshot();
         String body = formatStandardBody(
@@ -121,14 +120,13 @@ public class NotificationService {
     }
 
     @Transactional
-    public void notifyApplicationResult(Application application, boolean corrected, String reason,
-                                        boolean promotedFromWait) {
+    public void notifyApplicationResult(Application application, boolean corrected, boolean promotedFromWait) {
         emailService.supersedeUnsentResultEmails(application.getId());
         ApplicantSnapshot applicant = application.getApplicantSnapshot();
         ApplicationStatus result = application.getStatus();
         String actionRequired = "Log in to SAS to check your current application status and any action required.";
         String message = "Result released: " + result
-                + "\nProgramme Level: " + application.getProgrammeLevel().getProgrammeName()
+                + "\nProgramme Level: " + application.getProgrammeLevel().getLevelCode().getDisplayName()
                 + "\nApplication Number: " + application.getApplicationNumber()
                 + (result == ApplicationStatus.Success
                 ? "\nSuccess means an offer. If it is still awaiting your response, accept or reject it in SAS before the current deadline."
@@ -136,7 +134,7 @@ public class NotificationService {
                 + (application.getAcceptanceDeadline() == null ? "" :
                 "\nAcceptance Deadline at release: " + application.getAcceptanceDeadline()
                         + "\nThe deadline or result may have changed since this notice was issued.")
-                + (corrected ? "\nThis is a corrected result. Reason: " + reason : "");
+                + (corrected ? "\nThis is a corrected result. Log in to SAS to view the correction reason and status history." : "");
         String body = formatStandardBody(application.getMember().getFirstName(), applicant.getFullName(),
                 application.getApplicationNumber(), actionRequired, message);
         EmailTemplateType template = corrected ? EmailTemplateType.CORRECTED_RESULT_ANNOUNCEMENT
@@ -155,7 +153,7 @@ public class NotificationService {
         String body = formatStandardBody(application.getMember().getFirstName(), applicant.getFullName(),
                 application.getApplicationNumber(), actionRequired,
                 "Your offer acceptance deadline is within 48 hours: " + application.getAcceptanceDeadline() + "."
-                        + "\nProgramme Level: " + application.getProgrammeLevel().getProgrammeName()
+                        + "\nProgramme Level: " + application.getProgrammeLevel().getLevelCode().getDisplayName()
                         + "\nCheck your current deadline in SAS in case it has changed.");
         emailService.sendAndLogEmail(new EmailDispatchRequest(
                 application.getMember(), application, EmailTemplateType.OFFER_48_HOUR_REMINDER,
@@ -170,7 +168,7 @@ public class NotificationService {
         String body = formatStandardBody(application.getMember().getFirstName(), applicant.getFullName(),
                 application.getApplicationNumber(), actionRequired,
                 "The acceptance deadline for your offer was extended."
-                        + "\nProgramme Level: " + application.getProgrammeLevel().getProgrammeName()
+                        + "\nProgramme Level: " + application.getProgrammeLevel().getLevelCode().getDisplayName()
                         + "\nExtended Acceptance Deadline: " + application.getAcceptanceDeadline()
                         + "\nThe deadline or result may have changed since this notice was issued.");
         emailService.sendAndLogEmail(new EmailDispatchRequest(

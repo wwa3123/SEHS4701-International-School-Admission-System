@@ -6,57 +6,151 @@
     <title>Programmes - Christian International School</title>
     <link th:href="@{/vendor/bootstrap/5.3.2/bootstrap.min.css}" rel="stylesheet">
     <link th:href="@{/css/site.css}" rel="stylesheet">
+    <th:block th:replace="~{fragments/intro-style :: introStyle}"></th:block>
 </head>
 <body class="bg-light">
-    <header th:replace="~{fragments/navigation :: navigation}"></header>
 
+<!--
+  BR-37 &mdash; Information page 3 of 5: programme introduction.
+  BR-38 &mdash; must show that S1-S4 follow the IB MYP and S5-S6 follow the IB DP.
 
+  DEMO CONTENT: class sizes, subject counts and progression wording are placeholders.
+  Search for "TODO(demo)" before release.
+-->
 
-<div class="container my-5">
-    <h1 class="mb-3">Programme Introduction</h1>
-    <p class="lead text-muted mb-4">
-        Christian International School offers the International Baccalaureate continuum.
-    </p>
+<div th:replace="~{fragments/public-chrome :: demoBanner}"></div>
 
-    <div class="row g-4">
-        <div class="col-md-6">
-            <div class="card shadow-sm h-100 border-primary">
-                <div class="card-body">
-                    <h4 class="card-title text-primary">IB Middle Years Programme (MYP)</h4>
-                    <p class="mb-2"><strong>Levels:</strong> S1 – S4</p>
-                    <p class="card-text">
-                        The MYP is a challenging framework that encourages students to make practical
-                        connections between their studies and the real world. It develops critical thinking,
-                        intercultural understanding and strong academic skills.
+<header th:replace="~{fragments/navigation :: navigation}"></header>
+
+<main class="intro-main">
+
+    <section class="intro-hero">
+        <div class="intro-container">
+            <span class="eyebrow">Programmes</span>
+            <h1>One school, two IB programmes</h1>
+            <p class="hero-lead">
+                Students join us in the Middle Years Programme from S1 to S4, then progress into
+                the Diploma Programme for S5 and S6. The two programmes are designed to connect:
+                the skills built in MYP are the foundation for DP success.
+            </p>
+            <div class="hero-actions">
+                <a class="btn-solid" th:href="@{/course}">Course descriptions</a>
+                <a class="btn-ghost" th:href="@{/admission-requirements}">Admission requirements</a>
+            </div>
+        </div>
+    </section>
+
+    <div th:replace="~{fragments/admission-summary :: compact}"></div>
+
+    <section class="intro-section">
+        <div class="intro-container">
+            <div class="section-head">
+                <h2>The IB continuum at CIS</h2>
+                <p>
+                    Both programmes are authorised by the International Baccalaureate and taught
+                    by subject specialists. Assessment is criterion-referenced: students are judged
+                    against published IB standards, not against each other.
+                </p>
+            </div>
+
+            <div class="split">
+                <div>
+                    <span class="card-kicker">S1 &ndash; S4</span>
+                    <h2 class="mt-2">IB Middle Years Programme (MYP)</h2>
+                    <p>
+                        <!-- TODO(demo): confirm the exact MYP year naming used by the school. -->
+                        The MYP is a five-year framework, of which we deliver years 1 to 4 across
+                        S1 to S4. Students study eight subject groups every year, so choices stay
+                        open until the Diploma Programme.
                     </p>
+                    <p>
+                        Learning is organised around key concepts and global contexts. In each
+                        unit students inquire, act and reflect; in the final MYP year they complete
+                        a personal project assessed against IB criteria.
+                    </p>
+                    <ul class="checklist">
+                        <li>Eight subject groups, taught by specialist teachers</li>
+                        <li>Criterion-referenced assessment reported to parents each term</li>
+                        <li>Personal project in the final MYP year</li>
+                        <li>Service learning embedded in the curriculum</li>
+                    </ul>
+                </div>
+                <div>
+                    <span class="card-kicker">S5 &ndash; S6</span>
+                    <h2 class="mt-2">IB Diploma Programme (DP)</h2>
+                    <p>
+                        The DP is a two-year programme for S5 and S6. Students choose six subjects &mdash;
+                        three at Higher Level and three at Standard Level &mdash; and complete the DP core.
+                    </p>
+                    <p>
+                        <!-- TODO(demo): confirm current subject offerings at HL and SL. -->
+                        The core &mdash; Theory of Knowledge, the Extended Essay and Creativity, Activity,
+                        Service &mdash; is what distinguishes the DP from a collection of A-Level-style
+                        courses, and it is where universities look for evidence of independent work.
+                    </p>
+                    <ul class="checklist">
+                        <li>Six subjects: three at Higher Level, three at Standard Level</li>
+                        <li>Theory of Knowledge, Extended Essay and CAS</li>
+                        <li>External IB examinations at the end of S6</li>
+                        <li>University guidance from the DP coordinator</li>
+                    </ul>
                 </div>
             </div>
         </div>
+    </section>
 
-        <div class="col-md-6">
-            <div class="card shadow-sm h-100 border-success">
-                <div class="card-body">
-                    <h4 class="card-title text-success">IB Diploma Programme (DP)</h4>
-                    <p class="mb-2"><strong>Levels:</strong> S5 – S6</p>
-                    <p class="card-text">
-                        The DP is a rigorous two-year programme that prepares students for university and
-                        adult life. Students study six subject groups together with the DP Core
-                        (Theory of Knowledge, Extended Essay and CAS).
-                    </p>
-                </div>
+    <section class="intro-section intro-section--alt">
+        <div class="intro-container">
+            <div class="section-head">
+                <h2>Which programme applies to which level?</h2>
+                <p>
+                    The mapping is fixed: S1 to S4 follow the IB MYP, and S5 to S6 follow the IB DP.
+                    The same mapping is shown when an application is completed.
+                </p>
+            </div>
+            <div class="table-wrap">
+                <table>
+                    <caption>Programme by school level</caption>
+                    <thead>
+                    <tr>
+                        <th scope="col">School level</th>
+                        <th scope="col">Programme</th>
+                        <th scope="col">IB year</th>
+                        <th scope="col">Typical age</th>
+                    </tr>
+                    </thead>
+                    <tbody>
+                    <tr><th scope="row">S1</th><td>IB MYP</td><td>MYP year 1</td><td>12&ndash;13</td></tr>
+                    <tr><th scope="row">S2</th><td>IB MYP</td><td>MYP year 2</td><td>13&ndash;14</td></tr>
+                    <tr><th scope="row">S3</th><td>IB MYP</td><td>MYP year 3</td><td>14&ndash;15</td></tr>
+                    <tr><th scope="row">S4</th><td>IB MYP</td><td>MYP year 4</td><td>15&ndash;16</td></tr>
+                    <tr><th scope="row">S5</th><td>IB DP</td><td>DP year 1</td><td>16&ndash;17</td></tr>
+                    <tr><th scope="row">S6</th><td>IB DP</td><td>DP year 2</td><td>17&ndash;18</td></tr>
+                    </tbody>
+                </table>
+            </div>
+            <p class="glance-foot">
+                S6 is normally reserved for students continuing from S5 and opens to new applicants
+                only when the school opens it for that admission year.
+            </p>
+        </div>
+    </section>
+
+    <section class="cta-band">
+        <div class="intro-container">
+            <h2>Find out what students study</h2>
+            <p>Each programme has its own course descriptions and admission requirements.</p>
+            <div class="hero-actions" style="justify-content:center">
+                <a class="btn-solid" th:href="@{/course}">Course descriptions</a>
+                <a class="btn-ghost" th:href="@{/admission-requirements}">Admission requirements</a>
             </div>
         </div>
-    </div>
+    </section>
 
-    <div class="alert alert-info mt-4">
-        <strong>Note:</strong> S1 to S4 follow the IB MYP, and S5 to S6 follow the IB DP
-        (as stated in the business rules).
-    </div>
-</div>
+</main>
 
-<footer class="text-center py-4 text-muted border-top bg-white mt-5">
-    <p class="mb-0">&copy; 2026 Christian International School. All rights reserved.</p>
-</footer>
+<footer th:replace="~{fragments/public-chrome :: footer}"></footer>
 
+<script th:src="@{/vendor/bootstrap/5.3.2/bootstrap.bundle.min.js}"></script>
 </body>
 </html>

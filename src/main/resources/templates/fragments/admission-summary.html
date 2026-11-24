@@ -1,0 +1,49 @@
+<section th:fragment="compact" class="glance glance--compact" aria-label="Admission information">
+    <div class="intro-container">
+        <p><a th:href="@{/admission-info}">View current admission dates and seat quotas</a></p>
+    </div>
+</section>
+
+<section th:fragment="summary" class="glance" aria-labelledby="glance-title">
+    <div class="intro-container">
+        <div class="glance-head">
+            <h2 id="glance-title">Admission at a glance</h2>
+        </div>
+        <p th:if="${openYear == null}">There is currently no admission year open for applications.</p>
+        <th:block th:if="${openYear != null}">
+            <div th:replace="~{fragments/admission-summary :: levelTable(${openYear}, ${levels}, ${today})}"></div>
+        </th:block>
+        <p class="glance-foot">
+            Application dates are inclusive and use Hong Kong time.
+            <a th:href="@{/academic-years}">See all academic years</a>.
+        </p>
+    </div>
+</section>
+
+<div th:fragment="levelTable(year, levels, today)" class="table-wrap">
+    <table>
+        <caption th:text="'Admission year ' + ${year.name}"></caption>
+        <thead>
+        <tr>
+            <th scope="col">Level</th>
+            <th scope="col">Programme</th>
+            <th scope="col">Seat quota</th>
+            <th scope="col">Applications open</th>
+            <th scope="col">Applications close</th>
+            <th scope="col">Status</th>
+        </tr>
+        </thead>
+        <tbody>
+        <tr th:each="level : ${levels}"
+            th:with="open=${year.status.name() == 'ACTIVE' and level.admissionOpen and level.applicationStartDate != null and level.applicationEndDate != null and !today.isBefore(level.applicationStartDate) and !today.isAfter(level.applicationEndDate)}">
+            <th scope="row" th:text="${level.levelCode}"></th>
+            <td th:text="${level.levelCode.programmeName}"></td>
+            <td th:text="${level.seatQuota}"></td>
+            <td th:text="${level.applicationStartDate != null ? level.applicationStartDate : '-'}"></td>
+            <td th:text="${level.applicationEndDate != null ? level.applicationEndDate : '-'}"></td>
+            <td><span class="status-badge" th:classappend="${open ? 'status-accepted' : ''}"
+                      th:text="${open ? 'Open' : 'Closed'}"></span></td>
+        </tr>
+        </tbody>
+    </table>
+</div>

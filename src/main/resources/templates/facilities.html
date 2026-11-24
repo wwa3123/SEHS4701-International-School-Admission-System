@@ -3,74 +3,199 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Facilities - Christian International School</title>
+    <title>Facilities &amp; Laboratories - Christian International School</title>
     <link th:href="@{/vendor/bootstrap/5.3.2/bootstrap.min.css}" rel="stylesheet">
     <link th:href="@{/css/site.css}" rel="stylesheet">
+    <th:block th:replace="~{fragments/intro-style :: introStyle}"></th:block>
 </head>
 <body class="bg-light">
-    <header th:replace="~{fragments/navigation :: navigation}"></header>
 
+<!--
+  BR-37 &mdash; Information page 2 of 5: facilities and laboratories.
 
+  DEMO CONTENT: room counts, capacities and equipment lists are placeholders.
+  Search for "TODO(demo)" before release.
+-->
 
-<div class="container my-5">
-    <h1 class="mb-3">Facilities & Laboratories</h1>
-    <p class="lead text-muted mb-4">Modern facilities that support academic excellence and student development.</p>
+<div th:replace="~{fragments/public-chrome :: demoBanner}"></div>
 
-    <div class="row g-4">
-        <div class="col-md-4">
-            <div class="card shadow-sm h-100">
-                <div class="card-body">
-                    <h5 class="card-title">Science Laboratories</h5>
-                    <p class="card-text">Fully equipped Physics, Chemistry and Biology laboratories for hands-on learning.</p>
-                </div>
+<header th:replace="~{fragments/navigation :: navigation}"></header>
+
+<main class="intro-main">
+
+    <section class="intro-hero">
+        <div class="intro-container">
+            <span class="eyebrow">Campus</span>
+            <h1>Facilities and laboratories</h1>
+            <p class="hero-lead">
+                Purpose-built spaces for science, design, computing and the arts &mdash; all on one
+                campus, all used by every year group from S1 to S6.
+            </p>
+            <div class="hero-actions">
+                <a class="btn-solid" th:href="@{/programmes}">See the programmes</a>
+                <a class="btn-ghost" th:href="@{/about}">Visit the campus</a>
             </div>
         </div>
-        <div class="col-md-4">
-            <div class="card shadow-sm h-100">
-                <div class="card-body">
-                    <h5 class="card-title">Computer Labs</h5>
-                    <p class="card-text">Modern computer laboratories supporting digital literacy and technology education.</p>
-                </div>
-            </div>
-        </div>
-        <div class="col-md-4">
-            <div class="card shadow-sm h-100">
-                <div class="card-body">
-                    <h5 class="card-title">Library & Media Centre</h5>
-                    <p class="card-text">A well-resourced library that supports research and independent learning.</p>
-                </div>
-            </div>
-        </div>
-        <div class="col-md-4">
-            <div class="card shadow-sm h-100">
-                <div class="card-body">
-                    <h5 class="card-title">Sports Facilities</h5>
-                    <p class="card-text">Indoor and outdoor sports areas promoting physical education and teamwork.</p>
-                </div>
-            </div>
-        </div>
-        <div class="col-md-4">
-            <div class="card shadow-sm h-100">
-                <div class="card-body">
-                    <h5 class="card-title">Performing Arts</h5>
-                    <p class="card-text">Music rooms and performance spaces for creative expression.</p>
-                </div>
-            </div>
-        </div>
-        <div class="col-md-4">
-            <div class="card shadow-sm h-100">
-                <div class="card-body">
-                    <h5 class="card-title">Student Common Areas</h5>
-                    <p class="card-text">Comfortable spaces for collaboration, rest and student activities.</p>
-                </div>
-            </div>
-        </div>
-    </div>
-</div>
+    </section>
 
-<footer class="text-center py-4 text-muted border-top bg-white mt-5">
-    <p class="mb-0">&copy; 2026 Christian International School. All rights reserved.</p>
-</footer>
+    <div th:replace="~{fragments/admission-summary :: compact}"></div>
 
+    <section class="intro-section">
+        <div class="intro-container">
+            <div class="section-head">
+                <h2>Science laboratories</h2>
+                <p>
+                    Three dedicated laboratories support the MYP sciences and the DP science
+                    courses at both Standard and Higher Level.
+                </p>
+            </div>
+            <div class="intro-grid">
+                <article class="intro-card">
+                    <span class="card-kicker">Laboratory</span>
+                    <h3>Physics laboratory</h3>
+                    <p>
+                        <!-- TODO(demo): confirm equipment list and capacity. -->
+                        Bench power supplies, data loggers, optics benches and a demonstration
+                        area. Capacity 28 students.
+                    </p>
+                </article>
+                <article class="intro-card">
+                    <span class="card-kicker">Laboratory</span>
+                    <h3>Chemistry laboratory</h3>
+                    <p>
+                        Fume hoods, balances and a dedicated preparation room, with separate
+                        storage for hazardous chemicals. Capacity 28 students.
+                    </p>
+                </article>
+                <article class="intro-card">
+                    <span class="card-kicker">Laboratory</span>
+                    <h3>Biology laboratory</h3>
+                    <p>
+                        Microscopy stations, incubators and a freshwater aquarium for
+                        ecology practicals. Capacity 28 students.
+                    </p>
+                </article>
+            </div>
+        </div>
+    </section>
+
+    <section class="intro-section intro-section--alt">
+        <div class="intro-container">
+            <div class="section-head">
+                <h2>Design, technology and computing</h2>
+                <p>
+                    MYP design and the DP sciences both depend on making things; these rooms
+                    are booked for timetabled classes and after-school projects.
+                </p>
+            </div>
+            <div class="intro-grid">
+                <article class="intro-card">
+                    <span class="card-kicker">Workshop</span>
+                    <h3>Design &amp; technology workshop</h3>
+                    <p>
+                        Hand tools, laser cutter, 3D printers and a supervised soldering bench
+                        for prototyping.
+                    </p>
+                </article>
+                <article class="intro-card">
+                    <span class="card-kicker">Computing</span>
+                    <h3>Two computer laboratories</h3>
+                    <p>
+                        48 workstations across two rooms, used for computer science, digital
+                        design and cross-curricular research.
+                    </p>
+                </article>
+                <article class="intro-card">
+                    <span class="card-kicker">Media</span>
+                    <h3>Media and recording studio</h3>
+                    <p>
+                        Soundproofed recording booth, editing suites and a small green-screen
+                        area for film and podcast projects.
+                    </p>
+                </article>
+            </div>
+        </div>
+    </section>
+
+    <section class="intro-section">
+        <div class="intro-container">
+            <div class="section-head">
+                <h2>Library, arts and wellbeing</h2>
+                <p>Spaces that support independent study, creative work and the DP core.</p>
+            </div>
+            <div class="intro-grid">
+                <article class="intro-card">
+                    <span class="card-kicker">Study</span>
+                    <h3>Library and media centre</h3>
+                    <p>
+                        12,000 titles in English and Chinese, silent study zones, group tables
+                        and a dedicated DP coursework collection.
+                    </p>
+                </article>
+                <article class="intro-card">
+                    <span class="card-kicker">Arts</span>
+                    <h3>Music rooms and performance hall</h3>
+                    <p>
+                        Four practice rooms, a black-box drama studio and a 320-seat hall for
+                        concerts, assemblies and the DP CAS showcase.
+                    </p>
+                </article>
+                <article class="intro-card">
+                    <span class="card-kicker">Sport</span>
+                    <h3>Sports hall and outdoor courts</h3>
+                    <p>
+                        Full-size indoor hall, fitness room and covered outdoor courts for
+                        basketball and badminton.
+                    </p>
+                </article>
+            </div>
+
+            <!-- Second row is its own grid so the vertical spacing does not depend
+                 on the grid row-gap. -->
+            <div class="intro-grid">
+                <article class="intro-card">
+                    <span class="card-kicker">Wellbeing</span>
+                    <h3>Student commons and counselling suite</h3>
+                    <p>
+                        A supervised common room, quiet room and two private counselling rooms
+                        staffed by the pastoral team.
+                    </p>
+                </article>
+                <article class="intro-card">
+                    <span class="card-kicker">Dining</span>
+                    <h3>Canteen and courtyard</h3>
+                    <p>
+                        Hot lunch service with vegetarian options, plus a covered courtyard
+                        used for breaks and club activities.
+                    </p>
+                </article>
+                <article class="intro-card">
+                    <span class="card-kicker">Access</span>
+                    <h3>Accessibility</h3>
+                    <p>
+                        Lift access to all floors, accessible washrooms and step-free routes
+                        between buildings. Contact admissions to discuss specific needs.
+                    </p>
+                </article>
+            </div>
+        </div>
+    </section>
+
+    <section class="cta-band">
+        <div class="intro-container">
+            <h2>Come and see the campus</h2>
+            <p>Campus visits run during term time. Contact the admissions team to arrange a time.</p>
+            <div class="hero-actions" style="justify-content:center">
+                <a class="btn-solid" th:href="@{/about}">School background</a>
+                <a class="btn-ghost" th:href="@{/admission-requirements}">Admission requirements</a>
+            </div>
+        </div>
+    </section>
+
+</main>
+
+<footer th:replace="~{fragments/public-chrome :: footer}"></footer>
+
+<script th:src="@{/vendor/bootstrap/5.3.2/bootstrap.bundle.min.js}"></script>
 </body>
 </html>

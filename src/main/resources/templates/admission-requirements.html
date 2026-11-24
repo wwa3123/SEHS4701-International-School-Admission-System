@@ -6,82 +6,146 @@
     <title>Admission Requirements - Christian International School</title>
     <link th:href="@{/vendor/bootstrap/5.3.2/bootstrap.min.css}" rel="stylesheet">
     <link th:href="@{/css/site.css}" rel="stylesheet">
+    <th:block th:replace="~{fragments/intro-style :: introStyle}"></th:block>
 </head>
 <body class="bg-light">
-    <header th:replace="~{fragments/navigation :: navigation}"></header>
 
+<header th:replace="~{fragments/navigation :: navigation}"></header>
 
+<main class="intro-main">
 
-<div class="container my-5">
-    <h1 class="mb-3">Admission Requirements</h1>
-    <p class="lead text-muted mb-4">General requirements for admission to each programme level.</p>
+    <section class="intro-hero">
+        <div class="intro-container">
+            <span class="eyebrow">Admissions</span>
+            <h1>Admission requirements</h1>
+            <p class="hero-lead">
+                Requirements by school level, the information we ask for, and how an application
+                is assessed. Read this page before starting an application.
+            </p>
+            <div class="hero-actions">
+                <a class="btn-solid" th:href="@{/membership/register}">Start an application</a>
+                <a class="btn-ghost" th:href="@{/programmes}">Programme introduction</a>
+            </div>
+        </div>
+    </section>
 
-    <div class="accordion" id="requirementsAccordion">
-        <!-- S1 -->
-        <div class="accordion-item">
-            <h2 class="accordion-header">
-                <button class="accordion-button" type="button" data-bs-toggle="collapse" data-bs-target="#s1">
-                    S1 (IB MYP Year 1)
-                </button>
-            </h2>
-            <div id="s1" class="accordion-collapse collapse show" data-bs-parent="#requirementsAccordion">
-                <div class="accordion-body">
-                    Applicants should have completed primary education. Basic English proficiency is expected.
-                    Previous school reports may be required.
+    <div th:replace="~{fragments/admission-summary :: compact}"></div>
+
+    <section class="intro-section">
+        <div class="intro-container">
+            <div class="section-head">
+                <h2>How the application works</h2>
+                <p>Four steps, all completed through this website.</p>
+            </div>
+            <ol class="steps">
+                <li>
+                    <strong>Create a member account</strong>
+                    <span>Register with a parent or guardian email address and verify the one-time code sent to it.</span>
+                </li>
+                <li>
+                    <strong>Submit one application</strong>
+                    <span>Choose an open programme level, enter the applicant's details and accept the declarations.</span>
+                </li>
+                <li>
+                    <strong>Wait for the result</strong>
+                    <span>An admissions administrator reviews every application; results are released after the closing date.</span>
+                </li>
+                <li>
+                    <strong>Respond to an offer</strong>
+                    <span>Log in to accept or reject an offer within 168 hours of release. Confirm your choice before saving; it is final. An unanswered offer becomes Rejected when its deadline expires, even if the email was not delivered.</span>
+                </li>
+            </ol>
+        </div>
+    </section>
+
+    <section class="intro-section intro-section--alt">
+        <div class="intro-container">
+            <div class="section-head">
+                <h2>Requirements by level</h2>
+                <p>
+                    These are the application rules for each programme. They do not specify minimum
+                    grades or English-test scores. Submitting an application does not guarantee an offer;
+                    admission depends on the administrator's assessment and the available seats.
+                </p>
+            </div>
+            <div class="table-wrap">
+                <table>
+                    <caption>Programme entry and application requirements</caption>
+                    <thead>
+                    <tr>
+                        <th scope="col">Level</th>
+                        <th scope="col">Programme</th>
+                        <th scope="col">Application requirement</th>
+                    </tr>
+                    </thead>
+                    <tbody>
+                    <tr>
+                        <th scope="row">S1 &ndash; S4</th>
+                        <td>IB MYP</td>
+                        <td>A registered parent or guardian must log in and apply for one level during its application window in the open admission year.</td>
+                    </tr>
+                    <tr>
+                        <th scope="row">S5</th>
+                        <td>IB DP</td>
+                        <td>The same membership, application-window and declaration requirements apply to entry to the Diploma Programme.</td>
+                    </tr>
+                    <tr>
+                        <th scope="row">S6</th>
+                        <td>IB DP</td>
+                        <td>Closed to new applicants by default; its quota is reserved for continuing S5 students. A new application is possible only if the Super Administrator opens S6 and its application window is current.</td>
+                    </tr>
+                    </tbody>
+                </table>
+            </div>
+            <p class="glance-foot">
+                Each level has its own dates and quota. Application dates are inclusive and use Hong Kong time.
+            </p>
+        </div>
+    </section>
+
+    <section class="intro-section">
+        <div class="intro-container split">
+            <div>
+                <h2>Information to prepare</h2>
+                <p>The application asks for the applicant's personal details and identity document number.</p>
+                <ul class="checklist">
+                    <li>Full name, date of birth, gender and phone number</li>
+                    <li>Identity document type and number, and issuing country when required</li>
+                    <li>Previous school, if applicable</li>
+                </ul>
+                <p>Document files and photographs cannot be uploaded through this website.</p>
+                <p class="glance-foot">
+                    Identity documents are checked for duplicates. An HKID or passport may be linked
+                    to one membership only, and the email address used to register cannot be changed later.
+                </p>
+            </div>
+            <div class="fact-stack">
+                <div class="fact">
+                    <strong>Assessment</strong>
+                    <span>An admissions administrator reviews the information provided in the application. There is no entrance test or interview.</span>
+                </div>
+                <div class="fact">
+                    <strong>One application at a time</strong>
+                    <span>An applicant may hold one application in an admission year; a new one is possible only after the previous application is cancelled.</span>
                 </div>
             </div>
         </div>
+    </section>
 
-        <!-- S2 - S4 -->
-        <div class="accordion-item">
-            <h2 class="accordion-header">
-                <button class="accordion-button collapsed" type="button" data-bs-toggle="collapse" data-bs-target="#s2s4">
-                    S2 – S4 (IB MYP)
-                </button>
-            </h2>
-            <div id="s2s4" class="accordion-collapse collapse" data-bs-parent="#requirementsAccordion">
-                <div class="accordion-body">
-                    Applicants should have completed the previous year level. School reports and a recommendation
-                    letter may be requested. English language ability appropriate to the grade level is required.
-                </div>
+    <section class="cta-band">
+        <div class="intro-container">
+            <h2>Ready to start?</h2>
+            <p>Create a member account to add an applicant and submit an application.</p>
+            <div class="hero-actions" style="justify-content:center">
+                <a class="btn-solid" th:href="@{/membership/register}">Create an account</a>
+                <a class="btn-ghost" th:href="@{/login}">Sign in</a>
             </div>
         </div>
+    </section>
 
-        <!-- S5 -->
-        <div class="accordion-item">
-            <h2 class="accordion-header">
-                <button class="accordion-button collapsed" type="button" data-bs-toggle="collapse" data-bs-target="#s5">
-                    S5 (IB DP Year 1)
-                </button>
-            </h2>
-            <div id="s5" class="accordion-collapse collapse" data-bs-parent="#requirementsAccordion">
-                <div class="accordion-body">
-                    Successful completion of MYP Year 5 (or equivalent). Strong academic performance and
-                    English proficiency are expected. Subject prerequisites may apply for certain Higher Level subjects.
-                </div>
-            </div>
-        </div>
+</main>
 
-        <!-- S6 -->
-        <div class="accordion-item">
-            <h2 class="accordion-header">
-                <button class="accordion-button collapsed" type="button" data-bs-toggle="collapse" data-bs-target="#s6">
-                    S6 (IB DP Year 2)
-                </button>
-            </h2>
-            <div id="s6" class="accordion-collapse collapse" data-bs-parent="#requirementsAccordion">
-                <div class="accordion-body">
-                    S6 is normally reserved for continuing students from S5. Admission to S6 for new students
-                    is only possible when the Super Administrator opens S6 for that admission year.
-                </div>
-            </div>
-        </div>
-    </div>
-</div>
-
-<footer class="text-center py-4 text-muted border-top bg-white mt-5">
-    <p class="mb-0">&copy; 2026 Christian International School. All rights reserved.</p>
-</footer>
+<footer th:replace="~{fragments/public-chrome :: footer}"></footer>
 
 <script th:src="@{/vendor/bootstrap/5.3.2/bootstrap.bundle.min.js}"></script>
 </body>

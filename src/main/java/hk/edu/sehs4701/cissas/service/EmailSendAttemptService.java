@@ -29,6 +29,7 @@ import org.springframework.transaction.event.TransactionalEventListener;
 import java.time.LocalDateTime;
 import java.time.ZoneId;
 import java.util.List;
+import java.util.Locale;
 import java.util.stream.Stream;
 
 @Slf4j
@@ -57,6 +58,9 @@ public class EmailSendAttemptService {
 
     @Value("${spring.mail.username}")
     private String fromAddress;
+
+    @Value("${cissas.admin.notification-email:}")
+    private String adminNotificationEmail;
 
     @Value("${cissas.otc.expiry-minutes:15}")
     private int otcExpiryMinutes;
@@ -113,6 +117,14 @@ public class EmailSendAttemptService {
                 emailLog.setErrorMessage("Offer changed or is no longer eligible for reminder delivery.");
                 return;
             }
+        }
+        if (emailLog.getTemplateType() == EmailTemplateType.APPLICATION_DUPLICATE_ALERT) {
+            if (adminNotificationEmail == null || adminNotificationEmail.isBlank()) {
+                emailLog.setStatus(EmailDeliveryStatus.FAILED);
+                emailLog.setErrorMessage(EmailService.MISSING_ADMISSIONS_MAILBOX);
+                return;
+            }
+            emailLog.setRecipientEmail(adminNotificationEmail.trim().toLowerCase(Locale.ROOT));
         }
         boolean oneTimeCodeEmail = emailLog.getTemplateType() == EmailTemplateType.OTC_VERIFICATION
                 || emailLog.getTemplateType() == EmailTemplateType.PASSWORD_RESET_CODE;

@@ -1,5 +1,7 @@
 package hk.edu.sehs4701.cissas.config;
 
+import hk.edu.sehs4701.cissas.enums.LevelCode;
+import hk.edu.sehs4701.cissas.repository.IdentityReviewLockRepository;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.io.TempDir;
 import org.springframework.boot.DefaultApplicationArguments;
@@ -24,12 +26,23 @@ class DevDemoDataSeederTest {
     @Test
     void seedsOnlyMissingDemoAcademicYearAndLevels() {
         JdbcTemplate jdbc = mock(JdbcTemplate.class);
+        IdentityReviewLockRepository lock = mock(IdentityReviewLockRepository.class);
 
-        new DevDemoDataSeeder(jdbc).run(new DefaultApplicationArguments());
+        new DevDemoDataSeeder(jdbc, lock).run(new DefaultApplicationArguments());
 
-        verify(jdbc).update(contains("INSERT INTO academic_year"), any(), any(), any());
-        verify(jdbc, times(3)).update(contains("INSERT INTO programme_level"),
-                any(), any(), any(), any(), any(), any());
+        var order = inOrder(lock, jdbc);
+        order.verify(lock).acquire();
+        order.verify(jdbc).update(argThat(sql -> sql.contains("INSERT INTO academic_year")
+                        && sql.contains("WHERE status = 'ACTIVE'")
+                        && sql.contains("THEN 'PLANNING' ELSE 'ACTIVE'")
+                        && sql.contains("WHERE NOT EXISTS")),
+                any(), any(), any());
+        for (LevelCode level : LevelCode.values()) {
+            verify(jdbc).update(argThat(sql -> sql.contains("id, 150,")
+                            && sql.contains("ay.status <> 'ARCHIVED'") && sql.contains("NOT EXISTS")),
+                    eq(level.name()), eq(level.getProgrammeName()), eq(level != LevelCode.S6),
+                    any(), any(), any(), eq(level.name()));
+        }
         verifyNoMoreInteractions(jdbc);
     }
 

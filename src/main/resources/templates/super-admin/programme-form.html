@@ -14,9 +14,10 @@
 <div role="alert" th:if="${#fields.hasAnyErrors()}"><p>Correct the programme details:</p><ul><li th:each="error : ${#fields.allErrors()}" th:text="${error}"></li></ul></div>
 <div th:if="${levelId == null}">
 <label for="levelCode">Level</label><select id="levelCode" th:field="*{levelCode}" required>
-<option value="">Choose a level</option><option th:each="code : ${levelCodes}" th:value="${code}" th:text="${code}"></option>
+<option value="">Choose a level</option><option th:each="code : ${levelCodes}" th:value="${code}" th:text="${code + ' - ' + code.programmeName}"></option>
 </select></div>
-<label for="programmeName">Programme name</label><input id="programmeName" th:field="*{programmeName}" maxlength="120" required>
+<p th:if="${levelId != null}">Programme: <span th:text="${levelCode.programmeName}"></span></p>
+<p th:if="${levelId == null}">S1-S4 use IB MYP; S5-S6 use IB DP.</p>
 <label for="seatQuota">Seat quota</label><input id="seatQuota" type="number" th:field="*{seatQuota}" min="0" required>
 <p th:if="${levelId != null and levelCode.name() == 'S6'}"><label for="admissionOpen">Open S6 for admission</label><input id="admissionOpen" type="checkbox" th:field="*{admissionOpen}"></p>
 <label for="applicationStartDate">Application start date</label><input id="applicationStartDate" type="date" th:field="*{applicationStartDate}" required>

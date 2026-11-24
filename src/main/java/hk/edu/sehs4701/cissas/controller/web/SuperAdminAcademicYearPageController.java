@@ -98,7 +98,7 @@ public class SuperAdminAcademicYearPageController {
                                 HttpServletResponse response, Model model) {
         guard(request, response);
         programmeModel(id, null, model);
-        model.addAttribute("programmeForm", new ProgrammeLevelRequest(null, "", 0, null, null));
+        model.addAttribute("programmeForm", new ProgrammeLevelRequest(null, 0, null, null));
         return "super-admin/programme-form";
     }
 
@@ -112,7 +112,7 @@ public class SuperAdminAcademicYearPageController {
         if (invalid(errors, request, response, model, "super-admin/programme-form")) {
             return "super-admin/programme-form";
         }
-        levels.create(id, form.levelCode(), form.programmeName(), form.seatQuota(),
+        levels.create(id, form.levelCode(), form.seatQuota(),
                 form.applicationStartDate(), form.applicationEndDate());
         redirect.addFlashAttribute("message", "Programme level created.");
         return "redirect:/super-admin/academic-years/" + id;
@@ -125,7 +125,7 @@ public class SuperAdminAcademicYearPageController {
         programmeModel(yearId, levelId, model);
         var level = levels.list(yearId).stream().filter(item -> item.id().equals(levelId)).findFirst()
                 .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Programme level not found"));
-        model.addAttribute("programmeForm", new ProgrammeLevelUpdateRequest(level.programmeName(), level.seatQuota(),
+        model.addAttribute("programmeForm", new ProgrammeLevelUpdateRequest(level.seatQuota(),
                 level.admissionOpen(), level.applicationStartDate(), level.applicationEndDate()));
         model.addAttribute("levelCode", level.levelCode());
         return "super-admin/programme-form";
@@ -142,7 +142,7 @@ public class SuperAdminAcademicYearPageController {
         if (invalid(errors, request, response, model, "super-admin/programme-form")) {
             return "super-admin/programme-form";
         }
-        levels.update(yearId, levelId, form.programmeName(), form.seatQuota(), form.admissionOpen(),
+        levels.update(yearId, levelId, form.seatQuota(), form.admissionOpen(),
                 form.applicationStartDate(), form.applicationEndDate());
         redirect.addFlashAttribute("message", "Programme level updated.");
         return "redirect:/super-admin/academic-years/" + yearId;

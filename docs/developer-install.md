@@ -98,7 +98,7 @@ Mail settings default to a placeholder SMTP host. To test email delivery, config
 
 ## 4. Run locally
 
-To include the fictional demo academic year and three programme levels, activate the `dev` profile. The demo seeder only creates missing catalogue records; it does not create member accounts, applicants, or identity documents.
+To include the fictional demo academic year and six programme levels (S1-S6), activate the `dev` profile. New levels have 150 seats, with S6 closed by default. If another year is active, the demo year stays in planning. The seeder preserves existing settings and archived years; it does not create member accounts, applicants, or identity documents.
 
 PowerShell:
 

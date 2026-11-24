@@ -1,15 +1,20 @@
 :root {
     color-scheme: light;
-    --cis-navy: #18324b;
-    --cis-blue: #0d6efd;
-    --cis-border: #dee3e9;
-    --cis-background: #f3f5f8;
+    --cis-navy: #7a1f2b;
+    --cis-blue: #7a1f2b;
+    --cis-gold: #c9a227;
+    --cis-green: #1f4d3a;
+    --cis-cream: #faf7f2;
+    --cis-ink: #2b2b2b;
+    --cis-muted: #6b6257;
+    --cis-border: #e3dccf;
+    --cis-background: #faf7f2;
 }
 
 body {
     min-height: 100vh;
     background: var(--cis-background);
-    color: #263445;
+    color: var(--cis-ink);
     font-family: system-ui, -apple-system, "Segoe UI", sans-serif;
 }
 
@@ -54,8 +59,8 @@ body {
 
 .site-nav-links a:hover,
 .site-brand:hover {
-    color: #cfe2ff;
-    text-decoration: underline;
+    color: var(--cis-gold);
+    text-decoration: none;
 }
 
 .site-nav-links form {
@@ -64,15 +69,68 @@ body {
 
 .site-signout {
     padding: 0.35rem 0.65rem;
-    border: 1px solid rgb(255 255 255 / 55%);
+    border: 1px solid rgb(201 162 39 / 65%);
     border-radius: 0.35rem;
     background: transparent;
-    color: #fff;
+    color: var(--cis-cream);
     cursor: pointer;
 }
 
 .site-signout:hover {
-    background: rgb(255 255 255 / 12%);
+    background: rgb(201 162 39 / 18%);
+}
+
+/* "Explore" disclosure in the main navigation (native <details>, no JS needed). */
+.site-nav-links .nav-more {
+    position: relative;
+}
+
+.site-nav-links .nav-more > summary {
+    padding-block: 0.25rem;
+    color: #fff;
+    cursor: pointer;
+    list-style: none;
+}
+
+.site-nav-links .nav-more > summary::-webkit-details-marker {
+    display: none;
+}
+
+.site-nav-links .nav-more > summary::after {
+    content: "\25BE";
+    margin-left: 0.35rem;
+    font-size: 0.7rem;
+}
+
+.site-nav-links .nav-more[open] > summary::after {
+    content: "\25B4";
+}
+
+.site-nav-links .nav-more-panel {
+    position: absolute;
+    top: calc(100% + 0.5rem);
+    left: 0;
+    z-index: 1000;
+    display: grid;
+    gap: 0.15rem;
+    min-width: 13rem;
+    padding: 0.5rem;
+    border-radius: 0.5rem;
+    background: #fff;
+    box-shadow: 0 0.5rem 1.5rem rgb(24 50 75 / 18%);
+}
+
+.site-nav-links .nav-more-panel a {
+    padding: 0.35rem 0.6rem;
+    border-radius: 0.35rem;
+    color: var(--cis-navy);
+    font-size: 0.95rem;
+}
+
+.site-nav-links .nav-more-panel a:hover {
+    background: #f7f0e6;
+    color: var(--cis-navy);
+    text-decoration: none;
 }
 
 main {
@@ -82,7 +140,7 @@ main {
     border: 1px solid var(--cis-border);
     border-radius: 0.75rem;
     background: #fff;
-    box-shadow: 0 0.25rem 1rem rgb(24 50 75 / 7%);
+    box-shadow: none;
 }
 
 h1,
@@ -91,6 +149,9 @@ h3,
 h4,
 h5 {
     color: var(--cis-navy);
+    font-family: Georgia, "Noto Serif TC", "Songti TC", "PMingLiU", "Times New Roman", serif;
+    font-weight: 600;
+    letter-spacing: 0.01em;
 }
 
 h1 {
@@ -104,11 +165,11 @@ h2 {
 }
 
 a {
-    color: #0759bd;
+    color: #8a2430;
 }
 
 a:hover {
-    color: #064a9e;
+    color: var(--cis-navy);
 }
 
 form {
@@ -197,15 +258,15 @@ input[type="submit"],
 button:not([class]):not(.navbar-toggler),
 input[type="submit"] {
     padding: 0.55rem 1rem;
-    border: 1px solid var(--cis-blue);
-    background: var(--cis-blue);
+    border: 1px solid var(--cis-navy);
+    background: var(--cis-navy);
     color: #fff;
     cursor: pointer;
 }
 
 button:not([class]):not(.navbar-toggler):hover,
 input[type="submit"]:hover {
-    background: #0b5ed7;
+    background: #5c1620;
 }
 
 button:disabled,
@@ -244,16 +305,16 @@ td {
 }
 
 th {
-    background: #eaf0f6;
+    background: #f3ece2;
     color: var(--cis-navy);
 }
 
 tbody tr:nth-child(even) {
-    background: #f8fafc;
+    background: #fbf8f3;
 }
 
 tbody tr:hover {
-    background: #eef5fc;
+    background: #f7f0e6;
 }
 
 dl {
@@ -284,8 +345,8 @@ dd {
 
 .status-pending,
 .status-success {
-    background: #e7f1ff;
-    color: #084298;
+    background: #f5e9d0;
+    color: #6b4e16;
 }
 
 .status-wait {
@@ -294,15 +355,15 @@ dd {
 }
 
 .status-accepted {
-    background: #d1e7dd;
-    color: #0f5132;
+    background: #e3efe6;
+    color: #1f4d3a;
 }
 
 .status-fail,
 .status-rejected,
 .status-cancelled {
-    background: #e9ecef;
-    color: #41464b;
+    background: #efe8e2;
+    color: #4a4038;
 }
 
 [role="status"] {
@@ -316,7 +377,7 @@ dd {
 footer {
     padding: 1.25rem;
     border-top: 1px solid var(--cis-border);
-    color: #667487;
+    color: var(--cis-muted);
     text-align: center;
 }
 
@@ -345,6 +406,16 @@ nav[aria-label$="pages"] {
     .site-nav-links {
         justify-content: flex-start;
         gap: 0.6rem 1rem;
+    }
+
+    .site-nav-links .nav-more {
+        position: static;
+    }
+
+    .site-nav-links .nav-more-panel {
+        position: static;
+        margin-top: 0.5rem;
+        box-shadow: none;
     }
 
     table {

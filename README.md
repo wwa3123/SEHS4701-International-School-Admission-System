@@ -48,7 +48,7 @@ The application listens on port `8080` by default.
 
 Flyway applies versioned schema migrations from `src/main/resources/db/migrations` at startup. Hibernate is configured to validate the migrated schema; it does not create or update tables. Start a first-time installation with an empty MySQL database.
 
-For local development only, activate the `dev` Spring profile to seed a fictional academic year and three programme levels. The seed is idempotent and creates no user accounts, applicants, or identity documents. Do not enable this profile in production.
+For local development only, activate the `dev` Spring profile to seed a fictional academic year and all six programme levels: S1-S4 (IB MYP) and S5-S6 (IB DP), with 150 seats per new level and S6 closed by default. The seed creates a planning year if another year is already active, preserves existing settings and archived years, and creates no user accounts, applicants, or identity documents. Do not enable this profile in production.
 
 For assessment or local development, copy the supplied `src\main\resources\application-dev.properties.example` to `application-dev.properties` in the same directory. The copy is Git-ignored and uses the local settings described in the [Developer installation guide](docs/developer-install.md); it contains no working credentials by default.
 

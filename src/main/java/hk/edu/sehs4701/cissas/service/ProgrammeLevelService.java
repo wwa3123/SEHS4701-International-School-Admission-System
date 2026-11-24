@@ -51,7 +51,7 @@ public class ProgrammeLevelService {
     }
 
     @Transactional
-    public ProgrammeLevelResponse create(Long yearId, LevelCode code, String name, int quota,
+    public ProgrammeLevelResponse create(Long yearId, LevelCode code, int quota,
                                          LocalDate applicationStartDate, LocalDate applicationEndDate) {
         lock.acquire();
         AcademicYear year = years.findById(yearId)
@@ -65,11 +65,11 @@ public class ProgrammeLevelService {
         level.setAcademicYear(year);
         level.setLevelCode(code);
         level.setAdmissionOpen(code != LevelCode.S6);
-        return save(level, name, quota, applicationStartDate, applicationEndDate);
+        return save(level, quota, applicationStartDate, applicationEndDate);
     }
 
     @Transactional(noRollbackFor = SeatQuotaExceededException.class)
-    public ProgrammeLevelResponse update(Long yearId, Long levelId, String name, int quota,
+    public ProgrammeLevelResponse update(Long yearId, Long levelId, int quota,
                                          boolean admissionOpen, LocalDate applicationStartDate,
                                          LocalDate applicationEndDate) {
         lock.acquire();
@@ -84,7 +84,7 @@ public class ProgrammeLevelService {
             throw new SeatQuotaExceededException(offers);
         }
         level.setAdmissionOpen(level.getLevelCode() != LevelCode.S6 || admissionOpen);
-        return save(level, name, quota, applicationStartDate, applicationEndDate);
+        return save(level, quota, applicationStartDate, applicationEndDate);
     }
 
     private void validateDates(LocalDate startDate, LocalDate endDate) {
@@ -99,9 +99,9 @@ public class ProgrammeLevelService {
         }
     }
 
-    private ProgrammeLevelResponse save(ProgrammeLevel level, String name, int quota,
+    private ProgrammeLevelResponse save(ProgrammeLevel level, int quota,
                                         LocalDate applicationStartDate, LocalDate applicationEndDate) {
-        level.setProgrammeName(name.trim());
+        level.setProgrammeName(level.getLevelCode().getProgrammeName());
         level.setSeatQuota(quota);
         level.setApplicationStartDate(applicationStartDate);
         level.setApplicationEndDate(applicationEndDate);
@@ -110,7 +110,8 @@ public class ProgrammeLevelService {
     }
 
     private ProgrammeLevelResponse response(ProgrammeLevel level, Long yearId) {
-        return new ProgrammeLevelResponse(level.getId(), yearId, level.getLevelCode(), level.getProgrammeName(),
+        return new ProgrammeLevelResponse(level.getId(), yearId, level.getLevelCode(),
+                level.getLevelCode().getProgrammeName(),
                 level.getSeatQuota(), level.getLevelCode() != LevelCode.S6 || level.isAdmissionOpen(),
                 level.getApplicationStartDate(), level.getApplicationEndDate());
     }

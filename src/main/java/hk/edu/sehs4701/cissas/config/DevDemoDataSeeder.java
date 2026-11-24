@@ -1,5 +1,7 @@
 package hk.edu.sehs4701.cissas.config;
 
+import hk.edu.sehs4701.cissas.enums.LevelCode;
+import hk.edu.sehs4701.cissas.repository.IdentityReviewLockRepository;
 import org.springframework.boot.ApplicationArguments;
 import org.springframework.boot.ApplicationRunner;
 import org.springframework.context.annotation.Profile;
@@ -10,7 +12,6 @@ import org.springframework.transaction.annotation.Transactional;
 import java.time.LocalDate;
 import java.time.ZoneId;
 import java.time.format.DateTimeFormatter;
-import java.util.List;
 
 @Component
 @Profile("dev")
@@ -18,14 +19,17 @@ public class DevDemoDataSeeder implements ApplicationRunner {
     private static final ZoneId HONG_KONG = ZoneId.of("Asia/Hong_Kong");
     private static final DateTimeFormatter YEAR_FORMAT = DateTimeFormatter.ofPattern("yyyy");
     private final JdbcTemplate jdbc;
+    private final IdentityReviewLockRepository lock;
 
-    public DevDemoDataSeeder(JdbcTemplate jdbc) {
+    public DevDemoDataSeeder(JdbcTemplate jdbc, IdentityReviewLockRepository lock) {
         this.jdbc = jdbc;
+        this.lock = lock;
     }
 
     @Override
     @Transactional
     public void run(ApplicationArguments args) {
+        lock.acquire();
         LocalDate today = LocalDate.now(HONG_KONG);
         LocalDate start = LocalDate.of(today.getYear(), 9, 1);
         if (today.isBefore(start)) start = start.minusYears(1);
@@ -36,28 +40,25 @@ public class DevDemoDataSeeder implements ApplicationRunner {
 
         jdbc.update("""
                 INSERT INTO academic_year (name, creation_date, status)
-                SELECT ?, ?, 'ACTIVE'
+                SELECT ?, ?, CASE WHEN EXISTS (SELECT 1 FROM academic_year WHERE status = 'ACTIVE')
+                    THEN 'PLANNING' ELSE 'ACTIVE' END
                 WHERE NOT EXISTS (SELECT 1 FROM academic_year WHERE name = ?)
                 """, yearName, start, yearName);
 
-        for (DemoLevel level : List.of(
-                new DemoLevel("S1", "Secondary 1"),
-                new DemoLevel("S2", "Secondary 2"),
-                new DemoLevel("S3", "Secondary 3"))) {
+        for (LevelCode level : LevelCode.values()) {
             jdbc.update("""
                     INSERT INTO programme_level
                         (level_code, programme_name, academic_year_id, seat_quota, admission_open,
                          application_start_date, application_end_date, updated_at)
-                    SELECT ?, ?, id, 30, TRUE, ?, ?, CURRENT_TIMESTAMP
+                    SELECT ?, ?, id, 150, ?, ?, ?, CURRENT_TIMESTAMP
                     FROM academic_year ay
-                    WHERE ay.name = ?
+                    WHERE ay.name = ? AND ay.status <> 'ARCHIVED'
                       AND NOT EXISTS (
                           SELECT 1 FROM programme_level p
                           WHERE p.academic_year_id = ay.id AND p.level_code = ?
                       )
-                    """, level.code(), level.name(), applicationStart, applicationEnd, yearName, level.code());
+                    """, level.name(), level.getProgrammeName(), level != LevelCode.S6,
+                    applicationStart, applicationEnd, yearName, level.name());
         }
     }
-
-    private record DemoLevel(String code, String name) {}
 }

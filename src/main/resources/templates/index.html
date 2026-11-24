@@ -3,61 +3,121 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title th:text="${appName}">CIS Admissions</title>
+    <title>CIS Admissions - Christian International School</title>
     <link th:href="@{/vendor/bootstrap/5.3.2/bootstrap.min.css}" rel="stylesheet">
     <link th:href="@{/css/site.css}" rel="stylesheet">
+    <th:block th:replace="~{fragments/intro-style :: introStyle}"></th:block>
 </head>
 <body class="bg-light">
-    <header th:replace="~{fragments/navigation :: navigation}"></header>
 
+<div th:replace="~{fragments/public-chrome :: demoBanner}"></div>
 
+<header th:replace="~{fragments/navigation :: navigation}"></header>
 
-<div class="container my-5">
-    <div class="p-5 mb-4 bg-white rounded-3 shadow-sm border">
-        <div class="container-fluid py-3">
-            <h1 class="display-5 fw-bold text-primary">Welcome to CIS Admissions</h1>
-            <p class="col-md-8 fs-4 text-secondary">
-                Find programme information, check application dates, and manage your application through the CIS Admissions System.
+<main class="intro-main">
+
+    <section class="intro-hero">
+        <div class="intro-container">
+            <span class="eyebrow">Admissions</span>
+            <h1>A place at Christian International School starts here</h1>
+            <p class="hero-lead">
+                Check the current application dates and requirements for your child's level,
+                then apply online as a member.
             </p>
-            <a class="btn btn-primary btn-lg me-2" th:href="@{/admission-info}">View admission information</a>
-            <a class="btn btn-outline-primary btn-lg" th:href="@{/membership/register}">Register as a member</a>
-        </div>
-    </div>
-
-    <section class="card shadow-sm mb-4">
-        <div class="card-body">
-            <h2 class="h4 card-title">Academic Years</h2>
-            <div th:if="${#lists.isEmpty(academicYears)}" class="text-muted">
-                No academic years are available.
-            </div>
-            <div th:unless="${#lists.isEmpty(academicYears)}" class="table-responsive">
-                <table class="table table-striped mb-0">
-                    <thead>
-                    <tr>
-                        <th scope="col">Year</th>
-                        <th scope="col">Created</th>
-                        <th scope="col">Archived</th>
-                        <th scope="col">Status</th>
-                    </tr>
-                    </thead>
-                    <tbody>
-                    <tr th:each="year : ${academicYears}">
-                        <td th:text="${year.name}"></td>
-                        <td th:text="${year.creationDate}"></td>
-                        <td th:text="${year.archiveDate}"></td>
-                        <td th:text="${year.status}"></td>
-                    </tr>
-                    </tbody>
-                </table>
+            <div class="hero-actions">
+                <a class="btn-solid" th:href="@{/membership/register}">Start an application</a>
+                <a class="btn-ghost" th:href="@{/admission-requirements}">Admission requirements</a>
             </div>
         </div>
     </section>
 
-</div>
+    <div th:replace="~{fragments/admission-summary :: summary}"></div>
 
-<footer class="text-center py-4 text-muted border-top bg-white">
-    <p class="mb-0">&copy; 2026 Christian International School. All rights reserved.</p>
-</footer>
+    <section class="intro-section">
+        <div class="intro-container">
+            <div class="section-head">
+                <h2>Explore the school</h2>
+                <p>
+                    Everything a family needs before applying: who we are, what students study,
+                    and the facilities they will use.
+                </p>
+            </div>
+            <div class="intro-grid">
+                <article class="intro-card">
+                    <span class="card-kicker">About</span>
+                    <h3>About the school</h3>
+                    <p>Our story, campus location and the teachers your child will meet.</p>
+                    <p class="mt-3 mb-0"><a th:href="@{/about}">Read about CIS</a></p>
+                </article>
+                <article class="intro-card">
+                    <span class="card-kicker">Programmes</span>
+                    <h3>IB MYP and IB DP</h3>
+                    <p>How the Middle Years Programme (S1 to S4) and the Diploma Programme (S5 to S6) fit together.</p>
+                    <p class="mt-3 mb-0"><a th:href="@{/programmes}">Compare the programmes</a></p>
+                </article>
+                <article class="intro-card">
+                    <span class="card-kicker">Curriculum</span>
+                    <h3>Course descriptions</h3>
+                    <p>Subject groups, the DP core, and what changes from one year to the next.</p>
+                    <p class="mt-3 mb-0"><a th:href="@{/course}">See the courses</a></p>
+                </article>
+                <article class="intro-card">
+                    <span class="card-kicker">Campus</span>
+                    <h3>Facilities and laboratories</h3>
+                    <p>Science laboratories, a design workshop, the library and sports spaces.</p>
+                    <p class="mt-3 mb-0"><a th:href="@{/facilities}">Tour the facilities</a></p>
+                </article>
+            </div>
+        </div>
+    </section>
+
+    <section class="intro-section intro-section--alt">
+        <div class="intro-container">
+            <div class="section-head">
+                <h2>How to apply</h2>
+                <p>Learn what information to prepare and how to submit an application.</p>
+                <p><a th:href="@{/admission-requirements}">Read the application steps and requirements</a></p>
+            </div>
+        </div>
+    </section>
+
+    <section class="intro-section">
+        <div class="intro-container split">
+            <div>
+                <h2>Already applied?</h2>
+                <p>
+                    Sign in with the email address you registered to check an application,
+                    manage identity document details or respond to an offer.
+                </p>
+                <p class="mb-0"><a th:href="@{/login}">Sign in to your account</a></p>
+            </div>
+            <div class="fact-stack">
+                <div class="fact">
+                    <strong>Academic years</strong>
+                    <span><a th:href="@{/academic-years}">See all academic years and programme levels</a></span>
+                </div>
+                <div class="fact">
+                    <strong>Enquiries</strong>
+                    <span>admissions@example.edu.hk &middot; +852 0000 0000</span>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <section class="cta-band">
+        <div class="intro-container">
+            <h2>Ready to apply?</h2>
+            <p>Create a member account to add an applicant and submit an application.</p>
+            <div class="hero-actions" style="justify-content:center">
+                <a class="btn-solid" th:href="@{/membership/register}">Create an account</a>
+                <a class="btn-ghost" th:href="@{/admission-requirements}">Admission requirements</a>
+            </div>
+        </div>
+    </section>
+
+</main>
+
+<footer th:replace="~{fragments/public-chrome :: footer}"></footer>
 
 <script th:src="@{/vendor/bootstrap/5.3.2/bootstrap.bundle.min.js}"></script>
 </body>

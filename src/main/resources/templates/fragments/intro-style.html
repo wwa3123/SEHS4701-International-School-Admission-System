@@ -1,0 +1,497 @@
+<!--
+  Shared styling for the five public information pages (BR-37).
+
+  Palette: deep wine #7a1f2b, cream #faf7f2, gold #c9a227, deep green #1f4d3a
+  for small confirmations. Headings use a serif stack defined in site.css.
+
+  Hero: a plain wine gradient with a faint gold line texture. No photograph is
+  used, so the pages have no image dependency at all.
+
+  TODO(release): move these rules into static/css/site.css.
+-->
+<style th:fragment="introStyle">
+    .demo-banner {
+        padding: 0.5rem 1rem;
+        border-bottom: 1px solid #e6d3a3;
+        background: #fdf6e3;
+        color: #6b4e16;
+        font-size: 0.85rem;
+        text-align: center;
+    }
+
+    /* Undo the card layout that site.css applies to <main>. */
+    main.intro-main {
+        width: 100%;
+        margin: 0;
+        padding: 0;
+        border: 0;
+        border-radius: 0;
+        background: transparent;
+        box-shadow: none;
+    }
+
+    .intro-container {
+        width: min(100% - 2rem, 1140px);
+        margin-inline: auto;
+    }
+
+    /* ---------- Hero ---------- */
+    .intro-hero {
+        position: relative;
+        overflow: hidden;
+        padding: clamp(3.5rem, 8vw, 6rem) 0;
+        background: linear-gradient(135deg, #2b0c12 0%, #7a1f2b 55%, #a8404c 100%);
+        color: #faf7f2;
+    }
+
+    .intro-hero::after {
+        content: "";
+        position: absolute;
+        inset: 0;
+        background-image: repeating-linear-gradient(
+            90deg,
+            rgb(201 162 39 / 8%) 0,
+            rgb(201 162 39 / 8%) 1px,
+            transparent 1px,
+            transparent 96px
+        );
+        pointer-events: none;
+    }
+
+    .intro-hero .intro-container {
+        position: relative;
+        z-index: 1;
+    }
+
+    .intro-hero .eyebrow {
+        display: inline-block;
+        margin-bottom: 0.75rem;
+        color: var(--cis-gold);
+        font-size: 0.78rem;
+        font-weight: 700;
+        letter-spacing: 0.16em;
+        text-transform: uppercase;
+    }
+
+    .intro-hero h1 {
+        max-width: 22ch;
+        margin: 0 0 1rem;
+        color: #fff;
+        font-size: clamp(2rem, 5vw, 3.1rem);
+        line-height: 1.14;
+    }
+
+    .intro-hero .hero-lead {
+        max-width: 48rem;
+        margin: 0 0 1.75rem;
+        color: #f2e7d8;
+        font-size: 1.08rem;
+        line-height: 1.65;
+    }
+
+    .hero-actions {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 0.75rem;
+    }
+
+    .btn-solid,
+    .btn-ghost {
+        display: inline-block;
+        padding: 0.65rem 1.3rem;
+        border-radius: 4px;
+        font-size: 0.95rem;
+        font-weight: 600;
+        text-decoration: none;
+    }
+
+    .btn-solid {
+        background: var(--cis-gold);
+        color: #2b1a06;
+    }
+
+    .btn-solid:hover {
+        background: #b8911f;
+        color: #2b1a06;
+    }
+
+    .btn-ghost {
+        border: 1px solid rgb(201 162 39 / 70%);
+        color: var(--cis-cream);
+    }
+
+    .btn-ghost:hover {
+        border-color: var(--cis-gold);
+        background: rgb(201 162 39 / 14%);
+        color: #fff;
+    }
+
+    /* ---------- Admission at a glance (BR-39) ---------- */
+    .glance {
+        padding: 1.75rem 0;
+        border-bottom: 1px solid var(--cis-border);
+        background: #f7f1e8;
+    }
+
+    .glance-head {
+        display: flex;
+        flex-wrap: wrap;
+        align-items: baseline;
+        justify-content: space-between;
+        gap: 0.5rem 1rem;
+        margin-bottom: 0.85rem;
+    }
+
+    .glance-head h2 {
+        margin: 0;
+        font-size: 1.15rem;
+    }
+
+    .glance-note {
+        margin: 0;
+        color: var(--cis-muted);
+        font-size: 0.85rem;
+    }
+
+    .glance table {
+        font-size: 0.92rem;
+    }
+
+    .glance caption {
+        padding: 0 0 0.5rem;
+        color: var(--cis-muted);
+        font-size: 0.9rem;
+        text-align: left;
+    }
+
+    .glance-foot {
+        margin: 0.75rem 0 0;
+        color: var(--cis-muted);
+        font-size: 0.9rem;
+    }
+
+    /* ---------- Editorial hero variant (About page) ---------- */
+    .intro-hero--editorial {
+        padding: clamp(2.5rem, 6vw, 4rem) 0;
+        border-bottom: 1px solid var(--cis-border);
+        background: #fff;
+        color: var(--cis-ink);
+    }
+
+    .intro-hero--editorial::after {
+        display: none;
+    }
+
+    .intro-hero--editorial .eyebrow {
+        color: #8a6d1f;
+    }
+
+    .intro-hero--editorial h1 {
+        max-width: 20ch;
+        color: var(--cis-navy);
+        font-size: clamp(1.8rem, 4vw, 2.5rem);
+    }
+
+    .intro-hero--editorial .hero-lead {
+        margin-bottom: 1.25rem;
+        color: var(--cis-muted);
+    }
+
+    /* ---------- Compact admission strip (inner pages) ---------- */
+    .glance--compact {
+        padding: 0.85rem 0;
+    }
+
+    .glance--compact p {
+        margin: 0;
+        color: var(--cis-ink);
+        font-size: 0.95rem;
+        line-height: 1.5;
+    }
+
+    .glance--compact a {
+        margin-left: 0.35rem;
+        white-space: nowrap;
+    }
+
+    /* ---------- Long-form prose ---------- */
+    .prose {
+        max-width: 46rem;
+    }
+
+    .prose p {
+        line-height: 1.75;
+    }
+
+    /* ---------- Sections ---------- */
+    .intro-section {
+        padding: clamp(2.5rem, 6vw, 4.25rem) 0;
+    }
+
+    .intro-section--alt {
+        border-block: 1px solid var(--cis-border);
+        background: #fff;
+    }
+
+    .section-head {
+        max-width: 46rem;
+        margin-bottom: 2rem;
+    }
+
+    .section-head h2 {
+        margin: 0 0 0.5rem;
+        font-size: clamp(1.5rem, 3vw, 1.9rem);
+    }
+
+    .section-head p {
+        margin: 0;
+        color: var(--cis-muted);
+        line-height: 1.7;
+    }
+
+    .intro-grid {
+        display: grid;
+        gap: 1.25rem;
+        grid-template-columns: repeat(auto-fit, minmax(255px, 1fr));
+    }
+
+    /* Consecutive grids read as separate rows of cards. */
+    .intro-grid + .intro-grid {
+        margin-top: 1.5rem;
+    }
+
+    .intro-card {
+        padding: 1.5rem;
+        border: 1px solid var(--cis-border);
+        border-radius: 4px;
+        background: #fff;
+        box-shadow: none;
+    }
+
+    .intro-card h3 {
+        margin: 0.4rem 0 0.5rem;
+        font-size: 1.05rem;
+    }
+
+    .intro-card p {
+        margin: 0;
+        color: var(--cis-muted);
+        line-height: 1.65;
+    }
+
+    .card-kicker {
+        display: inline-block;
+        padding: 0.18rem 0.5rem;
+        border-radius: 2px;
+        background: #f5e9d0;
+        color: var(--cis-navy);
+        font-size: 0.72rem;
+        font-weight: 700;
+        letter-spacing: 0.08em;
+        text-transform: uppercase;
+    }
+
+    .split {
+        display: grid;
+        gap: 2.5rem;
+        align-items: start;
+        grid-template-columns: 1.15fr 0.85fr;
+    }
+
+    .split p {
+        line-height: 1.75;
+    }
+
+    .fact-stack {
+        display: grid;
+        gap: 0.75rem;
+    }
+
+    .fact {
+        padding: 1rem 1.25rem;
+        border: 1px solid var(--cis-border);
+        border-left: 3px solid var(--cis-gold);
+        border-radius: 4px;
+        background: #fff;
+    }
+
+    .fact strong {
+        display: block;
+        margin-bottom: 0.15rem;
+        color: var(--cis-navy);
+        font-family: Georgia, "Noto Serif TC", "Songti TC", "PMingLiU", serif;
+        font-size: 1.2rem;
+        font-weight: 600;
+    }
+
+    .fact span {
+        color: var(--cis-muted);
+        font-size: 0.9rem;
+        line-height: 1.55;
+    }
+
+    /* ---------- Campus map (illustrative SVG) ---------- */
+    .campus-map {
+        margin: 0;
+        padding: 0;
+        overflow: hidden;
+        border: 1px solid var(--cis-border);
+        border-radius: 4px;
+        background: #fff;
+    }
+
+    .campus-map svg {
+        display: block;
+        width: 100%;
+        height: auto;
+    }
+
+    .campus-map figcaption {
+        padding: 0.65rem 0.9rem;
+        border-top: 1px solid var(--cis-border);
+        color: var(--cis-muted);
+        font-size: 0.85rem;
+    }
+
+    /* ---------- Teachers ---------- */
+    .avatar {
+        display: grid;
+        place-items: center;
+        width: 62px;
+        height: 62px;
+        border-radius: 50%;
+        background: #f5e9d0;
+        color: var(--cis-navy);
+        font-size: 1.05rem;
+        font-weight: 700;
+        letter-spacing: 0.04em;
+    }
+
+    .teacher-role {
+        margin: 0 0 0.5rem;
+        color: #8a6d1f;
+        font-size: 0.8rem;
+        font-weight: 700;
+        letter-spacing: 0.08em;
+        text-transform: uppercase;
+    }
+
+    /* ---------- Steps / checklist ---------- */
+    .steps {
+        display: grid;
+        gap: 1rem;
+        margin: 0;
+        padding: 0;
+        list-style: none;
+        counter-reset: step;
+        grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+    }
+
+    .steps li {
+        position: relative;
+        padding: 1.25rem;
+        border: 1px solid var(--cis-border);
+        border-radius: 4px;
+        background: #fff;
+        counter-increment: step;
+    }
+
+    .steps li::before {
+        content: counter(step);
+        display: grid;
+        place-items: center;
+        width: 2rem;
+        height: 2rem;
+        margin-bottom: 0.65rem;
+        border-radius: 2px;
+        background: var(--cis-navy);
+        color: var(--cis-cream);
+        font-family: Georgia, serif;
+        font-weight: 700;
+    }
+
+    .steps strong {
+        display: block;
+        margin-bottom: 0.25rem;
+        color: var(--cis-navy);
+    }
+
+    .steps span {
+        color: var(--cis-muted);
+        font-size: 0.92rem;
+        line-height: 1.55;
+    }
+
+    .checklist {
+        display: grid;
+        gap: 0.5rem;
+        margin: 1rem 0 0;
+        padding: 0;
+        list-style: none;
+    }
+
+    .checklist li {
+        padding-left: 1.6rem;
+        color: var(--cis-ink);
+        line-height: 1.6;
+    }
+
+    .checklist li::before {
+        /* \2713 keeps this file pure ASCII so every editor renders it the same. */
+        content: "\2713";
+        margin-left: -1.6rem;
+        margin-right: 0.6rem;
+        color: var(--cis-green);
+        font-weight: 700;
+    }
+
+    /* ---------- CTA band ---------- */
+    .cta-band {
+        padding: clamp(2.5rem, 6vw, 4rem) 0;
+        background: linear-gradient(120deg, #5c1620 0%, #7a1f2b 100%);
+        color: var(--cis-cream);
+        text-align: center;
+    }
+
+    .cta-band h2 {
+        margin: 0 0 0.75rem;
+        color: #fff;
+        font-size: clamp(1.5rem, 3vw, 1.95rem);
+    }
+
+    .cta-band p {
+        margin: 0 auto 1.5rem;
+        max-width: 40rem;
+        color: #ecd9c8;
+        line-height: 1.65;
+    }
+
+    .site-footer {
+        padding: 1.5rem 0;
+        border-top: 1px solid var(--cis-border);
+        background: var(--cis-cream);
+        color: var(--cis-muted);
+        font-size: 0.9rem;
+        text-align: center;
+    }
+
+    .site-footer a {
+        color: var(--cis-muted);
+        text-decoration: none;
+    }
+
+    .site-footer a:hover {
+        color: var(--cis-navy);
+        text-decoration: underline;
+    }
+
+    @media (max-width: 800px) {
+        .split {
+            grid-template-columns: 1fr;
+        }
+
+        .intro-hero {
+            padding-block: 3rem;
+        }
+    }
+</style>
