@@ -347,7 +347,7 @@ class IdentityReviewDatabaseTest {
             return null;
         }).when(notifications).notifyApplicationResult(
                 argThat(application -> numbers.get(0).equals(application.getApplicationNumber())),
-                eq(false), isNull(), eq(false));
+                eq(false), eq(false));
         try {
             Future<Boolean> first = executor.submit(() ->
                     results.setResult(adminIds.get(0), numbers.get(0), ApplicationStatus.Success, null));
@@ -601,7 +601,7 @@ class IdentityReviewDatabaseTest {
         ProgrammeLevel level = levels.findById(expired.getProgrammeLevel().getId()).orElseThrow();
 
         assertThrows(ResponseStatusException.class, () -> programmeLevels.update(
-                level.getAcademicYear().getId(), level.getId(), level.getProgrammeName(), 0, false,
+                level.getAcademicYear().getId(), level.getId(), 0, false,
                 level.getApplicationStartDate(), level.getApplicationEndDate()));
 
         assertEquals(ApplicationStatus.Rejected, applications.findById(expired.getId()).orElseThrow().getStatus());
@@ -745,8 +745,8 @@ class IdentityReviewDatabaseTest {
             original.setStatus(AcademicYearStatus.ARCHIVED);
             years.saveAndFlush(original);
             next = years.saveAndFlush(next);
-            var nextLevel = programmeLevels.create(next.getId(), level.getLevelCode(), level.getProgrammeName(),
-                    level.getSeatQuota(), level.getApplicationStartDate(), level.getApplicationEndDate());
+            var nextLevel = programmeLevels.create(next.getId(), level.getLevelCode(), level.getSeatQuota(),
+                    level.getApplicationStartDate(), level.getApplicationEndDate());
             assertEquals(201, submit(request, member.getId()));
             assertEquals(originalId, applications.findById(first.getId()).orElseThrow().getAcademicYear().getId());
             assertEquals(level.getId(), applications.findById(first.getId()).orElseThrow().getProgrammeLevel().getId());

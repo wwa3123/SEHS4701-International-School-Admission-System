@@ -1,5 +1,6 @@
 package hk.edu.sehs4701.cissas.controller.web;
 
+import hk.edu.sehs4701.cissas.dto.response.AcademicYearResponse;
 import hk.edu.sehs4701.cissas.service.AcademicYearService;
 import hk.edu.sehs4701.cissas.service.ProgrammeLevelService;
 import org.springframework.http.HttpStatus;
@@ -7,6 +8,10 @@ import org.springframework.stereotype.Controller;
 import org.springframework.ui.Model;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.server.ResponseStatusException;
+
+import java.time.LocalDate;
+import java.time.ZoneId;
+import java.util.List;
 
 @Controller
 public class PublicPageController {
@@ -24,18 +29,31 @@ public class PublicPageController {
         return "about";
     }
 
+    @GetMapping("/")
+    public String home(Model model) {
+        addAdmissionInfo(model);
+        return "index";
+    }
+
     @GetMapping("/admission-info")
     public String admissionInfo(Model model) {
+        addAdmissionInfo(model);
+        return "admission-info";
+    }
+
+    private void addAdmissionInfo(Model model) {
+        model.addAttribute("today", LocalDate.now(ZoneId.of("Asia/Hong_Kong")));
+        AcademicYearResponse year;
         try {
-            var year = academicYearService.getCurrentOpenForApplicationAcademicYear();
-            model.addAttribute("openYear", year);
-            model.addAttribute("levels", programmeLevelService.list(year.id()));
+            year = academicYearService.getCurrentOpenForApplicationAcademicYear();
         } catch (ResponseStatusException exception) {
             if (exception.getStatusCode() != HttpStatus.NOT_FOUND) throw exception;
             model.addAttribute("openYear", null);
-            model.addAttribute("levels", java.util.List.of());
+            model.addAttribute("levels", List.of());
+            return;
         }
-        return "admission-info";
+        model.addAttribute("openYear", year);
+        model.addAttribute("levels", programmeLevelService.list(year.id()));
     }
 
     @GetMapping("/programmes")

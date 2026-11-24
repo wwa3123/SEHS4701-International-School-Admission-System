@@ -32,6 +32,7 @@ import org.thymeleaf.spring6.templateresolver.SpringResourceTemplateResolver;
 import org.thymeleaf.spring6.view.ThymeleafViewResolver;
 
 import java.time.LocalDate;
+import java.time.ZoneId;
 import java.util.List;
 import java.util.regex.Pattern;
 
@@ -112,11 +113,29 @@ class AcademicAdministrationPagesTest {
         for (String route : List.of("/academic-years/1", "/academic-years/1/programme-levels",
                 "/academic-years/open-for-application")) {
             mvc.perform(get(route)).andExpect(status().isOk()).andExpect(view().name("public/academic-year"))
-                    .andExpect(content().string(containsString("Secondary 1")))
+                    .andExpect(content().string(containsString("IB MYP")))
                     .andExpect(content().string(containsString("2028-09-01")))
                     .andExpect(content().string(containsString("/member/applications/new")));
         }
         verifyNoInteractions(accounts);
+    }
+
+    @Test
+    void discoveryShowsAnOpenLevelOnlyForAnActiveYearWithinItsDates() throws Exception {
+        LocalDate today = LocalDate.now(ZoneId.of("Asia/Hong_Kong"));
+        when(levels.list(1L)).thenReturn(List.of(new ProgrammeLevelResponse(
+                10L, 1L, LevelCode.S1, "Secondary 1", 20, true, today, today)));
+        for (AcademicYearStatus status : List.of(AcademicYearStatus.PLANNING, AcademicYearStatus.ACTIVE,
+                AcademicYearStatus.ARCHIVED)) {
+            when(years.get(1L)).thenReturn(new AcademicYearResponse(1L, "Year", today, null, status));
+            mvc.perform(get("/academic-years/1")).andExpect(status().isOk())
+                    .andExpect(content().string(containsString(status == AcademicYearStatus.ACTIVE
+                            ? ">Open</span>" : ">Closed</span>")));
+        }
+        when(levels.list(1L)).thenReturn(List.of());
+        mvc.perform(get("/academic-years/1")).andExpect(status().isOk())
+                .andExpect(content().string(containsString("No programme levels are available.")))
+                .andExpect(content().string(not(containsString("<table"))));
     }
 
     @Test
@@ -232,6 +251,10 @@ class AcademicAdministrationPagesTest {
             mvc.perform(get(route).session(session)).andExpect(status().isOk())
                     .andExpect(header().string("Cache-Control", "no-store"));
         }
+        mvc.perform(get("/super-admin/academic-years/1/programme-levels/new").session(session))
+                .andExpect(content().string(containsString("S1 - IB MYP")))
+                .andExpect(content().string(containsString("S5 - IB DP")))
+                .andExpect(content().string(not(containsString("id=\"programmeName\""))));
         when(years.create("2028/29")).thenReturn(year);
         mvc.perform(post("/super-admin/academic-years").session(session).with(csrf()).param("name", "2028/29"))
                 .andExpect(redirectedUrl("/super-admin/academic-years/1"));
@@ -240,10 +263,10 @@ class AcademicAdministrationPagesTest {
         verify(years).updateLifecycle(1L, AcademicYearStatus.ACTIVE);
         mvc.perform(programmePost("/super-admin/academic-years/1/programme-levels").param("levelCode", "S1"))
                 .andExpect(redirectedUrl("/super-admin/academic-years/1"));
-        verify(levels).create(1L, LevelCode.S1, "Secondary 1", 20, level.applicationStartDate(), level.applicationEndDate());
+        verify(levels).create(1L, LevelCode.S1, 20, level.applicationStartDate(), level.applicationEndDate());
         mvc.perform(programmePost("/super-admin/academic-years/1/programme-levels/10"))
                 .andExpect(redirectedUrl("/super-admin/academic-years/1"));
-        verify(levels).update(1L, 10L, "Secondary 1", 20, false, level.applicationStartDate(), level.applicationEndDate());
+        verify(levels).update(1L, 10L, 20, false, level.applicationStartDate(), level.applicationEndDate());
     }
 
     @Test
@@ -283,14 +306,14 @@ class AcademicAdministrationPagesTest {
                         .andExpect(status().isBadRequest()).andExpect(view().name("super-admin/programme-form"))
                         .andExpect(model().attributeHasFieldErrors("programmeForm", field))
                         .andExpect(content().string(containsString("action=\"" + route + "\"")))
-                        .andExpect(content().string(containsString("value=\"Secondary 1\"")))
+                        .andExpect(content().string(containsString("IB MYP")))
                         .andReturn();
                 csrfValue(invalid.getResponse().getContentAsString());
             }
         }
-        verify(levels, never()).create(any(), any(), any(), anyInt(), any(), any());
-        verify(levels, never()).update(any(), any(), any(), anyInt(), anyBoolean(), any(), any());
-        when(levels.create(any(), any(), any(), anyInt(), any(), any())).thenThrow(
+        verify(levels, never()).create(any(), any(), anyInt(), any(), any());
+        verify(levels, never()).update(any(), any(), anyInt(), anyBoolean(), any(), any());
+        when(levels.create(any(), any(), anyInt(), any(), any())).thenThrow(
                 new ResponseStatusException(HttpStatus.BAD_REQUEST, "Invalid programme application period"));
         mvc.perform(programmePost("/super-admin/academic-years/1/programme-levels").param("levelCode", "S1"))
                 .andExpect(status().isBadRequest()).andExpect(view().name("super-admin/programme-form"))
@@ -299,7 +322,7 @@ class AcademicAdministrationPagesTest {
 
     @Test
     void refusedQuotaShowsCurrentCountAndKeepsSubmittedValues() throws Exception {
-        when(levels.update(any(), any(), any(), anyInt(), anyBoolean(), any(), any())).thenThrow(new SeatQuotaExceededException(21));
+        when(levels.update(any(), any(), anyInt(), anyBoolean(), any(), any())).thenThrow(new SeatQuotaExceededException(21));
         mvc.perform(programmePost("/super-admin/academic-years/1/programme-levels/10"))
                 .andExpect(status().isConflict()).andExpect(view().name("super-admin/programme-form"))
                 .andExpect(content().string(containsString("current Success and Accepted count: 21")))
@@ -351,7 +374,7 @@ class AcademicAdministrationPagesTest {
     }
 
     private MockHttpServletRequestBuilder programmePost(String route) {
-        return post(route).session(session).with(csrf()).param("programmeName", "Secondary 1")
+        return post(route).session(session).with(csrf())
                 .param("seatQuota", "20").param("admissionOpen", "false").param("applicationStartDate", "2028-09-01")
                 .param("applicationEndDate", "2028-09-30");
     }

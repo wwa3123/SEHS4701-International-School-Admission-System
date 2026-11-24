@@ -35,7 +35,7 @@ Set these environment variables (or equivalent Spring Boot properties through yo
 
 Keep encryption and hash keys stable across deployments and backups. Losing or rotating the identity encryption secret/salt makes existing encrypted documents unreadable; changing hash peppers can prevent existing identity/code hashes from matching. Use the same values for every application instance connected to the same database.
 
-Configure `CISSAS_ADMIN_NOTIFICATION_EMAIL` if duplicate-review alerts should also be sent to a shared administrator inbox. Configure `CISSAS_REGISTRATION_TRUSTED_PROXIES` only with the exact proxy IPs that overwrite `X-Forwarded-For`; do not trust arbitrary client-provided forwarded headers.
+Configure `CISSAS_ADMIN_NOTIFICATION_EMAIL` for the shared admissions inbox that receives duplicate-review alerts (BR-75A). Without it, applications still submit, but alerts appear as failed in `/admin/emails/failed`; they are never sent to the member instead. After configuring the mailbox and restarting, retry delivery from that queue (scheduled retries also recover these alerts). Configure `CISSAS_REGISTRATION_TRUSTED_PROXIES` only with the exact proxy IPs that overwrite `X-Forwarded-For`; do not trust arbitrary client-provided forwarded headers.
 
 Production overrides should include:
 

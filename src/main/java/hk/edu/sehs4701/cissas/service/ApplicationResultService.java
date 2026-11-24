@@ -123,7 +123,7 @@ public class ApplicationResultService {
         application.setRespondedAt(null);
         applications.save(application);
         recordHistory(application, previous, result, admin.getRole(), admin.getId(), correction ? reason.trim() : null, now);
-        notifications.notifyApplicationResult(application, correction, correction ? reason.trim() : null,
+        notifications.notifyApplicationResult(application, correction,
                 previous == ApplicationStatus.Wait && result == ApplicationStatus.Success);
         return true;
     }
@@ -153,7 +153,7 @@ public class ApplicationResultService {
         LocalDateTime now = LocalDateTime.now(HONG_KONG);
         return applications.findForAdministration(programmeLevelId, status, now, pageable)
                 .map(application -> new AdminApplication(application.getApplicationNumber(),
-                        application.getProgrammeLevel().getId(), application.getProgrammeLevel().getProgrammeName(),
+                        application.getProgrammeLevel().getId(), application.getProgrammeLevel().getLevelCode().getDisplayName(),
                         application.getApplicantSnapshot().getFullName(), application.effectiveStatus(now)));
     }
 
@@ -184,7 +184,7 @@ public class ApplicationResultService {
     public Slice<MemberApplication> memberApplications(Long memberId, int page, int size) {
         return applications.findAllByMember_IdOrderByIdAsc(memberId, pageRequest(page, size))
                 .map(application -> new MemberApplication(application.getApplicationNumber(),
-                        application.getProgrammeLevel().getProgrammeName()));
+                        application.getProgrammeLevel().getLevelCode().getDisplayName()));
     }
 
     private PageRequest pageRequest(int page, int size) {
@@ -216,7 +216,7 @@ public class ApplicationResultService {
                         entry.getChangedByRole(), entry.getRemarks(), entry.getChangedAt()))
                 .forEach(statusHistory::add);
         return new MemberApplicationResult(application.getApplicationNumber(),
-                application.getAcademicYear().getName(), application.getProgrammeLevel().getProgrammeName(),
+                application.getAcademicYear().getName(), application.getProgrammeLevel().getLevelCode().getDisplayName(),
                 snapshot.getFullName(), snapshot.getDateOfBirth(), snapshot.getGender(), snapshot.getPhone(),
                 snapshot.getPreviousSchool(), snapshot.getDocumentType(), snapshot.getDocumentNumber(),
                 snapshot.getIssuingCountry(), application.getStatus(), application.getSubmittedAt(),
@@ -272,7 +272,7 @@ public class ApplicationResultService {
             expire(application, now);
             return null;
         }
-        return new OfferConfirmation(application.getProgrammeLevel().getProgrammeName(),
+        return new OfferConfirmation(application.getProgrammeLevel().getLevelCode().getDisplayName(),
                 application.getApplicationNumber(), application.getAcceptanceDeadline(), application.getResultReleasedAt(), decision, null);
     }
 

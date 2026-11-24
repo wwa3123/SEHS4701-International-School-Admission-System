@@ -10,19 +10,6 @@
 </head>
 <body class="bg-light">
 
-<!--
-  BR-37 &mdash; Information page 5 of 5: admission requirements of each programme.
-  BR-07 / BR-08 &mdash; S6 is normally closed and its quota is held for continuing S5 students.
-  A-02 &mdash; applications are assessed by an administrator only; there is no entrance test or interview.
-
-  DEMO CONTENT: grade thresholds and document lists are illustrative.
-  Search for "TODO(demo)" before release.
--->
-
-<div class="demo-banner">
-    Demo content for wireframe review &mdash; replace with approved copy before release.
-</div>
-
 <header th:replace="~{fragments/navigation :: navigation}"></header>
 
 <main class="intro-main">
@@ -32,7 +19,7 @@
             <span class="eyebrow">Admissions</span>
             <h1>Admission requirements</h1>
             <p class="hero-lead">
-                Requirements by school level, the documents we ask for, and how an application
+                Requirements by school level, the information we ask for, and how an application
                 is assessed. Read this page before starting an application.
             </p>
             <div class="hero-actions">
@@ -48,7 +35,7 @@
         <div class="intro-container">
             <div class="section-head">
                 <h2>How the application works</h2>
-                <p>Five steps, all completed through this website. No entrance test or interview is required.</p>
+                <p>Four steps, all completed through this website.</p>
             </div>
             <ol class="steps">
                 <li>
@@ -56,12 +43,8 @@
                     <span>Register with a parent or guardian email address and verify the one-time code sent to it.</span>
                 </li>
                 <li>
-                    <strong>Add your applicant</strong>
-                    <span>Record the student's identity document and personal details under your membership.</span>
-                </li>
-                <li>
                     <strong>Submit one application</strong>
-                    <span>Choose a single programme level inside its application window and declare that the information is true.</span>
+                    <span>Choose an open programme level, enter the applicant's details and accept the declarations.</span>
                 </li>
                 <li>
                     <strong>Wait for the result</strong>
@@ -69,7 +52,7 @@
                 </li>
                 <li>
                     <strong>Respond to an offer</strong>
-                    <span>If an offer is made, accept or reject it through the website within seven days.</span>
+                    <span>Log in to accept or reject an offer within 168 hours of release. Confirm your choice before saving; it is final. An unanswered offer becomes Rejected when its deadline expires, even if the email was not delivered.</span>
                 </li>
             </ol>
         </div>
@@ -80,54 +63,42 @@
             <div class="section-head">
                 <h2>Requirements by level</h2>
                 <p>
-                    <!-- TODO(demo): replace with the school's approved entry requirements. -->
-                    The table below sets out the academic expectation for each level. Meeting a
-                    requirement does not guarantee a seat; offers depend on the number of places
-                    available in that programme level.
+                    These are the application rules for each programme. They do not specify minimum
+                    grades or English-test scores. Submitting an application does not guarantee an offer;
+                    admission depends on the administrator's assessment and the available seats.
                 </p>
             </div>
             <div class="table-wrap">
                 <table>
-                    <caption>Academic requirements for entry</caption>
+                    <caption>Programme entry and application requirements</caption>
                     <thead>
                     <tr>
                         <th scope="col">Level</th>
                         <th scope="col">Programme</th>
-                        <th scope="col">Academic requirement</th>
-                        <th scope="col">Language requirement</th>
+                        <th scope="col">Application requirement</th>
                     </tr>
                     </thead>
                     <tbody>
                     <tr>
-                        <th scope="row">S1</th>
+                        <th scope="row">S1 &ndash; S4</th>
                         <td>IB MYP</td>
-                        <td>Completion of primary education (Primary 6 or equivalent).</td>
-                        <td>Evidence of English proficiency appropriate to age.</td>
-                    </tr>
-                    <tr>
-                        <th scope="row">S2 &ndash; S4</th>
-                        <td>IB MYP</td>
-                        <td>Completion of the previous year level, supported by school reports.</td>
-                        <td>English level appropriate to the year group.</td>
+                        <td>A registered parent or guardian must log in and apply for one level during its application window in the open admission year.</td>
                     </tr>
                     <tr>
                         <th scope="row">S5</th>
                         <td>IB DP</td>
-                        <td>Successful completion of MYP year 4 or equivalent, with strong results in intended HL subjects.</td>
-                        <td>English proficiency sufficient for DP coursework.</td>
+                        <td>The same membership, application-window and declaration requirements apply to entry to the Diploma Programme.</td>
                     </tr>
                     <tr>
                         <th scope="row">S6</th>
                         <td>IB DP</td>
-                        <td>Normally reserved for students continuing from S5 at this school.</td>
-                        <td>As for S5.</td>
+                        <td>Closed to new applicants by default; its quota is reserved for continuing S5 students. A new application is possible only if the Super Administrator opens S6 and its application window is current.</td>
                     </tr>
                     </tbody>
                 </table>
             </div>
             <p class="glance-foot">
-                S6 opens to new applicants only when the school opens S6 for that admission year.
-                While S6 is closed, its seat quota is held for students continuing from S5.
+                Each level has its own dates and quota. Application dates are inclusive and use Hong Kong time.
             </p>
         </div>
     </section>
@@ -135,19 +106,14 @@
     <section class="intro-section">
         <div class="intro-container split">
             <div>
-                <h2>Documents to prepare</h2>
-                <p>
-                    <!-- TODO(demo): confirm this list with the admissions office. -->
-                    Have these ready before you start; scanned copies or clear photographs are accepted.
-                </p>
+                <h2>Information to prepare</h2>
+                <p>The application asks for the applicant's personal details and identity document number.</p>
                 <ul class="checklist">
-                    <li>The applicant's HKID or passport (either document is accepted)</li>
-                    <li>Two recent school reports, or a transcript for the last two years</li>
-                    <li>Evidence of English language proficiency, if available</li>
-                    <li>A recent passport-style photograph</li>
-                    <li>Recommendation letter from the current school (optional)</li>
-                    <li>Proof of address for the family (optional)</li>
+                    <li>Full name, date of birth, gender and phone number</li>
+                    <li>Identity document type and number, and issuing country when required</li>
+                    <li>Previous school, if applicable</li>
                 </ul>
+                <p>Document files and photographs cannot be uploaded through this website.</p>
                 <p class="glance-foot">
                     Identity documents are checked for duplicates. An HKID or passport may be linked
                     to one membership only, and the email address used to register cannot be changed later.
@@ -156,19 +122,11 @@
             <div class="fact-stack">
                 <div class="fact">
                     <strong>Assessment</strong>
-                    <span>Applications are assessed by an admissions administrator on the documents you submit. There is no entrance test or interview.</span>
+                    <span>An admissions administrator reviews the information provided in the application. There is no entrance test or interview.</span>
                 </div>
                 <div class="fact">
                     <strong>One application at a time</strong>
                     <span>An applicant may hold one application in an admission year; a new one is possible only after the previous application is cancelled.</span>
-                </div>
-                <div class="fact">
-                    <strong>Offer response</strong>
-                    <span>An offer must be accepted or rejected through the website within seven days of release.</span>
-                </div>
-                <div class="fact">
-                    <strong>Fees</strong>
-                    <span>TBC &mdash; insert the approved tuition and application fee text here.</span>
                 </div>
             </div>
         </div>
@@ -187,14 +145,7 @@
 
 </main>
 
-<footer class="site-footer">
-    <div class="intro-container">
-        &copy; 2026 Christian International School &middot;
-        <a th:href="@{/about}">About</a> &middot;
-        <a th:href="@{/admission-requirements}">Admission requirements</a> &middot;
-        <a th:href="@{/login}">Sign in</a>
-    </div>
-</footer>
+<footer th:replace="~{fragments/public-chrome :: footer}"></footer>
 
 <script th:src="@{/vendor/bootstrap/5.3.2/bootstrap.bundle.min.js}"></script>
 </body>

@@ -59,8 +59,8 @@ body {
 
 .site-nav-links a:hover,
 .site-brand:hover {
-    color: #cfe2ff;
-    text-decoration: underline;
+    color: var(--cis-gold);
+    text-decoration: none;
 }
 
 .site-nav-links form {
@@ -69,15 +69,15 @@ body {
 
 .site-signout {
     padding: 0.35rem 0.65rem;
-    border: 1px solid rgb(255 255 255 / 55%);
+    border: 1px solid rgb(201 162 39 / 65%);
     border-radius: 0.35rem;
     background: transparent;
-    color: #fff;
+    color: var(--cis-cream);
     cursor: pointer;
 }
 
 .site-signout:hover {
-    background: rgb(255 255 255 / 12%);
+    background: rgb(201 162 39 / 18%);
 }
 
 /* "Explore" disclosure in the main navigation (native <details>, no JS needed). */
@@ -123,13 +123,13 @@ body {
 .site-nav-links .nav-more-panel a {
     padding: 0.35rem 0.6rem;
     border-radius: 0.35rem;
-    color: #18324b;
+    color: var(--cis-navy);
     font-size: 0.95rem;
 }
 
 .site-nav-links .nav-more-panel a:hover {
-    background: #eaf0f6;
-    color: #18324b;
+    background: #f7f0e6;
+    color: var(--cis-navy);
     text-decoration: none;
 }
 
@@ -140,7 +140,7 @@ main {
     border: 1px solid var(--cis-border);
     border-radius: 0.75rem;
     background: #fff;
-    box-shadow: 0 0.25rem 1rem rgb(24 50 75 / 7%);
+    box-shadow: none;
 }
 
 h1,
@@ -149,6 +149,9 @@ h3,
 h4,
 h5 {
     color: var(--cis-navy);
+    font-family: Georgia, "Noto Serif TC", "Songti TC", "PMingLiU", "Times New Roman", serif;
+    font-weight: 600;
+    letter-spacing: 0.01em;
 }
 
 h1 {
@@ -162,11 +165,11 @@ h2 {
 }
 
 a {
-    color: #0759bd;
+    color: #8a2430;
 }
 
 a:hover {
-    color: #064a9e;
+    color: var(--cis-navy);
 }
 
 form {
@@ -255,15 +258,15 @@ input[type="submit"],
 button:not([class]):not(.navbar-toggler),
 input[type="submit"] {
     padding: 0.55rem 1rem;
-    border: 1px solid var(--cis-blue);
-    background: var(--cis-blue);
+    border: 1px solid var(--cis-navy);
+    background: var(--cis-navy);
     color: #fff;
     cursor: pointer;
 }
 
 button:not([class]):not(.navbar-toggler):hover,
 input[type="submit"]:hover {
-    background: #0b5ed7;
+    background: #5c1620;
 }
 
 button:disabled,
@@ -302,16 +305,16 @@ td {
 }
 
 th {
-    background: #eaf0f6;
+    background: #f3ece2;
     color: var(--cis-navy);
 }
 
 tbody tr:nth-child(even) {
-    background: #f8fafc;
+    background: #fbf8f3;
 }
 
 tbody tr:hover {
-    background: #eef5fc;
+    background: #f7f0e6;
 }
 
 dl {
@@ -342,8 +345,8 @@ dd {
 
 .status-pending,
 .status-success {
-    background: #e7f1ff;
-    color: #084298;
+    background: #f5e9d0;
+    color: #6b4e16;
 }
 
 .status-wait {
@@ -352,15 +355,15 @@ dd {
 }
 
 .status-accepted {
-    background: #d1e7dd;
-    color: #0f5132;
+    background: #e3efe6;
+    color: #1f4d3a;
 }
 
 .status-fail,
 .status-rejected,
 .status-cancelled {
-    background: #e9ecef;
-    color: #41464b;
+    background: #efe8e2;
+    color: #4a4038;
 }
 
 [role="status"] {
@@ -374,7 +377,7 @@ dd {
 footer {
     padding: 1.25rem;
     border-top: 1px solid var(--cis-border);
-    color: #667487;
+    color: var(--cis-muted);
     text-align: center;
 }
 
@@ -429,103 +432,4 @@ nav[aria-label$="pages"] {
     dd {
         margin-bottom: 0.65rem;
     }
-}
-
-/* =========================================================
-   Formal palette overrides (wine / cream / gold)
-   Kept at the end so the original rules stay readable.
-   ========================================================= */
-
-h1,
-h2,
-h3,
-h4,
-h5 {
-    font-family: Georgia, "Noto Serif TC", "Songti TC", "PMingLiU", "Times New Roman", serif;
-    font-weight: 600;
-    letter-spacing: 0.01em;
-}
-
-a {
-    color: #8a2430;
-}
-
-a:hover {
-    color: var(--cis-navy);
-}
-
-main {
-    border-color: var(--cis-border);
-    box-shadow: none;
-}
-
-th {
-    background: #f3ece2;
-    color: var(--cis-navy);
-}
-
-tbody tr:nth-child(even) {
-    background: #fbf8f3;
-}
-
-tbody tr:hover {
-    background: #f7f0e6;
-}
-
-.site-nav-links a:hover,
-.site-brand:hover {
-    color: var(--cis-gold);
-    text-decoration: none;
-}
-
-.site-nav-links .nav-more-panel a {
-    color: var(--cis-navy);
-}
-
-.site-nav-links .nav-more-panel a:hover {
-    background: #f7f0e6;
-    color: var(--cis-navy);
-}
-
-.site-signout {
-    border-color: rgb(201 162 39 / 65%);
-    color: var(--cis-cream);
-}
-
-.site-signout:hover {
-    background: rgb(201 162 39 / 18%);
-}
-
-button:not([class]):not(.navbar-toggler),
-input[type="submit"] {
-    border-color: var(--cis-navy);
-    background: var(--cis-navy);
-}
-
-button:not([class]):not(.navbar-toggler):hover,
-input[type="submit"]:hover {
-    background: #5c1620;
-}
-
-.status-pending,
-.status-success {
-    background: #f5e9d0;
-    color: #6b4e16;
-}
-
-.status-accepted {
-    background: #e3efe6;
-    color: #1f4d3a;
-}
-
-.status-fail,
-.status-rejected,
-.status-cancelled {
-    background: #efe8e2;
-    color: #4a4038;
-}
-
-footer {
-    border-top-color: var(--cis-border);
-    color: var(--cis-muted);
 }

@@ -10,13 +10,9 @@
 <p>Status: <span th:text="${year.status}"></span></p>
 <h2>Programme levels</h2>
 <p th:if="${#lists.isEmpty(levels)}">No programme levels are available.</p>
-<table>
-<caption>Programmes and application periods (Hong Kong dates, inclusive)</caption>
-<thead><tr><th scope="col">Level</th><th scope="col">Programme</th><th scope="col">Seat quota</th><th scope="col">Admission</th><th scope="col">Application start</th><th scope="col">Application end</th></tr></thead>
-<tbody><tr th:each="level : ${levels}">
-<td th:text="${level.levelCode}"></td><td th:text="${level.programmeName}"></td><td th:text="${level.seatQuota}"></td>
-<td th:text="${level.admissionOpen ? 'Open' : 'Closed'}"></td><td th:text="${level.applicationStartDate}"></td><td th:text="${level.applicationEndDate}"></td>
-</tr></tbody></table>
+<th:block th:unless="${#lists.isEmpty(levels)}">
+<div th:replace="~{fragments/admission-summary :: levelTable(${year}, ${levels}, ${today})}"></div>
+</th:block>
 <p>Applications are accepted only for an active academic year during its programme application period.</p>
 <a th:href="@{/member/applications/new}">Start an application (member sign-in required)</a>
 <a th:href="@{/academic-years}">All academic years</a>

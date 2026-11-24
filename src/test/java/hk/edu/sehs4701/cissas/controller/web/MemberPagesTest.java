@@ -186,7 +186,10 @@ class MemberPagesTest {
                 .andExpect(content().string(org.hamcrest.Matchers.containsString("APP-1")))
                 .andExpect(content().string(org.hamcrest.Matchers.containsString("page=1")));
         mvc.perform(get("/member/applications/new").session(session)).andExpect(status().isOk())
-                .andExpect(content().string(org.hamcrest.Matchers.containsString("S1 - Secondary 1")));
+                .andExpect(content().string(org.hamcrest.Matchers.containsString("S1 - IB MYP")))
+                .andExpect(content().string(org.hamcrest.Matchers.containsString("collection and use")))
+                .andExpect(content().string(org.hamcrest.Matchers.containsString("Personal Data (Privacy) Ordinance")))
+                .andExpect(content().string(org.hamcrest.Matchers.containsString("consent to this application")));
         mvc.perform(post("/member/applications").session(session).with(csrf())
                         .param("levelCode", "S1").param("applicantFullName", "Applicant")
                         .param("applicantIdentityDocumentNumber", "P123456")

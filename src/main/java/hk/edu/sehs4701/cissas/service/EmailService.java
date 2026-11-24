@@ -22,6 +22,7 @@ import java.util.List;
 public class EmailService {
     private static final String REDACTED_CODE_BODY = "[One-time code email body redacted]";
     private static final String SUPERSEDED_RESULT_MESSAGE = "Superseded by a newer application result.";
+    static final String MISSING_ADMISSIONS_MAILBOX = "Admissions mailbox is not configured. Set cissas.admin.notification-email and retry.";
 
     private final EmailLogRepository emailLogRepository;
     private final ApplicationEventPublisher eventPublisher;
@@ -44,7 +45,9 @@ public class EmailService {
                 && request.application() != null) {
             emailLog.setOfferDeadlineSnapshot(request.application().getAcceptanceDeadline());
         }
-        emailLog.setRecipientEmail(request.recipientEmail());
+        boolean missingAdmissionsMailbox = request.templateType() == EmailTemplateType.APPLICATION_DUPLICATE_ALERT
+                && (request.recipientEmail() == null || request.recipientEmail().isBlank());
+        emailLog.setRecipientEmail(missingAdmissionsMailbox ? "" : request.recipientEmail());
         emailLog.setApplicantName(request.applicantName());
         emailLog.setApplicationNumber(request.applicationNumber());
         emailLog.setActionRequired(request.actionRequired());
@@ -52,11 +55,12 @@ public class EmailService {
         boolean containsOneTimeCode = request.templateType() == EmailTemplateType.OTC_VERIFICATION
                 || request.templateType() == EmailTemplateType.PASSWORD_RESET_CODE;
         emailLog.setBody(containsOneTimeCode ? REDACTED_CODE_BODY : request.body());
-        emailLog.setStatus(EmailDeliveryStatus.PENDING);
+        emailLog.setStatus(missingAdmissionsMailbox ? EmailDeliveryStatus.FAILED : EmailDeliveryStatus.PENDING);
         emailLog.setRetryCount(0);
-        emailLog.setErrorMessage(null);
+        emailLog.setErrorMessage(missingAdmissionsMailbox ? MISSING_ADMISSIONS_MAILBOX : null);
 
         EmailLog savedLog = emailLogRepository.save(emailLog);
+        if (missingAdmissionsMailbox) return;
         eventPublisher.publishEvent(new EmailSendRequestedEvent(
                 savedLog.getId(),
                 containsOneTimeCode ? request.body() : null

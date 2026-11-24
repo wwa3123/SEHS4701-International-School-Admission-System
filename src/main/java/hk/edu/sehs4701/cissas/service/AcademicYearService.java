@@ -87,7 +87,7 @@ public class AcademicYearService {
             ProgrammeLevel level = new ProgrammeLevel();
             level.setAcademicYear(savedYear);
             level.setLevelCode(code);
-            level.setProgrammeName(code == LevelCode.S5 || code == LevelCode.S6 ? "IB DP" : "IB MYP");
+            level.setProgrammeName(code.getProgrammeName());
             level.setSeatQuota(150);
             level.setAdmissionOpen(code != LevelCode.S6);
             return level;

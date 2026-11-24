@@ -1,61 +1,21 @@
 <!DOCTYPE html>
-<html xmlns:th="http://www.thymeleaf.org">
+<html lang="en" xmlns:th="http://www.thymeleaf.org">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
     <title>Admission Information - CIS</title>
     <link th:href="@{/vendor/bootstrap/5.3.2/bootstrap.min.css}" rel="stylesheet">
     <link th:href="@{/css/site.css}" rel="stylesheet">
+    <th:block th:replace="~{fragments/intro-style :: introStyle}"></th:block>
 </head>
-<body class="bg-light">
-    <header th:replace="~{fragments/navigation :: navigation}"></header>
-
-
-
-<div class="container my-5">
-    <h2 class="mb-4">Admission Information</h2>
-
-    <div th:if="${openYear == null}" class="alert alert-warning">
-        There is currently no open admission year.
-    </div>
-
-    <div th:if="${openYear != null}">
-        <div class="card shadow-sm mb-4">
-            <div class="card-body">
-                <h4 class="card-title">Admission Year: <span th:text="${openYear.name}">2026/27</span></h4>
-            </div>
-        </div>
-
-        <div class="table-responsive">
-            <table class="table table-bordered table-striped bg-white shadow-sm">
-                <thead class="table-dark">
-                <tr>
-                    <th>Programme Level</th>
-                    <th>Programme Name</th>
-                    <th>Seat Quota</th>
-                    <th>Admission</th>
-                    <th>Application Start</th>
-                    <th>Application End</th>
-                </tr>
-                </thead>
-                <tbody>
-                <tr th:each="level : ${levels}">
-                    <td th:text="${level.levelCode}">S1</td>
-                    <td th:text="${level.programmeName}">IB MYP</td>
-                    <td th:text="${level.seatQuota}">150</td>
-                    <td th:text="${level.admissionOpen ? 'Open' : 'Closed'}">Open</td>
-                    <td th:text="${level.applicationStartDate}">2026-01-01</td>
-                    <td th:text="${level.applicationEndDate}">2026-03-31</td>
-                </tr>
-                </tbody>
-            </table>
-        </div>
-    </div>
-</div>
-
-<footer class="text-center py-4 text-muted border-top bg-white mt-5">
-    <p class="mb-0">&copy; 2026 Christian International School. All rights reserved.</p>
-</footer>
-
+<body>
+<header th:replace="~{fragments/navigation :: navigation}"></header>
+<main class="intro-main">
+    <section class="intro-section">
+        <div class="intro-container"><h1>Admission information</h1></div>
+    </section>
+    <div th:replace="~{fragments/admission-summary :: summary}"></div>
+</main>
+<footer th:replace="~{fragments/public-chrome :: footer}"></footer>
 </body>
 </html>

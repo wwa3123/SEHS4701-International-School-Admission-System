@@ -23,6 +23,35 @@ import static org.mockito.Mockito.*;
 
 class EmailServiceTest {
     @Test
+    void missingAdmissionsMailboxPersistsAFailedAlertVisibleInTheAdminQueue() {
+        EmailLogRepository repository = mock(EmailLogRepository.class);
+        ApplicationEventPublisher events = mock(ApplicationEventPublisher.class);
+        when(repository.save(any(EmailLog.class))).thenAnswer(invocation -> {
+            EmailLog email = invocation.getArgument(0);
+            email.setId(9L);
+            when(repository.findAllByStatusAndTemplateTypeInOrderByIdAsc(
+                    EmailDeliveryStatus.FAILED, EmailSendAttemptService.RECOVERABLE_APPLICATION_EMAILS,
+                    PageRequest.of(0, 100))).thenReturn(new SliceImpl<>(java.util.List.of(email)));
+            return email;
+        });
+        Member member = new Member();
+        member.setEmail("member@example.com");
+        EmailService service = new EmailService(repository, events);
+
+        service.sendAndLogEmail(new EmailDispatchRequest(member, new Application(),
+                EmailTemplateType.APPLICATION_DUPLICATE_ALERT, "Applicant", "APP-1", "Contact member",
+                "Possible duplicate", "Review this application", ""));
+
+        verify(repository).save(argThat(email -> email.getStatus() == EmailDeliveryStatus.FAILED
+                && email.getRecipientEmail().isEmpty()
+                && email.getErrorMessage().equals(EmailService.MISSING_ADMISSIONS_MAILBOX)));
+        var failed = service.failedApplicationEmails(0).getContent().getFirst();
+        assertEquals("APP-1", failed.applicationNumber());
+        assertEquals(EmailService.MISSING_ADMISSIONS_MAILBOX, failed.errorMessage());
+        verifyNoInteractions(events);
+    }
+
+    @Test
     void storesTheOfferDeadlineSnapshotWithReminderEmail() {
         EmailLogRepository repository = mock(EmailLogRepository.class);
         Application application = new Application();

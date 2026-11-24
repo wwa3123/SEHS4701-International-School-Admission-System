@@ -20,7 +20,7 @@
             <select id="levelCode" th:field="*{levelCode}" required>
                 <option value="">Select a level</option>
                 <option th:each="level : ${programmeLevels}" th:value="${level.levelCode}"
-                        th:text="${level.levelCode + ' - ' + level.programmeName}"></option>
+                        th:text="${level.levelCode.displayName}"></option>
             </select></p>
         <p><label for="applicantFullName">Applicant full name</label>
             <input id="applicantFullName" th:field="*{applicantFullName}" required maxlength="120"></p>
@@ -46,9 +46,9 @@
             <p><input id="truthDeclarationAccepted" type="checkbox" th:field="*{truthDeclarationAccepted}" required>
                 <label for="truthDeclarationAccepted">I declare that the information provided is true and complete.</label></p>
             <p><input id="dataPrivacyDeclarationAccepted" type="checkbox" th:field="*{dataPrivacyDeclarationAccepted}" required>
-                <label for="dataPrivacyDeclarationAccepted">I have read and accept the data privacy declaration.</label></p>
+                <label for="dataPrivacyDeclarationAccepted">I consent to the collection and use of the personal data provided for processing this admission application under the Personal Data (Privacy) Ordinance.</label></p>
             <p><input id="parentGuardianDeclarationAccepted" type="checkbox" th:field="*{parentGuardianDeclarationAccepted}" required>
-                <label for="parentGuardianDeclarationAccepted">I confirm that I am the applicant's parent or guardian, or am authorized to submit this application on their behalf.</label></p>
+                <label for="parentGuardianDeclarationAccepted">I confirm that I am the applicant's parent or guardian and consent to this application.</label></p>
         </fieldset>
         <button type="submit" th:disabled="${#lists.isEmpty(programmeLevels)}">Submit application</button>
     </form>

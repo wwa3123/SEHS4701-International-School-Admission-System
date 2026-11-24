@@ -11,6 +11,7 @@ import hk.edu.sehs4701.cissas.enums.AcademicYearStatus;
 import hk.edu.sehs4701.cissas.enums.ActorRole;
 import hk.edu.sehs4701.cissas.enums.ApplicationStatus;
 import hk.edu.sehs4701.cissas.enums.IdentityDocumentType;
+import hk.edu.sehs4701.cissas.enums.LevelCode;
 import hk.edu.sehs4701.cissas.repository.AdminRepository;
 import hk.edu.sehs4701.cissas.repository.ApplicationRepository;
 import hk.edu.sehs4701.cissas.repository.ProgrammeLevelRepository;
@@ -63,6 +64,7 @@ class ApplicationResultServiceTest {
                 "Example", LocalDate.of(2018, 1, 1), "Unspecified", "123", "School",
                 IdentityDocumentType.HKID, "123456", null));
         level.setId(7L);
+        level.setLevelCode(LevelCode.S1);
         level.setProgrammeName("Primary");
         level.setApplicationEndDate(LocalDate.of(2020, 9, 30));
         level.setSeatQuota(2);
@@ -96,7 +98,7 @@ class ApplicationResultServiceTest {
             }
         }
         verify(history, times(3)).save(any(StatusHistory.class));
-        verify(notifications, times(3)).notifyApplicationResult(any(), eq(false), isNull(), eq(false));
+        verify(notifications, times(3)).notifyApplicationResult(any(), eq(false), eq(false));
     }
 
     @Test
@@ -142,7 +144,7 @@ class ApplicationResultServiceTest {
         verify(history).save(saved.capture());
         assertEquals(ApplicationStatus.Wait, saved.getValue().getFromStatus());
         assertEquals(ApplicationStatus.Success, saved.getValue().getToStatus());
-        verify(notifications).notifyApplicationResult(application, false, null, true);
+        verify(notifications).notifyApplicationResult(application, false, true);
     }
 
     @Test
@@ -166,12 +168,12 @@ class ApplicationResultServiceTest {
                 () -> service.setResult(42L, "APP-1", ApplicationStatus.Success, "  ")).getStatusCode());
         when(applications.countByProgrammeLevel_IdAndStatusIn(7L,
                 List.of(ApplicationStatus.Success, ApplicationStatus.Accepted))).thenReturn(0L);
-        service.setResult(42L, "APP-1", ApplicationStatus.Success, "Corrected clerical error");
+        service.setResult(42L, "APP-1", ApplicationStatus.Success, "Corrected identity A123456(3)");
 
         verify(history).save(argThat(entry -> entry.getFromStatus() == ApplicationStatus.Fail
                 && entry.getToStatus() == ApplicationStatus.Success
-                && "Corrected clerical error".equals(entry.getRemarks())));
-        verify(notifications).notifyApplicationResult(application, true, "Corrected clerical error", false);
+                && "Corrected identity A123456(3)".equals(entry.getRemarks())));
+        verify(notifications).notifyApplicationResult(application, true, false);
     }
 
     @Test
@@ -194,7 +196,7 @@ class ApplicationResultServiceTest {
 
         assertFalse(service.setResult(42L, "APP-1", ApplicationStatus.Fail, "Correction"));
         assertEquals(ApplicationStatus.Rejected, application.getStatus());
-        verify(notifications, never()).notifyApplicationResult(any(), anyBoolean(), any(), anyBoolean());
+        verify(notifications, never()).notifyApplicationResult(any(), anyBoolean(), anyBoolean());
     }
 
     @Test
@@ -287,11 +289,25 @@ class ApplicationResultServiceTest {
         LocalDateTime deadline = LocalDateTime.now(ZoneId.of("Asia/Hong_Kong")).plusHours(168);
         application.setAcceptanceDeadline(deadline);
         var confirmation = service.offer(5L, "APP-1", OfferDecisionRequest.Decision.Accept);
-        assertEquals("Primary", confirmation.programmeLevel());
+        assertEquals("S1 - IB MYP", confirmation.programmeLevel());
         assertEquals("APP-1", confirmation.applicationNumber());
         assertEquals(deadline, confirmation.acceptanceDeadline());
         assertEquals(HttpStatus.NOT_FOUND, assertThrows(ResponseStatusException.class,
                 () -> service.offer(6L, "APP-1", OfferDecisionRequest.Decision.Accept)).getStatusCode());
+    }
+
+    @Test
+    void confirmationsAndEnquiriesDistinguishEverySchoolLevelEvenWithLegacyProgrammeNames() {
+        application.setStatus(ApplicationStatus.Success);
+        application.setAcceptanceDeadline(LocalDateTime.now(ZoneId.of("Asia/Hong_Kong")).plusHours(24));
+        var expected = List.of("S1 - IB MYP", "S2 - IB MYP", "S3 - IB MYP",
+                "S4 - IB MYP", "S5 - IB DP", "S6 - IB DP");
+        for (int index = 0; index < LevelCode.values().length; index++) {
+            level.setLevelCode(LevelCode.values()[index]);
+            assertEquals(expected.get(index),
+                    service.offer(5L, "APP-1", OfferDecisionRequest.Decision.Accept).programmeLevel());
+            assertEquals(expected.get(index), service.memberResult(5L, "APP-1").programmeLevel());
+        }
     }
 
     @Test
@@ -319,6 +335,7 @@ class ApplicationResultServiceTest {
 
         assertEquals("Example", result.applicantName());
         assertEquals("2026/27", result.academicYear());
+        assertEquals("S1 - IB MYP", result.programmeLevel());
         assertEquals("123", result.phone());
         assertEquals(IdentityDocumentType.HKID, result.identityDocumentType());
         assertEquals("123456", result.identityDocumentNumber());
@@ -339,6 +356,7 @@ class ApplicationResultServiceTest {
 
         assertEquals("APP-1", result.getContent().getFirst().applicationNumber());
         assertEquals(7L, result.getContent().getFirst().programmeLevelId());
+        assertEquals("S1 - IB MYP", result.getContent().getFirst().programmeLevel());
         assertEquals(ApplicationStatus.Pending, result.getContent().getFirst().status());
         assertEquals(HttpStatus.BAD_REQUEST, assertThrows(ResponseStatusException.class,
                 () -> service.listApplications(42L, null, null, 0, 101)).getStatusCode());
@@ -387,7 +405,7 @@ class ApplicationResultServiceTest {
         var result = service.memberApplications(5L, 0, 25);
 
         assertEquals("APP-1", result.getContent().getFirst().applicationNumber());
-        assertEquals("Primary", result.getContent().getFirst().programmeLevel());
+        assertEquals("S1 - IB MYP", result.getContent().getFirst().programmeLevel());
         verify(applications).findAllByMember_IdOrderByIdAsc(5L, PageRequest.of(0, 25));
     }
 
